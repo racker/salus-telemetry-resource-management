@@ -1,0 +1,12 @@
+resource-management:
+  kafka-topics:
+    LOG:
+      telemetry.logs.json
+    METRIC:
+      telemetry.metrics.json
+    EVENT:
+      telemetry.events.json
+    ATTACH:
+      attaches
+    RESOURCE:
+      resources
