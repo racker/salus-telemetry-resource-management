@@ -19,9 +19,8 @@ package com.rackspace.salus.resource_management.services;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.rackspace.salus.resource_management.config.ResourceManagementProperties;
 import com.rackspace.salus.resource_management.types.KafkaMessageType;
-import com.rackspace.salus.telemetry.events.AttachEvent;
+import com.rackspace.salus.telemetry.messaging.AttachEvent;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Service;
@@ -51,24 +50,8 @@ public class KafkaIngress {
         return this.topic;
     }
 
-    @KafkaListener(topics = "#{__listener.topic}")
-    //@KafkaListener(topics = "#{'${resource-management.topics}'.split(',')}")
-    public void listen(ConsumerRecord<String, String> cr) throws Exception {
-        log.info("Received new resource event from {}: {}", cr.toString(), cr.topic());
-        //String envoyInstanceId = cr.key();??
-        if (cr.topic().equals("attaches")) {
-            processAttachTopic(cr);
-        }
-    }
-
-    /**
-     * This receives an envoy attach event from Kafka and passes it to the resource manager to do whatever is needed.
-     * @param cr The AttachEvent read from Kafka.
-     * @throws Exception
-     */
-    public void processAttachTopic(ConsumerRecord<String, String> cr) throws Exception {
-        String value = cr.value();
-        AttachEvent attachEvent = objectMapper.readValue(value, AttachEvent.class);
+    @KafkaListener(topics = "${resource-management.kafka-topics.ATTACH}")
+    public void handleAttachEvent(AttachEvent attachEvent) throws Exception {
         log.info("Processing new attach event: {}", attachEvent.toString());
         resourceManagement.handleEnvoyAttach(attachEvent);
     }
