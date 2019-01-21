@@ -38,7 +38,6 @@ import javax.persistence.criteria.CriteriaBuilder;
 import javax.persistence.criteria.CriteriaQuery;
 import javax.persistence.criteria.Root;
 import javax.validation.Valid;
-import java.lang.reflect.InvocationTargetException;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Stream;
@@ -66,7 +65,7 @@ public class ResourceManagement {
      * @param resource The resource object to create/update in the database.
      * @param oldLabels The labels of the resource prior to any modifications.
      * @param presenceMonitoringStateChanged Whether the presence monitoring flag has been switched.
-     * @param operation
+     * @param operation The type of event that occurred. e.g. create, update, or delete.
      * @return
      */
     public Resource saveAndPublishResource(Resource resource, Map<String, String> oldLabels,
@@ -76,6 +75,12 @@ public class ResourceManagement {
         return resource;
     }
 
+    /**
+     * Gets an individual resource object by the public facing id.
+     * @param tenantId The tenant owning the resource.
+     * @param resourceId The unique value representing the resource.
+     * @return The resource object.
+     */
     public Resource getResource(String tenantId, String resourceId) {
         CriteriaBuilder cb = entityManager.getCriteriaBuilder();
         CriteriaQuery<Resource> cr = cb.createQuery(Resource.class);
@@ -94,10 +99,21 @@ public class ResourceManagement {
         return result;
     }
 
+    /**
+     * Get a selection of resource objects across all accounts.
+     * @param page The slice of results to be returned.
+     * @return The resources found that match the page criteria.
+     */
     public Page<Resource> getAllResources(Pageable page) {
         return resourceRepository.findAll(page);
     }
 
+    /**
+     * Same as {@link #getAllResources(Pageable page) getAllResources} except restricted to a single tenant.
+     * @param tenantId The tenant to select resources from.
+     * @param page The slice of results to be returned.
+     * @return The resources found for the tenant that match the page criteria.
+     */
     public Page<Resource> getResources(String tenantId, Pageable page) {
         CriteriaBuilder cb = entityManager.getCriteriaBuilder();
         CriteriaQuery<Resource> cr = cb.createQuery(Resource.class);
@@ -115,6 +131,11 @@ public class ResourceManagement {
         // use geoff's label search query
     }*/
 
+    /**
+     * Get all resources where the presence monitoring field matches the parameter provided.
+     * @param presenceMonitoringEnabled Whether presence monitoring is enabled or not.
+     * @return Stream of resources.
+     */
     public Stream<Resource> getResources(boolean presenceMonitoringEnabled) {
         CriteriaBuilder cb = entityManager.getCriteriaBuilder();
         CriteriaQuery<Resource> cr = cb.createQuery(Resource.class);
@@ -126,7 +147,15 @@ public class ResourceManagement {
         return entityManager.createQuery(cr).getResultStream();
     }
 
-    public List<Resource> getResources(String tenantId, boolean presenceMonitoringEnabled) {
+    /**
+     * Similar to {@link #getResources(boolean presenceMonitoringEnabled) getResources} except restricted to a
+     * single tenant, and returns a list.
+     * @param tenantId The tenant to select resources from.
+     * @param presenceMonitoringEnabled Whether presence monitoring is enabled or not.
+     * @param page The slice of results to be returned.
+     * @return A page or resources matching the given criteria.
+     */
+    public Page<Resource> getResources(String tenantId, boolean presenceMonitoringEnabled, Pageable page) {
         CriteriaBuilder cb = entityManager.getCriteriaBuilder();
         CriteriaQuery<Resource> cr = cb.createQuery(Resource.class);
         Root<Resource> root = cr.from(Resource.class);
@@ -135,9 +164,19 @@ public class ResourceManagement {
                 cb.equal(root.get(Resource_.tenantId), tenantId),
                 cb.equal(root.get(Resource_.presenceMonitoringEnabled), presenceMonitoringEnabled)));
 
-        return entityManager.createQuery(cr).getResultList();
+        List<Resource> resources = entityManager.createQuery(cr).getResultList();
+
+        return new PageImpl<>(resources, page, resources.size());
     }
 
+    /**
+     * Create a new resource in the database and publish an event to kafka.
+     * @param tenantId The tenant to create the entity for.
+     * @param newResource The resource parameters to store.
+     * @return The newly created resource.
+     * @throws IllegalArgumentException
+     * @throws ResourceAlreadyExists
+     */
     public Resource createResource(String tenantId, @Valid ResourceCreate newResource) throws IllegalArgumentException, ResourceAlreadyExists {
         Resource existing = getResource(tenantId, newResource.getResourceId());
         if (existing != null) {
@@ -156,6 +195,13 @@ public class ResourceManagement {
         return resource;
     }
 
+    /**
+     * Update an existing resource and publish an event to kafka.
+     * @param tenantId The tenant to create the entity for.
+     * @param resourceId The id of the existing resource.
+     * @param updatedValues The new resource parameters to store.
+     * @return The newly updated resource.
+     */
     public Resource updateResource(String tenantId, String resourceId, @Valid ResourceUpdate updatedValues) {
         Resource resource = getResource(tenantId, resourceId);
         if (resource == null) {
@@ -182,17 +228,28 @@ public class ResourceManagement {
         return resource;
     }
 
+    /**
+     * Delete a resource and publish an event to kafka.
+     * @param tenantId The tenant the resource belongs to.
+     * @param resourceId The id of the resource.
+     */
     public void removeResource(String tenantId, String resourceId) {
         Resource resource = getResource(tenantId, resourceId);
         if (resource != null) {
             resourceRepository.deleteById(resource.getId());
+            publishResourceEvent(resource, null, resource.getPresenceMonitoringEnabled(), OperationType.DELETE);
         } else {
             throw new NotFoundException(String.format("No resource found for %s on tenant %s",
                     resourceId, tenantId));
         }
-
     }
 
+    /**
+     * Registers or updates resources in the datastore.
+     * Prefixes the labels received from the envoy so they do not clash with any api specified values.
+     *
+     * @param attachEvent The event triggered from the Ambassador by any envoy attachment.
+     */
     public void handleEnvoyAttach(AttachEvent attachEvent) {
         String tenantId = attachEvent.getTenantId();
         String resourceId = attachEvent.getResourceId();
@@ -219,33 +276,46 @@ public class ResourceManagement {
         }
     }
 
+    /**
+     * When provided with a list of envoy labels determine which ones need to be modified and perform an update.
+     * @param resource The resource to update.
+     * @param envoyLabels The list of labels received from a newly connected envoy.
+     */
     private void updateEnvoyLabels(Resource resource, Map<String, String> envoyLabels) {
         AtomicBoolean updated = new AtomicBoolean(false);
-        Map<String, String> resourceLabels = resource.getLabels();
+        Map<String, String> resourceLabels = resource.getLabels().;
         Map<String, String> oldLabels = new HashMap<>(resourceLabels);
 
-        resource.getLabels().forEach((name, value) -> {
-            if (envoyLabels.containsKey(name)) {
-                if (envoyLabels.get(name) != value) {
+        oldLabels.forEach((name, value) -> {
+            if (name.startsWith("envoy.")) {
+                if (envoyLabels.containsKey(name)) {
+                    if (envoyLabels.get(name) != value) {
+                        updated.set(true);
+                        resourceLabels.put(name, value);
+                    }
+                } else {
                     updated.set(true);
-                    resourceLabels.put(name, value);
+                    resourceLabels.remove(name);
                 }
-            } else {
-                updated.set(true);
-                resourceLabels.put(name, value);
             }
         });
         if (updated.get()) {
-            resource.setLabels(resourceLabels);
             saveAndPublishResource(resource, oldLabels, false, OperationType.UPDATE);
         }
     }
 
-    private void publishResourceEvent(Resource resource, Map<String, String> oldLabels, boolean envoyChanged, OperationType operation) {
+    /**
+     * Publish a resource event to kafka for consumption by other services.
+     * @param resource The updated resource the operation was performed on.
+     * @param oldLabels The resource labels prior to any update.
+     * @param presenceMonitoringStateChanged Whether the presence monitoring flag has been switched.
+     * @param operation The type of event that occurred. e.g. create, update, or delete.
+     */
+    private void publishResourceEvent(Resource resource, Map<String, String> oldLabels, boolean presenceMonitoringStateChanged, OperationType operation) {
         ResourceEvent event = new ResourceEvent();
         event.setResource(resource);
         event.setOldLabels(oldLabels);
-        event.setPresenceMonitorChange(envoyChanged);
+        event.setPresenceMonitorChange(presenceMonitoringStateChanged);
         event.setOperation(operation);
 
         kafkaEgress.sendResourceEvent(event);
