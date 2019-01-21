@@ -1,3 +1,5 @@
+server:
+  port: 8085
 resource-management:
   kafka-topics:
     LOG:
@@ -10,3 +12,23 @@ resource-management:
       attaches
     RESOURCE:
       resources
+spring:
+  kafka:
+    producer:
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+    consumer:
+      group-id: resource-managers
+      auto-offset-reset: latest
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring:
+          json:
+            trusted:
+              packages: com.rackspace.salus.telemetry.messaging
+  http:
+    log-request-details: true
+logging:
+  level:
+    web: debug
+
+

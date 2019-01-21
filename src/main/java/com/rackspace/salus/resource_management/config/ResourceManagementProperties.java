@@ -14,9 +14,9 @@
  * limitations under the License.
  */
 
-package com.rackspace.salus.resource_management.services.config;
+package com.rackspace.salus.resource_management.config;
 
-import com.rackspace.salus.resource_management.services.types.KafkaMessageType;
+import com.rackspace.salus.telemetry.messaging.KafkaMessageType;
 import lombok.Data;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.stereotype.Component;

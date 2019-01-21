@@ -14,27 +14,30 @@
  * limitations under the License.
  */
 
-package com.rackspace.salus.resource_management.services.services;
+package com.rackspace.salus.resource_management.services;
 
+import com.rackspace.salus.resource_management.web.model.ResourceCreate;
+import com.rackspace.salus.resource_management.web.model.ResourceUpdate;
 import com.rackspace.salus.telemetry.errors.ResourceAlreadyExists;
-import com.rackspace.salus.telemetry.events.ResourceEvent;
+import com.rackspace.salus.telemetry.messaging.ResourceEvent;
 import com.rackspace.salus.telemetry.model.*;
-import com.rackspace.salus.telemetry.events.*;
+import com.rackspace.salus.telemetry.messaging.*;
 import com.rackspace.salus.telemetry.repositories.ResourceRepository;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.beanutils.BeanUtilsBean;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.context.properties.PropertyMapper;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Propagation;
-import org.springframework.transaction.annotation.Transactional;
 
 import javax.persistence.EntityManager;
 import javax.persistence.NoResultException;
 import javax.persistence.PersistenceContext;
 import javax.persistence.criteria.CriteriaBuilder;
 import javax.persistence.criteria.CriteriaQuery;
-import javax.persistence.criteria.Join;
 import javax.persistence.criteria.Root;
+import javax.validation.Valid;
 import java.lang.reflect.InvocationTargetException;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -56,21 +59,30 @@ public class ResourceManagement {
         this.entityManager = entityManager;
     }
 
-    public Resource saveAndPublishResource(Resource resource, Map<String, String> oldLabels, boolean envoyChanged, String operation) {
+    /**
+     * Creates or updates the resource depending on whether the ID already exists.
+     * Also sends a resource event to kafka for consumption by other services.
+     *
+     * @param resource The resource object to create/update in the database.
+     * @param oldLabels The labels of the resource prior to any modifications.
+     * @param presenceMonitoringStateChanged Whether the presence monitoring flag has been switched.
+     * @param operation
+     * @return
+     */
+    public Resource saveAndPublishResource(Resource resource, Map<String, String> oldLabels,
+                                           boolean presenceMonitoringStateChanged, OperationType operation) {
         resourceRepository.save(resource);
-        publishResourceEvent(resource, oldLabels, envoyChanged, operation);
+        publishResourceEvent(resource, oldLabels, presenceMonitoringStateChanged, operation);
         return resource;
     }
 
-    public Resource getResource(String tenantId, String identifierName, String identifierValue) {
+    public Resource getResource(String tenantId, String resourceId) {
         CriteriaBuilder cb = entityManager.getCriteriaBuilder();
         CriteriaQuery<Resource> cr = cb.createQuery(Resource.class);
         Root<Resource> root = cr.from(Resource.class);
-        Join<Resource, ResourceIdentifier> identifier = root.join(Resource_.resourceIdentifier);
         cr.select(root).where(cb.and(
                 cb.equal(root.get(Resource_.tenantId), tenantId),
-                cb.equal(identifier.get(ResourceIdentifier_.identifierName), identifierName),
-                cb.equal(identifier.get(ResourceIdentifier_.identifierValue), identifierValue)));
+                cb.equal(root.get(Resource_.resourceId), resourceId)));
 
         Resource result;
         try {
@@ -82,20 +94,20 @@ public class ResourceManagement {
         return result;
     }
 
-    public List<Resource> getAllResources() {
-        List<Resource> result = new ArrayList<>();
-        resourceRepository.findAll().forEach(result::add);
-        return result;
+    public Page<Resource> getAllResources(Pageable page) {
+        return resourceRepository.findAll(page);
     }
 
-    public List<?> getResources(String tenantId) {
+    public Page<Resource> getResources(String tenantId, Pageable page) {
         CriteriaBuilder cb = entityManager.getCriteriaBuilder();
         CriteriaQuery<Resource> cr = cb.createQuery(Resource.class);
         Root<Resource> root = cr.from(Resource.class);
         cr.select(root).where(
                 cb.equal(root.get(Resource_.tenantId), tenantId));
 
-        return entityManager.createQuery(cr).getResultList();
+        List<Resource> resources = entityManager.createQuery(cr).getResultList();
+
+        return new PageImpl<>(resources, page, resources.size());
     }
 
     /**
@@ -103,113 +115,111 @@ public class ResourceManagement {
         // use geoff's label search query
     }*/
 
-    public Stream<Resource> getResources(boolean hasEnvoy) {
+    public Stream<Resource> getResources(boolean presenceMonitoringEnabled) {
         CriteriaBuilder cb = entityManager.getCriteriaBuilder();
         CriteriaQuery<Resource> cr = cb.createQuery(Resource.class);
         Root<Resource> root = cr.from(Resource.class);
 
         cr.select(root).where(
-                cb.equal(root.get(Resource_.presenceMonitoringEnabled), hasEnvoy));
+                cb.equal(root.get(Resource_.presenceMonitoringEnabled), presenceMonitoringEnabled));
 
         return entityManager.createQuery(cr).getResultStream();
     }
 
-    public List<Resource> getResources(String tenantId, boolean hasEnvoy) {
+    public List<Resource> getResources(String tenantId, boolean presenceMonitoringEnabled) {
         CriteriaBuilder cb = entityManager.getCriteriaBuilder();
         CriteriaQuery<Resource> cr = cb.createQuery(Resource.class);
         Root<Resource> root = cr.from(Resource.class);
 
         cr.select(root).where(cb.and(
                 cb.equal(root.get(Resource_.tenantId), tenantId),
-                cb.equal(root.get(Resource_.presenceMonitoringEnabled), hasEnvoy)));
+                cb.equal(root.get(Resource_.presenceMonitoringEnabled), presenceMonitoringEnabled)));
 
         return entityManager.createQuery(cr).getResultList();
     }
 
-    public Resource updateResource(String tenantId, String identifierName, String identifierValue, Resource updatedValues) throws ResourceAlreadyExists {
-        Resource resource = getResource(tenantId, identifierName, identifierValue);
-
-        if (!resource.getResourceIdentifier().toString().equals(updatedValues.getResourceIdentifier().toString())) {
-            String newIdentifierName = updatedValues.getResourceIdentifier().getIdentifierName();
-            String newIdentifierValue = updatedValues.getResourceIdentifier().getIdentifierValue();
-            Resource existingWithIdentifier = getResource(tenantId, newIdentifierName, newIdentifierValue);
-
-            if (existingWithIdentifier != null) {
-                throw new ResourceAlreadyExists(String.format("Resource already exists with identifier %s on tenant %s",
-                        updatedValues.getResourceIdentifier().toString(), tenantId));
-            }
+    public Resource createResource(String tenantId, @Valid ResourceCreate newResource) throws IllegalArgumentException, ResourceAlreadyExists {
+        Resource existing = getResource(tenantId, newResource.getResourceId());
+        if (existing != null) {
+            throw new ResourceAlreadyExists(String.format("Resource already exists with identifier %s on tenant %s",
+                    newResource.getResourceId(), tenantId));
         }
 
-        Map<String, String> oldLabels = new HashMap<>(resource.getLabels());
-        boolean envoyChanged = resource.isPresenceMonitoringEnabled() != updatedValues.isPresenceMonitoringEnabled();
+        Resource resource = new Resource()
+                .setTenantId(tenantId)
+                .setResourceId(newResource.getResourceId())
+                .setLabels(newResource.getLabels())
+                .setPresenceMonitoringEnabled(newResource.getPresenceMonitoringEnabled());
 
-        try {
-            log.info("Copying {} to {}.", updatedValues.toString(), resource.toString());
-            nullAwareBeanCopy(resource, updatedValues);
-            log.info("End result is {}", resource.toString());
-        } catch (Exception e) {
-            log.error(e.toString());
-        }
-
-        saveAndPublishResource(resource, oldLabels, envoyChanged, "update");
+        resource = saveAndPublishResource(resource, null, resource.getPresenceMonitoringEnabled(), OperationType.CREATE);
 
         return resource;
     }
 
-    public static void nullAwareBeanCopy(Object dest, Object source) throws IllegalAccessException, InvocationTargetException {
-        new BeanUtilsBean() {
-            @Override
-            public void copyProperty(Object dest, String name, Object value)
-                    throws IllegalAccessException, InvocationTargetException {
-                if(value != null) {
-                    super.copyProperty(dest, name, value);
-                }
-            }
-        }.copyProperties(dest, source);
+    public Resource updateResource(String tenantId, String resourceId, @Valid ResourceUpdate updatedValues) {
+        Resource resource = getResource(tenantId, resourceId);
+        if (resource == null) {
+            throw new NotFoundException(String.format("No resource found for %s on tenant %s",
+                    resourceId, tenantId));
+        }
+        Map<String, String> oldLabels = new HashMap<>(resource.getLabels());
+        boolean presenceMonitoringStateChange = false;
+        if (updatedValues.getPresenceMonitoringEnabled() != null) {
+            presenceMonitoringStateChange = resource.getPresenceMonitoringEnabled().booleanValue()
+                    != updatedValues.getPresenceMonitoringEnabled().booleanValue();
+        }
+
+        PropertyMapper map = PropertyMapper.get();
+        map.from(updatedValues.getLabels())
+                .whenNonNull()
+                .to(resource::setLabels);
+        map.from(updatedValues.getPresenceMonitoringEnabled())
+                .whenNonNull()
+                .to(resource::setPresenceMonitoringEnabled);
+
+        saveAndPublishResource(resource, oldLabels, presenceMonitoringStateChange, OperationType.UPDATE);
+
+        return resource;
     }
 
-    public void removeResource(String tenantId, String identifierName, String identifierValue) {
-        Resource resource = getResource(tenantId, identifierName, identifierValue);
+    public void removeResource(String tenantId, String resourceId) {
+        Resource resource = getResource(tenantId, resourceId);
         if (resource != null) {
             resourceRepository.deleteById(resource.getId());
         } else {
-            throw new NotFoundException(String.format("No resource found for %s:%s on tenant %s",
-                    identifierName, identifierValue, tenantId));
+            throw new NotFoundException(String.format("No resource found for %s on tenant %s",
+                    resourceId, tenantId));
         }
 
     }
 
-    @Transactional(propagation = Propagation.REQUIRED)
     public void handleEnvoyAttach(AttachEvent attachEvent) {
         String tenantId = attachEvent.getTenantId();
-        String identifierName = attachEvent.getIdentifierName();
-        String identifierValue = attachEvent.getIdentifierValue();
+        String resourceId = attachEvent.getResourceId();
         Map<String, String> labels = attachEvent.getLabels();
         labels = applyNamespaceToKeys(labels, "envoy");
 
-        ResourceIdentifier identifier = new ResourceIdentifier()
-                .setIdentifierName(identifierName)
-                .setIdentifierValue(identifierValue);
-
-        Resource existing = getResource(tenantId, identifierName, identifierValue);
+        Resource existing = getResource(tenantId, resourceId);
 
         if (existing == null) {
             log.debug("No resource found for new envoy attach");
             Resource newResource = new Resource()
                     .setTenantId(tenantId)
-                    .setResourceIdentifier(identifier)
+                    .setResourceId(resourceId)
                     .setLabels(labels)
                     .setPresenceMonitoringEnabled(true);
-            saveAndPublishResource(newResource, null, true, "create");
+            saveAndPublishResource(newResource, null, true, OperationType.CREATE);
         } else {
             log.debug("Found existing resource related to envoy: {}", existing.toString());
+
+            Map<String,String> oldLabels = new HashMap<>(existing.getLabels());
+
             updateEnvoyLabels(existing, labels);
+            saveAndPublishResource(existing, oldLabels, false, OperationType.UPDATE);
         }
     }
 
     private void updateEnvoyLabels(Resource resource, Map<String, String> envoyLabels) {
-        log.debug("Processing new envoy with {} labels", envoyLabels.size());
-        log.debug("Existing resource has {} labels", resource.getLabels().size());
         AtomicBoolean updated = new AtomicBoolean(false);
         Map<String, String> resourceLabels = resource.getLabels();
         Map<String, String> oldLabels = new HashMap<>(resourceLabels);
@@ -227,22 +237,19 @@ public class ResourceManagement {
         });
         if (updated.get()) {
             resource.setLabels(resourceLabels);
-            saveAndPublishResource(resource, oldLabels, false, "update");
+            saveAndPublishResource(resource, oldLabels, false, OperationType.UPDATE);
         }
     }
 
-    private void publishResourceEvent(Resource resource, Map<String, String> oldLabels, boolean envoyChanged, String operation) {
+    private void publishResourceEvent(Resource resource, Map<String, String> oldLabels, boolean envoyChanged, OperationType operation) {
         ResourceEvent event = new ResourceEvent();
         event.setResource(resource);
         event.setOldLabels(oldLabels);
         event.setPresenceMonitorChange(envoyChanged);
-        event.setTenantId(resource.getTenantId());
         event.setOperation(operation);
 
-        //kafkaEgress.send(resource.getTenantId(), KafkaMessageType.RESOURCE, event);
+        kafkaEgress.sendResourceEvent(event);
     }
-
-    //public Resource migrateResourceToTenant(String oldTenantId, String newTenantId, String identifierName, String identifierValue) {}
 
     /**
      * Receives a map of strings and adds the given namespace as a prefix to the key.
@@ -258,13 +265,29 @@ public class ResourceManagement {
         return prefixedMap;
     }
 
-    private void removePresenceMonitoring(String tenantId, String identifierName, String identifierValue) {
-        Resource resource = getResource(tenantId, identifierName, identifierValue);
+    /**
+     * This can be used to force a presence monitoring change if it is currently running but should not be.
+     *
+     * If the resource no longer exists, we will still send an event in case presence monitoring is still active.
+     * This case will also ensure the monitor mgmt service removed any active monitors.
+     *
+     * @param tenantId The tenant associated to the resource.
+     * @param resourceId THe id of the resource we need to disable monitoring of.
+     */
+    private void removePresenceMonitoring(String tenantId, String resourceId) {
+        Resource resource = getResource(tenantId, resourceId);
         if (resource == null) {
             log.debug("No resource found to remove presence monitoring");
+            resource = new Resource()
+                    .setTenantId(tenantId)
+                    .setResourceId(resourceId)
+                    .setPresenceMonitoringEnabled(false);
         } else {
             resource.setPresenceMonitoringEnabled(false);
-            saveAndPublishResource(resource, resource.getLabels(), true, "update");
         }
+
+        saveAndPublishResource(resource, resource.getLabels(), true, OperationType.UPDATE);
     }
+
+    //public Resource migrateResourceToTenant(String oldTenantId, String newTenantId, String identifierName, String identifierValue) {}
 }
