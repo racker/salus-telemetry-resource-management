@@ -14,10 +14,12 @@
  * limitations under the License.
  */
 
-package com.rackspace.salus.resource_management.services.services;
+package com.rackspace.salus.resource_management.services;
 
-import com.rackspace.salus.resource_management.services.config.ResourceManagementProperties;
-import com.rackspace.salus.resource_management.services.types.KafkaMessageType;
+import com.rackspace.salus.resource_management.config.ResourceManagementProperties;
+import com.rackspace.salus.telemetry.messaging.KafkaMessageType;
+import com.rackspace.salus.telemetry.messaging.ResourceEvent;
+import com.rackspace.salus.telemetry.model.Resource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
@@ -25,20 +27,23 @@ import org.springframework.stereotype.Service;
 @Service
 public class KafkaEgress {
 
-    private final KafkaTemplate kafkaTemplate;
+    private final KafkaTemplate<String,Object> kafkaTemplate;
     private final ResourceManagementProperties properties;
 
     @Autowired
-    public KafkaEgress(KafkaTemplate kafkaTemplate, ResourceManagementProperties properties) {
+    public KafkaEgress(KafkaTemplate<String,Object> kafkaTemplate, ResourceManagementProperties properties) {
         this.kafkaTemplate = kafkaTemplate;
         this.properties= properties;
     }
 
-    public void send(String tenantId, KafkaMessageType messageType, String payload) {
-        final String topic = properties.getKafkaTopics().get(messageType);
+    public void sendResourceEvent(ResourceEvent event) {
+        final String topic = properties.getKafkaTopics().get(KafkaMessageType.RESOURCE);
         if (topic == null) {
-            throw new IllegalArgumentException(String.format("No topic configured for %s", messageType));
+            throw new IllegalArgumentException(String.format("No topic configured for %s", KafkaMessageType.RESOURCE));
         }
-        kafkaTemplate.send(topic, tenantId, payload);
+
+        Resource resource = event.getResource();
+        String key = String.format("%s:%s", resource.getTenantId(), resource.getResourceId());
+        kafkaTemplate.send(topic, key, event);
     }
 }

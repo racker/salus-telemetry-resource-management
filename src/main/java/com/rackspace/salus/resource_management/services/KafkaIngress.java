@@ -14,14 +14,12 @@
  * limitations under the License.
  */
 
-package com.rackspace.salus.resource_management.services.services;
+package com.rackspace.salus.resource_management.services;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.rackspace.salus.resource_management.services.config.ResourceManagementProperties;
-import com.rackspace.salus.resource_management.services.types.KafkaMessageType;
-import com.rackspace.salus.telemetry.events.AttachEvent;
+import com.rackspace.salus.resource_management.config.ResourceManagementProperties;
+import com.rackspace.salus.telemetry.messaging.AttachEvent;
+import com.rackspace.salus.telemetry.messaging.KafkaMessageType;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Service;
@@ -30,14 +28,12 @@ import org.springframework.stereotype.Service;
 @Slf4j
 public class KafkaIngress {
 
-    private final ObjectMapper objectMapper;
     private final ResourceManagementProperties properties;
     private final ResourceManagement resourceManagement;
     private final String topic;
 
     @Autowired
-    public KafkaIngress(ObjectMapper objectMapper, ResourceManagementProperties properties, ResourceManagement resourceManagement) {
-        this.objectMapper = objectMapper;
+    public KafkaIngress(ResourceManagementProperties properties, ResourceManagement resourceManagement) {
         this.properties = properties;
         this.resourceManagement = resourceManagement;
         this.topic = this.properties.getKafkaTopics().get(KafkaMessageType.ATTACH);
@@ -53,15 +49,11 @@ public class KafkaIngress {
 
     /**
      * This receives an envoy attach event from Kafka and passes it to the resource manager to do whatever is needed.
-     * @param cr The AttachEvent read from Kafka.
+     * @param attachEvent The AttachEvent read from Kafka.
      * @throws Exception
      */
     @KafkaListener(topics = "#{__listener.topic}")
-    //@KafkaListener(topics = "#{'${resource-management.topics}'.split(',')}")
-    public void consumeAttachEvents(ConsumerRecord<String, String> cr) throws Exception {
-        log.info("Received new resource event from {}: {}", cr.toString(), cr.topic());
-        String value = cr.value();
-        AttachEvent attachEvent = objectMapper.readValue(value, AttachEvent.class);
+    public void consumeAttachEvents(AttachEvent attachEvent) throws Exception {
         log.info("Processing new attach event: {}", attachEvent.toString());
         resourceManagement.handleEnvoyAttach(attachEvent);
     }
