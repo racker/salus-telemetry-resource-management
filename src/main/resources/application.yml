@@ -9,9 +9,9 @@ resource-management:
     EVENT:
       telemetry.events.json
     ATTACH:
-      attaches
+      telemetry.attaches.json
     RESOURCE:
-      resources
+      telemetry.resources.json
 spring:
   kafka:
     producer:
