@@ -28,6 +28,7 @@ import com.rackspace.salus.telemetry.model.Resource;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.core.task.TaskExecutor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
@@ -40,8 +41,6 @@ import javax.validation.Valid;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.util.List;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.stream.Stream;
 
 @Slf4j
@@ -51,11 +50,13 @@ public class ResourceApi {
 
     private ResourceManagement resourceManagement;
     private ApplicationEventPublisher eventPublisher;
+    private TaskExecutor taskExecutor;
 
     @Autowired
-    public ResourceApi(ResourceManagement resourceManagement, ApplicationEventPublisher eventPublisher) {
+    public ResourceApi(ResourceManagement resourceManagement, ApplicationEventPublisher eventPublisher, TaskExecutor taskExecutor) {
         this.resourceManagement = resourceManagement;
         this.eventPublisher = eventPublisher;
+        this.taskExecutor = taskExecutor;
     }
 
     @GetMapping("/resources")
@@ -73,9 +74,8 @@ public class ResourceApi {
     @GetMapping("/envoys")
     public SseEmitter getAllWithPresenceMonitoringAsStream() {
         SseEmitter emitter = new SseEmitter();
-        ExecutorService nonBlockingService = Executors.newCachedThreadPool();
         Stream<Resource> resourcesWithEnvoys = resourceManagement.getResources(true);
-        nonBlockingService.execute(() -> {
+        taskExecutor.execute(() -> {
             resourcesWithEnvoys.forEach(r -> {
                 try {
                     emitter.send(r);
@@ -85,7 +85,6 @@ public class ResourceApi {
             });
             emitter.complete();
         });
-        nonBlockingService.shutdown();
         return emitter;
     }
 
