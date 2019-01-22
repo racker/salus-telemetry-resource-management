@@ -71,7 +71,7 @@ public class ResourceApi {
     }
 
     @GetMapping("/envoys")
-    public SseEmitter getAllWithEnvoysAsStream() {
+    public SseEmitter getAllWithPresenceMonitoringAsStream() {
         SseEmitter emitter = new SseEmitter();
         ExecutorService nonBlockingService = Executors.newCachedThreadPool();
         Stream<Resource> resourcesWithEnvoys = resourceManagement.getResources(true);

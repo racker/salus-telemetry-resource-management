@@ -283,7 +283,7 @@ public class ResourceManagement {
      */
     private void updateEnvoyLabels(Resource resource, Map<String, String> envoyLabels) {
         AtomicBoolean updated = new AtomicBoolean(false);
-        Map<String, String> resourceLabels = resource.getLabels().;
+        Map<String, String> resourceLabels = resource.getLabels();
         Map<String, String> oldLabels = new HashMap<>(resourceLabels);
 
         oldLabels.forEach((name, value) -> {

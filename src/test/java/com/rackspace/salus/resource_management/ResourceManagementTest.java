@@ -19,13 +19,15 @@ package com.rackspace.salus.resource_management;
 import static org.hamcrest.Matchers.*;
 import static org.junit.Assert.*;
 
+import com.google.common.collect.Maps;
 import com.rackspace.salus.resource_management.services.KafkaEgress;
 import com.rackspace.salus.resource_management.services.ResourceManagement;
+import com.rackspace.salus.resource_management.web.model.ResourceCreate;
 import com.rackspace.salus.resource_management.web.model.ResourceUpdate;
-import com.rackspace.salus.telemetry.errors.ResourceAlreadyExists;
 import com.rackspace.salus.telemetry.messaging.AttachEvent;
 import com.rackspace.salus.telemetry.model.Resource;
 import com.rackspace.salus.telemetry.repositories.ResourceRepository;
+import org.apache.commons.lang3.RandomStringUtils;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -33,22 +35,23 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.Import;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.test.context.junit4.SpringRunner;
-import org.springframework.transaction.annotation.Propagation;
-import org.springframework.transaction.annotation.Transactional;
 import uk.co.jemos.podam.api.PodamFactory;
 import uk.co.jemos.podam.api.PodamFactoryImpl;
 
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Random;
+import java.util.stream.Stream;
 
 @RunWith(SpringRunner.class)
 
 @DataJpaTest
 @Import({ResourceManagement.class})
-//@Transactional(propagation = Propagation.NOT_SUPPORTED)
 public class ResourceManagementTest {
 
     @Autowired
@@ -57,10 +60,10 @@ public class ResourceManagementTest {
     @Autowired
     ResourceRepository resourceRepository;
 
-    PodamFactory podamFactory = new PodamFactoryImpl();
-
     @MockBean
     KafkaEgress kafkaEgress;
+
+    PodamFactory podamFactory = new PodamFactoryImpl();
 
     @Before
     public void setUp() {
@@ -73,12 +76,22 @@ public class ResourceManagementTest {
         resourceRepository.save(resource);
     }
 
-    @Test
-    public void testRegisterNewResource() {
+    private void createResources(int count) {
+        for (int i=0; i<count; i++) {
+            String tenantId = RandomStringUtils.randomAlphanumeric(10);
+            ResourceCreate create = podamFactory.manufacturePojo(ResourceCreate.class);
+            resourceManagement.createResource(tenantId, create);
+        }
+    }
+
+    private void createResourcesForTenant(int count, String tenantId) {
+        for (int i=0; i<count; i++) {
+            ResourceCreate create = podamFactory.manufacturePojo(ResourceCreate.class);
+            resourceManagement.createResource(tenantId, create);
+        }
     }
 
     @Test
-    //@Transactional(propagation = Propagation.REQUIRED)
     public void testGetResource() {
         Resource r = resourceManagement.getResource("abcde", "host:test");
 
@@ -87,15 +100,82 @@ public class ResourceManagementTest {
     }
 
     @Test
+    public void testCreateNewResource() {
+        ResourceCreate create = podamFactory.manufacturePojo(ResourceCreate.class);
+        String tenantId = RandomStringUtils.randomAlphanumeric(10);
+
+        Resource returned = resourceManagement.createResource(tenantId, create);
+
+        assertThat(returned.getId(), notNullValue());
+        assertThat(returned.getResourceId(), equalTo(create.getResourceId()));
+        assertThat(returned.getPresenceMonitoringEnabled(), notNullValue());
+        assertThat(returned.getPresenceMonitoringEnabled(), equalTo(create.getPresenceMonitoringEnabled()));
+        assertThat(returned.getLabels().size(), greaterThan(0));
+        assertTrue(Maps.difference(create.getLabels(), returned.getLabels()).areEqual());
+
+        Resource retrieved = resourceManagement.getResource(tenantId, create.getResourceId());
+
+        assertThat(retrieved.getResourceId(), equalTo(returned.getResourceId()));
+        assertThat(retrieved.getPresenceMonitoringEnabled(), equalTo(returned.getPresenceMonitoringEnabled()));
+        assertTrue(Maps.difference(returned.getLabels(), retrieved.getLabels()).areEqual());
+    }
+
+
+    @Test
     public void testGetAll() {
-        //assertThat(resourceManagement.getAllResources().size(), equalTo(1));
+        Random random = new Random();
+        int totalResources = random.nextInt(150 - 50) + 50;
+        int pageSize = 10;
+
+        Pageable page = PageRequest.of(0, pageSize);
+        Page<Resource> result = resourceManagement.getAllResources(page);
+
+        assertThat(result.getTotalElements(), equalTo(1L));
+
+        // There is already one resource created as default
+        createResources(totalResources - 1);
+
+        page = PageRequest.of(0, 10);
+        result = resourceManagement.getAllResources(page);
+
+        assertThat(result.getTotalElements(), equalTo((long) totalResources));
+        assertThat(result.getTotalPages(), equalTo((totalResources + pageSize - 1) / pageSize));
     }
 
     @Test
-    //@Transactional(propagation = Propagation.REQUIRED)
+    public void testGetAllForTenant() {
+        Random random = new Random();
+        int totalResources = random.nextInt(150 - 50) + 50;
+        int pageSize = 10;
+        String tenantId = RandomStringUtils.randomAlphanumeric(10);
+
+        Pageable page = PageRequest.of(0, pageSize);
+        Page<Resource> result = resourceManagement.getAllResources(page);
+
+        assertThat(result.getTotalElements(), equalTo(1L));
+
+        // There is already one resource created as default
+        createResourcesForTenant(totalResources - 1, tenantId);
+
+        page = PageRequest.of(0, 10);
+        result = resourceManagement.getResources(tenantId, page);
+
+        assertThat(result.getTotalElements(), equalTo((long) totalResources));
+        assertThat(result.getTotalPages(), equalTo((totalResources + pageSize - 1) / pageSize));
+    }
+
+    @Test
+    public void testGetResourcesWithPresenceMonitoringAsStream() {
+        int totalResources = 100;
+        createResources(totalResources);
+        Stream s = resourceManagement.getResources(true);
+        // The one default resource doesn't have presence monitoring enabled so can be ignored.
+        assertThat(s.count(), equalTo((long) totalResources));
+    }
+
+    @Test
     public void testNewEnvoyAttach() {
         AttachEvent attachEvent = podamFactory.manufacturePojo(AttachEvent.class);
-        System.out.println(attachEvent.toString());
         resourceManagement.handleEnvoyAttach(attachEvent);
 
         final Resource resource = resourceManagement.getResource(
@@ -140,5 +220,19 @@ public class ResourceManagementTest {
         assertThat(newResource.getLabels(), equalTo(resource.getLabels()));
         assertThat(newResource.getId(), equalTo(resource.getId()));
         assertThat(newResource.getPresenceMonitoringEnabled(), equalTo(presenceMonitoring));
+    }
+
+    @Test
+    public void testRemoveResource() {
+        ResourceCreate create = podamFactory.manufacturePojo(ResourceCreate.class);
+        String tenantId = RandomStringUtils.randomAlphanumeric(10);
+        resourceManagement.createResource(tenantId, create);
+
+        Resource resource = resourceManagement.getResource(tenantId, create.getResourceId());
+        assertThat(resource, notNullValue());
+
+        resourceManagement.removeResource(tenantId, create.getResourceId());
+        resource = resourceManagement.getResource(tenantId, create.getResourceId());
+        assertThat(resource, nullValue());
     }
 }
