@@ -55,8 +55,6 @@ import java.util.List;
 @WebMvcTest(controllers = ResourceApi.class)
 public class ResourceApiTest {
 
-    String apiUrl = "http://localhost:8085/api";
-
     PodamFactory podamFactory = new PodamFactoryImpl();
 
     @Autowired
