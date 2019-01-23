@@ -34,16 +34,16 @@ public class RestExceptionHandler
     @ExceptionHandler(value = { IllegalArgumentException.class, IllegalStateException.class, ResourceAlreadyExists.class})
     protected ResponseEntity<Object> handleBadRequest(
             RuntimeException ex, WebRequest request) {
-        String errorMessage = ex.getMessage();
-        return handleExceptionInternal(ex, errorMessage,
+        GenericError error = new GenericError(ex.getMessage());
+        return handleExceptionInternal(ex, error,
                 new HttpHeaders(), HttpStatus.BAD_REQUEST, request);
     }
 
     @ExceptionHandler(value ={NotFoundException.class})
     protected ResponseEntity<Object> handleNotFoundRequest(
             RuntimeException ex, WebRequest request) {
-        String errorMessage = ex.getMessage();
-        return handleExceptionInternal(ex, errorMessage,
+        GenericError error = new GenericError(ex.getMessage());
+        return handleExceptionInternal(ex, error,
                 new HttpHeaders(), HttpStatus.NOT_FOUND, request);
     }
 
@@ -62,7 +62,8 @@ public class RestExceptionHandler
                 .map(e -> String.format("\"%s\" %s", e.getField(), e.getDefaultMessage()))
                 .findFirst()
                 .orElse(ex.getMessage());
-        return handleExceptionInternal(ex, errorMessage,
+        GenericError error = new GenericError(errorMessage);
+        return handleExceptionInternal(ex, error,
                 new HttpHeaders(), HttpStatus.BAD_REQUEST, request);
     }
 }
