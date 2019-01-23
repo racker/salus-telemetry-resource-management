@@ -102,7 +102,7 @@ public class ResourceApi {
         return resource;
     }
 
-    @GetMapping("/tenant/{tenantId}")
+    @GetMapping("/tenant/{tenantId}/resources")
     public List<?> getAllForTenant(@PathVariable String tenantId,
                                    @RequestParam(defaultValue = "100") int size,
                                    @RequestParam(defaultValue = "0") int page,
@@ -131,7 +131,7 @@ public class ResourceApi {
     public Resource update(@PathVariable String tenantId,
                            @PathVariable String resourceId,
                            @Valid @RequestBody final ResourceUpdate input,
-                           final HttpServletResponse response) throws IllegalArgumentException, IllegalAccessException, InvocationTargetException {
+                           final HttpServletResponse response) throws IllegalArgumentException {
 
         Resource updated = resourceManagement.updateResource(tenantId, resourceId, input);
         eventPublisher.publishEvent(new SingleResourceRetrievedEvent(this, response));
