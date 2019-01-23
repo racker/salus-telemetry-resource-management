@@ -19,28 +19,20 @@ package com.rackspace.salus.resource_management.web.controller;
 import com.rackspace.salus.resource_management.services.ResourceManagement;
 import com.rackspace.salus.resource_management.web.model.ResourceCreate;
 import com.rackspace.salus.resource_management.web.model.ResourceUpdate;
-import com.rackspace.salus.resource_management.web.event.PaginatedResultsRetrievedEvent;
-import com.rackspace.salus.resource_management.web.event.ResourceCreatedEvent;
-import com.rackspace.salus.resource_management.web.event.SingleResourceRetrievedEvent;
 import com.rackspace.salus.telemetry.errors.ResourceAlreadyExists;
 import com.rackspace.salus.telemetry.model.NotFoundException;
 import com.rackspace.salus.telemetry.model.Resource;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.core.task.TaskExecutor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
-import org.springframework.web.util.UriComponentsBuilder;
 
-import javax.servlet.http.HttpServletResponse;
 import javax.validation.Valid;
 import java.io.IOException;
-import java.lang.reflect.InvocationTargetException;
-import java.util.List;
 import java.util.stream.Stream;
 
 @Slf4j
@@ -49,26 +41,20 @@ import java.util.stream.Stream;
 public class ResourceApi {
 
     private ResourceManagement resourceManagement;
-    private ApplicationEventPublisher eventPublisher;
     private TaskExecutor taskExecutor;
 
     @Autowired
-    public ResourceApi(ResourceManagement resourceManagement, ApplicationEventPublisher eventPublisher, TaskExecutor taskExecutor) {
+    public ResourceApi(ResourceManagement resourceManagement, TaskExecutor taskExecutor) {
         this.resourceManagement = resourceManagement;
-        this.eventPublisher = eventPublisher;
         this.taskExecutor = taskExecutor;
     }
 
     @GetMapping("/resources")
-    public List<Resource> getAll(@RequestParam(defaultValue = "100") int size,
-                                 @RequestParam(defaultValue = "0") int page,
-                                 UriComponentsBuilder uriBuilder,
-                                 final HttpServletResponse response) {
+    public Page<Resource> getAll(@RequestParam(defaultValue = "100") int size,
+                                 @RequestParam(defaultValue = "0") int page) {
 
-        Page<Resource> result = resourceManagement.getAllResources(PageRequest.of(page, size));
-        eventPublisher.publishEvent(new PaginatedResultsRetrievedEvent<>(
-                Resource.class, uriBuilder, response, page, result.getTotalPages(), size));
-        return result.getContent();
+        return resourceManagement.getAllResources(PageRequest.of(page, size));
+
     }
 
     @GetMapping("/envoys")
@@ -90,53 +76,37 @@ public class ResourceApi {
 
     @GetMapping("/tenant/{tenantId}/resources/{resourceId}")
     public Resource getByResourceId(@PathVariable String tenantId,
-                                    @PathVariable String resourceId,
-                                    final HttpServletResponse response) throws NotFoundException {
+                                    @PathVariable String resourceId) throws NotFoundException {
 
         Resource resource = resourceManagement.getResource(tenantId, resourceId);
         if (resource == null) {
             throw new NotFoundException(String.format("No resource found for %s on tenant %s",
                     resourceId, tenantId));
         }
-        eventPublisher.publishEvent(new SingleResourceRetrievedEvent(this, response));
         return resource;
     }
 
     @GetMapping("/tenant/{tenantId}/resources")
-    public List<?> getAllForTenant(@PathVariable String tenantId,
+    public Page<Resource>  getAllForTenant(@PathVariable String tenantId,
                                    @RequestParam(defaultValue = "100") int size,
-                                   @RequestParam(defaultValue = "0") int page,
-                                   UriComponentsBuilder uriBuilder,
-                                   final HttpServletResponse response) {
+                                   @RequestParam(defaultValue = "0") int page) {
 
-        Page<Resource> result = resourceManagement.getResources(tenantId, PageRequest.of(page, size));
-        eventPublisher.publishEvent(new PaginatedResultsRetrievedEvent<>(
-                Resource.class, uriBuilder, response, page, result.getTotalPages(), size));
-        return result.getContent();
+        return resourceManagement.getResources(tenantId, PageRequest.of(page, size));
     }
 
     @PostMapping("/tenant/{tenantId}/resources")
     @ResponseStatus(HttpStatus.CREATED)
     public Resource create(@PathVariable String tenantId,
-                           @Valid @RequestBody final ResourceCreate input,
-                           final HttpServletResponse response) throws IllegalArgumentException, ResourceAlreadyExists {
-
-        Resource created = resourceManagement.createResource(tenantId, input);
-        eventPublisher.publishEvent(new ResourceCreatedEvent(this, response, created.getResourceId()));
-
-        return created;
+                           @Valid @RequestBody final ResourceCreate input)
+            throws IllegalArgumentException, ResourceAlreadyExists {
+        return resourceManagement.createResource(tenantId, input);
     }
 
     @PutMapping("/tenant/{tenantId}/resources/{resourceId}")
     public Resource update(@PathVariable String tenantId,
                            @PathVariable String resourceId,
-                           @Valid @RequestBody final ResourceUpdate input,
-                           final HttpServletResponse response) throws IllegalArgumentException {
-
-        Resource updated = resourceManagement.updateResource(tenantId, resourceId, input);
-        eventPublisher.publishEvent(new SingleResourceRetrievedEvent(this, response));
-
-        return updated;
+                           @Valid @RequestBody final ResourceUpdate input) throws IllegalArgumentException {
+        return resourceManagement.updateResource(tenantId, resourceId, input);
     }
 
     @DeleteMapping("/tenant/{tenantId}/resources/{resourceId}")

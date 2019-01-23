@@ -16,15 +16,18 @@
 
 package com.rackspace.salus.resource_management;
 
+import static org.junit.Assert.assertThat;
+import static org.hamcrest.Matchers.*;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
 import static org.hamcrest.CoreMatchers.is;
-import static org.hamcrest.Matchers.hasSize;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.rackspace.salus.resource_management.services.ResourceManagement;
 import com.rackspace.salus.resource_management.web.controller.ResourceApi;
@@ -40,6 +43,7 @@ import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.junit4.SpringRunner;
 import org.springframework.test.web.servlet.MockMvc;
@@ -50,6 +54,8 @@ import javax.persistence.EntityManagerFactory;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 @RunWith(SpringRunner.class)
 @WebMvcTest(controllers = ResourceApi.class)
@@ -69,7 +75,8 @@ public class ResourceApiTest {
     @MockBean
     ResourceRepository resourceRepository;
 
-    private ObjectMapper objectMapper = new ObjectMapper();
+    @Autowired
+    ObjectMapper objectMapper;
 
     @Test
     public void testGetResource() throws Exception {
@@ -108,12 +115,19 @@ public class ResourceApiTest {
     @Test
     public void testGetAllForTenant() throws Exception {
         int numberOfResources = 20;
+        // Use the APIs default Pageable settings
+        int page = 0;
+        int pageSize = 100;
         List<Resource> resources = new ArrayList<>();
         for (int i=0; i<numberOfResources; i++) {
             resources.add(podamFactory.manufacturePojo(Resource.class));
         }
 
-        Page<Resource> pageOfResources = new PageImpl<>(resources);
+        int start = page * pageSize;
+        int end = numberOfResources;
+        Page<Resource> pageOfResources = new PageImpl<>(resources.subList(start, end),
+                PageRequest.of(page, pageSize),
+                numberOfResources);
 
         when(resourceManagement.getResources(anyString(), any()))
                 .thenReturn(pageOfResources);
@@ -125,7 +139,51 @@ public class ResourceApiTest {
                 .andExpect(status().isOk())
                 .andExpect(content()
                         .contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
-                .andExpect(jsonPath("$.*", hasSize(numberOfResources)));
+                .andExpect(jsonPath("$.content.*", hasSize(numberOfResources)))
+                .andExpect(jsonPath("$.totalPages", equalTo(1)))
+                .andExpect(jsonPath("$.numberOfElements", equalTo(numberOfResources)))
+                .andExpect(jsonPath("$.totalElements", equalTo(numberOfResources)))
+                .andExpect(jsonPath("$.pageable.pageNumber", equalTo(page)))
+                .andExpect(jsonPath("$.pageable.pageSize", equalTo(pageSize)))
+                .andExpect(jsonPath("$.size", equalTo(pageSize)));
+    }
+
+    @Test
+    public void testGetAllForTenantPagination() throws Exception {
+        int numberOfResources = 99;
+        int pageSize = 4;
+        int page = 14;
+        List<Resource> resources = new ArrayList<>();
+        for (int i=0; i<numberOfResources; i++) {
+            resources.add(podamFactory.manufacturePojo(Resource.class));
+        }
+        int start = page * pageSize;
+        int end = start + pageSize;
+        Page<Resource> pageOfResources = new PageImpl<>(resources.subList(start, end),
+                PageRequest.of(page, pageSize),
+                numberOfResources);
+
+        assertThat(pageOfResources.getContent().size(), equalTo(pageSize));
+
+        when(resourceManagement.getResources(anyString(), any()))
+                .thenReturn(pageOfResources);
+
+        String tenantId = RandomStringUtils.randomAlphabetic( 8 );
+        String url = String.format("/api/tenant/%s/resources", tenantId);
+
+        mockMvc.perform(get(url).contentType(MediaType.APPLICATION_JSON)
+                .param("page", Integer.toString(page))
+                .param("size", Integer.toString(pageSize)))
+                .andExpect(status().isOk())
+                .andExpect(content()
+                        .contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.content.*", hasSize(pageSize)))
+                .andExpect(jsonPath("$.totalPages", equalTo((numberOfResources + pageSize - 1) / pageSize)))
+                .andExpect(jsonPath("$.numberOfElements", equalTo(pageSize)))
+                .andExpect(jsonPath("$.totalElements", equalTo(numberOfResources)))
+                .andExpect(jsonPath("$.pageable.pageNumber", equalTo(page)))
+                .andExpect(jsonPath("$.pageable.pageSize", equalTo(pageSize)))
+                .andExpect(jsonPath("$.size", equalTo(pageSize)));
     }
 
     @Test
@@ -206,5 +264,72 @@ public class ResourceApiTest {
                 .andExpect(status().isOk())
                 .andExpect(content()
                         .contentTypeCompatibleWith(MediaType.APPLICATION_JSON));
+    }
+
+    @Test
+    public void testGetAll() throws Exception {
+        int numberOfResources = 20;
+        // Use the APIs default Pageable settings
+        int page = 0;
+        int pageSize = 100;
+        List<Resource> resources = new ArrayList<>();
+        for (int i=0; i<numberOfResources; i++) {
+            resources.add(podamFactory.manufacturePojo(Resource.class));
+        }
+
+        int start = page * pageSize;
+        int end = numberOfResources;
+        Page<Resource> pageOfResources = new PageImpl<>(resources.subList(start, end),
+                PageRequest.of(page, pageSize),
+                numberOfResources);
+
+        when(resourceManagement.getAllResources(any()))
+                .thenReturn(pageOfResources);
+
+        String url = "/api/resources";
+
+        mockMvc.perform(get(url).contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(content()
+                        .contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.content.*", hasSize(numberOfResources)))
+                .andExpect(jsonPath("$.totalPages", equalTo(1)))
+                .andExpect(jsonPath("$.numberOfElements", equalTo(numberOfResources)))
+                .andExpect(jsonPath("$.totalElements", equalTo(numberOfResources)))
+                .andExpect(jsonPath("$.pageable.pageNumber", equalTo(page)))
+                .andExpect(jsonPath("$.pageable.pageSize", equalTo(pageSize)))
+                .andExpect(jsonPath("$.size", equalTo(pageSize)));
+    }
+
+    @Test
+    public void testGetStreamOfResources() throws Exception {
+        int numberOfResources = 20;
+        List<Resource> resources = new ArrayList<>();
+        for (int i=0; i<numberOfResources; i++) {
+            resources.add(podamFactory.manufacturePojo(Resource.class));
+        }
+
+        List<String> expectedData = resources.stream()
+            .map(r -> {
+                try {
+                    return "data:" + objectMapper.writeValueAsString(r);
+                } catch (JsonProcessingException e) {
+                    assertThat(e, nullValue());
+                    return null;
+                }
+            }).collect(Collectors.toList());
+        assertThat(expectedData.size(), equalTo(resources.size()));
+
+        String url = "/api/envoys";
+        Stream<Resource> resourceStream = resources.stream();
+
+        when(resourceManagement.getResources(true))
+                .thenReturn(resourceStream);
+
+        mockMvc.perform(get(url))
+                .andDo(print())
+                .andExpect(status().isOk())
+                .andExpect(content().contentTypeCompatibleWith("text/event-stream;charset=UTF-8"))
+                .andExpect(content().string(stringContainsInOrder(expectedData)));
     }
 }
