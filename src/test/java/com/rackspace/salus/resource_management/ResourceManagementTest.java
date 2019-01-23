@@ -49,7 +49,6 @@ import java.util.Random;
 import java.util.stream.Stream;
 
 @RunWith(SpringRunner.class)
-
 @DataJpaTest
 @Import({ResourceManagement.class})
 public class ResourceManagementTest {
@@ -154,8 +153,7 @@ public class ResourceManagementTest {
 
         assertThat(result.getTotalElements(), equalTo(1L));
 
-        // There is already one resource created as default
-        createResourcesForTenant(totalResources - 1, tenantId);
+        createResourcesForTenant(totalResources , tenantId);
 
         page = PageRequest.of(0, 10);
         result = resourceManagement.getResources(tenantId, page);

@@ -51,6 +51,8 @@ public class ResourceManagement {
     @PersistenceContext
     private final EntityManager entityManager;
 
+    private static final String ENVOY_NAMESPACE = "envoy.";
+
     @Autowired
     public ResourceManagement(ResourceRepository resourceRepository, KafkaEgress kafkaEgress, EntityManager entityManager) {
         this.resourceRepository = resourceRepository;
@@ -254,7 +256,7 @@ public class ResourceManagement {
         String tenantId = attachEvent.getTenantId();
         String resourceId = attachEvent.getResourceId();
         Map<String, String> labels = attachEvent.getLabels();
-        labels = applyNamespaceToKeys(labels, "envoy");
+        labels = applyNamespaceToKeys(labels, ENVOY_NAMESPACE);
 
         Resource existing = getResource(tenantId, resourceId);
 
@@ -286,19 +288,19 @@ public class ResourceManagement {
         Map<String, String> resourceLabels = resource.getLabels();
         Map<String, String> oldLabels = new HashMap<>(resourceLabels);
 
-        oldLabels.forEach((name, value) -> {
-            if (name.startsWith("envoy.")) {
-                if (envoyLabels.containsKey(name)) {
-                    if (envoyLabels.get(name) != value) {
+        oldLabels.entrySet().stream()
+            .filter(entry -> entry.getKey().startsWith(ENVOY_NAMESPACE))
+            .forEach(entry -> {
+                if (envoyLabels.containsKey(entry.getKey())) {
+                    if (envoyLabels.get(entry.getKey()) != entry.getValue()) {
                         updated.set(true);
-                        resourceLabels.put(name, value);
+                        resourceLabels.put(entry.getKey(), entry.getValue());
                     }
                 } else {
                     updated.set(true);
-                    resourceLabels.remove(name);
+                    resourceLabels.remove(entry.getKey());
                 }
-            }
-        });
+            });
         if (updated.get()) {
             saveAndPublishResource(resource, oldLabels, false, OperationType.UPDATE);
         }
@@ -330,7 +332,7 @@ public class ResourceManagement {
     private Map<String, String> applyNamespaceToKeys(Map<String, String> map, String namespace) {
         Map<String, String> prefixedMap = new HashMap<>();
         map.forEach((name, value) -> {
-            prefixedMap.put(namespace + "." + name, value);
+            prefixedMap.put(namespace + name, value);
         });
         return prefixedMap;
     }
