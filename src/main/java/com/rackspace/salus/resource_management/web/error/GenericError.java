@@ -14,23 +14,14 @@
  * limitations under the License.
  */
 
-package com.rackspace.salus.resource_management.web.event;
+package com.rackspace.salus.resource_management.web.error;
 
-import org.springframework.context.ApplicationEvent;
+import lombok.Data;
 
-import javax.servlet.http.HttpServletResponse;
-
-public class SingleResourceRetrievedEvent extends ApplicationEvent {
-    private HttpServletResponse response;
-
-    public SingleResourceRetrievedEvent(Object source,
-                                        HttpServletResponse response) {
-        super(source);
-
-        this.response = response;
-    }
-
-    public HttpServletResponse getResponse() {
-        return response;
-    }
+@Data
+public class GenericError {
+    private String message;
+    public GenericError(String message) {
+        this.message = message;
+    };
 }
