@@ -16,6 +16,7 @@
 
 package com.rackspace.salus.resource_management;
 
+import com.rackspace.salus.common.messaging.EnableSalusKafkaMessaging;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.autoconfigure.domain.EntityScan;
@@ -27,6 +28,7 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 @EnableJpaRepositories("com.rackspace.salus.telemetry.repositories")
 @EntityScan("com.rackspace.salus.telemetry.model")
 @EnableScheduling
+@EnableSalusKafkaMessaging
 public class TelemetryResourceManagementApplication {
 
     public static void main(String[] args) {

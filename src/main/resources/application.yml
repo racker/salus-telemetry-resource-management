@@ -1,15 +1,3 @@
-resource-management:
-  kafka-topics:
-    LOG:
-      telemetry.logs.json
-    METRIC:
-      telemetry.metrics.json
-    EVENT:
-      telemetry.events.json
-    ATTACH:
-      telemetry.attaches.json
-    RESOURCE:
-      telemetry.resources.json
 spring:
   kafka:
     producer:
