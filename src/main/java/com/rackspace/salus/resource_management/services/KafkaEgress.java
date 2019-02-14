@@ -16,7 +16,7 @@
 
 package com.rackspace.salus.resource_management.services;
 
-import com.rackspace.salus.resource_management.config.ResourceManagementProperties;
+import com.rackspace.salus.common.messaging.KafkaTopicProperties;
 import com.rackspace.salus.telemetry.messaging.KafkaMessageType;
 import com.rackspace.salus.telemetry.messaging.ResourceEvent;
 import com.rackspace.salus.telemetry.model.Resource;
@@ -28,16 +28,16 @@ import org.springframework.stereotype.Service;
 public class KafkaEgress {
 
     private final KafkaTemplate<String,Object> kafkaTemplate;
-    private final ResourceManagementProperties properties;
+    private final KafkaTopicProperties kafkaTopicProperties;
 
     @Autowired
-    public KafkaEgress(KafkaTemplate<String,Object> kafkaTemplate, ResourceManagementProperties properties) {
+    public KafkaEgress(KafkaTemplate<String,Object> kafkaTemplate, KafkaTopicProperties kafkaTopicProperties) {
         this.kafkaTemplate = kafkaTemplate;
-        this.properties= properties;
+        this.kafkaTopicProperties = kafkaTopicProperties;
     }
 
     public void sendResourceEvent(ResourceEvent event) {
-        final String topic = properties.getKafkaTopics().get(KafkaMessageType.RESOURCE);
+        final String topic = kafkaTopicProperties.getResources();
         if (topic == null) {
             throw new IllegalArgumentException(String.format("No topic configured for %s", KafkaMessageType.RESOURCE));
         }
