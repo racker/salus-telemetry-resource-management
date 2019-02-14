@@ -16,9 +16,8 @@
 
 package com.rackspace.salus.resource_management.services;
 
-import com.rackspace.salus.resource_management.config.ResourceManagementProperties;
+import com.rackspace.salus.common.messaging.KafkaTopicProperties;
 import com.rackspace.salus.telemetry.messaging.AttachEvent;
-import com.rackspace.salus.telemetry.messaging.KafkaMessageType;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.kafka.annotation.KafkaListener;
@@ -28,15 +27,13 @@ import org.springframework.stereotype.Service;
 @Slf4j
 public class KafkaIngress {
 
-    private final ResourceManagementProperties properties;
     private final ResourceManagement resourceManagement;
     private final String topic;
 
     @Autowired
-    public KafkaIngress(ResourceManagementProperties properties, ResourceManagement resourceManagement) {
-        this.properties = properties;
+    public KafkaIngress(KafkaTopicProperties kafkaTopicProperties, ResourceManagement resourceManagement) {
         this.resourceManagement = resourceManagement;
-        this.topic = this.properties.getKafkaTopics().get(KafkaMessageType.ATTACH);
+        this.topic = kafkaTopicProperties.getAttaches();
     }
 
     /**
