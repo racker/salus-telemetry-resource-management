@@ -24,6 +24,7 @@ import com.rackspace.salus.telemetry.model.*;
 import com.rackspace.salus.telemetry.messaging.*;
 import com.rackspace.salus.telemetry.repositories.ResourceRepository;
 import lombok.extern.slf4j.Slf4j;
+import org.hibernate.Session;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.context.properties.PropertyMapper;
 import org.springframework.data.domain.Page;
@@ -34,6 +35,7 @@ import org.springframework.stereotype.Service;
 import javax.persistence.EntityManager;
 import javax.persistence.NoResultException;
 import javax.persistence.PersistenceContext;
+import javax.persistence.Query;
 import javax.persistence.criteria.CriteriaBuilder;
 import javax.persistence.criteria.CriteriaQuery;
 import javax.persistence.criteria.Root;
@@ -58,6 +60,7 @@ public class ResourceManagement {
         this.resourceRepository = resourceRepository;
         this.kafkaEgress = kafkaEgress;
         this.entityManager = entityManager;
+
     }
 
     /**
@@ -359,6 +362,40 @@ public class ResourceManagement {
         }
 
         saveAndPublishResource(resource, resource.getLabels(), true, OperationType.UPDATE);
+    }
+
+    public Query constructQuery(Map<String, String> labels, String tenantId) {
+        //SELECT * FROM resources where id IN (SELECT id from resource_labels WHERE id IN (select id from resources)
+        // AND ((labels = "windows" AND labels_key = "os") OR (labels = "prod" AND labels_key="env")) GROUP BY id
+        // HAVING COUNT(id) = 2) AND tenant_id = "aaaad";
+
+        String query = "SELECT * FROM resources WHERE id IN (SELECT id FROM resources id IN ";
+        StringBuilder builder = new StringBuilder(query);
+        builder.append("SELECT id from resource_labels WHERE id IN ( SELECT id FROM resources WHERE tenant_id = :tenant_id) AND ");
+
+        int i = 0;
+        labels.size();
+        for(Map.Entry<String, String> entry : labels.entrySet()) {
+            if(i > 0) {
+                builder.append(" OR ");
+            }
+            builder.append("labels = :label"+ i +" AND labels_key = :key" + i);
+            i++;
+        }
+        builder.append(") GROUP BY id HAVING COUNT(id) = :i");
+        //CriteriaQuery<Resource> query = session.getCriteriaBuilder().createQuery(Resource.class);
+
+        Query actualQuery = entityManager.createQuery(builder.toString());
+        actualQuery.setParameter("tenant_id", tenantId);
+        actualQuery.setParameter("i", i);
+        i = 0;
+        for(Map.Entry<String, String> entry : labels.entrySet()) {
+            actualQuery.setParameter("label"+i, entry.getValue());
+            actualQuery.setParameter("key"+i, entry.getKey());
+            i++;
+        }
+
+        return actualQuery;
     }
 
     //public Resource migrateResourceToTenant(String oldTenantId, String newTenantId, String identifierName, String identifierValue) {}
