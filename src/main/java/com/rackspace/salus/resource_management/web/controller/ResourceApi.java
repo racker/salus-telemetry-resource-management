@@ -23,6 +23,10 @@ import com.rackspace.salus.telemetry.errors.ResourceAlreadyExists;
 import com.rackspace.salus.telemetry.model.NotFoundException;
 import com.rackspace.salus.telemetry.model.Resource;
 import lombok.extern.slf4j.Slf4j;
+import org.hibernate.Session;
+import org.hibernate.SessionFactory;
+import org.hibernate.query.NativeQuery;
+import org.hibernate.query.Query;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.task.TaskExecutor;
 import org.springframework.data.domain.Page;
@@ -31,15 +35,17 @@ import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
+import javax.persistence.criteria.CriteriaQuery;
 import javax.validation.Valid;
 import java.io.IOException;
+import java.util.Map;
 import java.util.stream.Stream;
 
 @Slf4j
 @RestController
 @RequestMapping("/api")
 public class ResourceApi {
-
+    private static SessionFactory factory;
     private ResourceManagement resourceManagement;
     private TaskExecutor taskExecutor;
 
@@ -114,5 +120,50 @@ public class ResourceApi {
     public void delete(@PathVariable String tenantId,
                        @PathVariable String resourceId) {
         resourceManagement.removeResource(tenantId, resourceId);
+    }
+
+    @GetMapping("/tenant/{tenantId}/resources/{labels}")
+    public Resource getResourcesWithLabels(@PathVariable String tenantId,
+                                                @PathVariable Map<String, String> labels) {
+
+        Query query = constructQuery(labels, tenantId);
+        query.getResultList();
+        return null;
+    }
+
+    private Query constructQuery(Map<String, String> labels, String tenantId) {
+        //SELECT * FROM resources where id IN (SELECT id from resource_labels WHERE id IN (select id from resources)
+        // AND ((labels = "windows" AND labels_key = "os") OR (labels = "prod" AND labels_key="env")) GROUP BY id
+        // HAVING COUNT(id) = 2) AND tenant_id = "aaaad";
+
+        Session session = factory.getCurrentSession();
+
+
+        String query = "SELECT * FROM resources WHERE id IN (SELECT id FROM resources id IN ";
+        StringBuilder builder = new StringBuilder(query);
+        builder.append("SELECT id from resource_labels WHERE id IN ( SELECT id FROM resources WHERE tenant_id = :tenant_id) AND ");
+
+        int i = 0;
+        for(Map.Entry<String, String> entry : labels.entrySet()) {
+            if(i > 0) {
+                builder.append(" OR ");
+            }
+            builder.append("labels = :label"+ i +" AND labels_key = :key" + i);
+            i++;
+        }
+        builder.append(") GROUP BY id HAVING COUNT(id) = :i");
+        //CriteriaQuery<Resource> query = session.getCriteriaBuilder().createQuery(Resource.class);
+
+        Query actualQuery = session.createSQLQuery(query);
+        actualQuery.setParameter("tenant_id", tenantId);
+        actualQuery.setParameter("i", i);
+        i = 0;
+        for(Map.Entry<String, String> entry : labels.entrySet()) {
+            actualQuery.setParameter("label"+i, entry.getValue());
+            actualQuery.setParameter("key"+i, entry.getKey());
+            i++;
+        }
+
+        return actualQuery;
     }
 }
