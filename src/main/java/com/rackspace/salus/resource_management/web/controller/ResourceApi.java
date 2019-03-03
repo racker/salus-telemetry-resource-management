@@ -118,9 +118,9 @@ public class ResourceApi {
         resourceManagement.removeResource(tenantId, resourceId);
     }
 
-    @GetMapping("/tenant/{tenantId}/resources/{labels}")
+    @GetMapping("/tenant/{tenantId}/resourceLabels")
     public List<Resource> getResourcesWithLabels(@PathVariable String tenantId,
-                                                 @PathVariable Map<String, String> labels) {
+                                                 @RequestParam Map<String, String> labels) {
 
         Query query = resourceManagement.constructQuery(labels, tenantId);
 
