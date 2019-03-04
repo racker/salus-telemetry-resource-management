@@ -365,13 +365,13 @@ public class ResourceManagement {
     }
 
     public Query constructQuery(Map<String, String> labels, String tenantId) {
-        //SELECT * FROM resources where id IN (SELECT id from resource_labels WHERE id IN (select id from resources)
-        // AND ((labels = "windows" AND labels_key = "os") OR (labels = "prod" AND labels_key="env")) GROUP BY id
-        // HAVING COUNT(id) = 2) AND tenant_id = "aaaad";
-
-        String query = "SELECT * FROM resources WHERE id IN (SELECT id FROM resources id IN ";
-        StringBuilder builder = new StringBuilder(query);
-        builder.append("SELECT id from resource_labels WHERE id IN ( SELECT id FROM resources WHERE tenant_id = :tenant_id) AND ");
+        /*
+        SELECT * FROM resources where id IN (SELECT id from resource_labels WHERE id IN (select id from resources)
+        AND ((labels = "windows" AND labels_key = "os") OR (labels = "prod" AND labels_key="env")) GROUP BY id
+        HAVING COUNT(id) = 2) AND tenant_id = "aaaad";
+        */
+        StringBuilder builder = new StringBuilder("SELECT r FROM Resource as r WHERE id IN ");
+        builder.append("(SELECT id from resource_labels WHERE id IN ( SELECT id FROM resources WHERE tenant_id = :tenant_id) AND ");
 
         int i = 0;
         labels.size();
@@ -379,21 +379,23 @@ public class ResourceManagement {
             if(i > 0) {
                 builder.append(" OR ");
             }
-            builder.append("labels = :label"+ i +" AND labels_key = :key" + i);
+            builder.append("(labels = :label"+ i +" AND labels_key = :key" + i + ")");
             i++;
         }
-        builder.append(") GROUP BY id HAVING COUNT(id) = :i");
+        builder.append(" GROUP BY id HAVING COUNT(id) = :i)");
         //CriteriaQuery<Resource> query = session.getCriteriaBuilder().createQuery(Resource.class);
 
         Query actualQuery = entityManager.createQuery(builder.toString());
-        actualQuery.setParameter("tenant_id", tenantId);
+        //Query actualQuery = entityManager.createQuery("select r from Resource as r");
+        /*actualQuery.setParameter("tenant_id", tenantId);
         actualQuery.setParameter("i", i);
+        actualQuery.setParameter("star", "*");
         i = 0;
         for(Map.Entry<String, String> entry : labels.entrySet()) {
             actualQuery.setParameter("label"+i, entry.getValue());
             actualQuery.setParameter("key"+i, entry.getKey());
             i++;
-        }
+        }*/
 
         return actualQuery;
     }
