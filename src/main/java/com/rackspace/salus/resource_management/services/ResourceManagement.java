@@ -24,6 +24,7 @@ import com.rackspace.salus.telemetry.model.*;
 import com.rackspace.salus.telemetry.messaging.*;
 import com.rackspace.salus.telemetry.repositories.ResourceRepository;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang.ArrayUtils;
 import org.hibernate.Session;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.context.properties.PropertyMapper;
@@ -379,7 +380,7 @@ public class ResourceManagement {
         HAVING COUNT(id) = 2) AND tenant_id = "aaaad";
         */
         MapSqlParameterSource paramSource = new MapSqlParameterSource();
-        paramSource.addValue("tenantId", tenantId);
+        paramSource.addValue("tenantId", tenantId);//AS r JOIN resource_labels AS rl
         StringBuilder builder = new StringBuilder("SELECT * FROM resources WHERE id IN ");
         builder.append("(SELECT id from resource_labels WHERE id IN ( SELECT id FROM resources WHERE tenant_id = :tenantId) AND ");
 
@@ -401,7 +402,20 @@ public class ResourceManagement {
 
         NamedParameterJdbcTemplate namedParameterTemplate = new NamedParameterJdbcTemplate(jdbcTemplate.getDataSource());
         SqlRowSet values = namedParameterTemplate.queryForRowSet(builder.toString(), paramSource);
-        return null;
+        List<Resource> resources = namedParameterTemplate.query(builder.toString(), paramSource, (resultSet, row)->{
+            Resource r = new Resource()
+                    .setId(resultSet.getLong("id"))
+                    .setResourceId(resultSet.getString("resource_id"))
+                    .setTenantId(resultSet.getString("tenant_id"))
+                    .setPresenceMonitoringEnabled(resultSet.getBoolean("presence_monitoring_enabled"))
+                    //.setLabels(ArrayUtils.toMap(new String[][] {
+                      //     resultSet.getArray("")
+                        ;
+
+            return r;
+        });
+
+        return resources;
         //return values;
     }
 
