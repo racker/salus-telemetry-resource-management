@@ -122,8 +122,6 @@ public class ResourceApi {
     public List<Resource> getResourcesWithLabels(@PathVariable String tenantId,
                                                  @RequestParam Map<String, String> labels) {
 
-        Query query = resourceManagement.constructQuery(labels, tenantId);
-
-        return query.getResultList();
+        return resourceManagement.constructQuery(labels, tenantId);
     }
 }
