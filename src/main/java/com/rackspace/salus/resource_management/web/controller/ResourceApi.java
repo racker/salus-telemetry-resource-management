@@ -31,7 +31,6 @@ import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
-import javax.persistence.Query;
 import javax.validation.Valid;
 import java.io.IOException;
 import java.util.List;
@@ -120,8 +119,7 @@ public class ResourceApi {
 
     @GetMapping("/tenant/{tenantId}/resourceLabels")
     public List<Resource> getResourcesWithLabels(@PathVariable String tenantId,
-                                                 @RequestParam Map<String, String> labels) {
-
-        return resourceManagement.constructQuery(labels, tenantId);
+                                                 @RequestBody Map<String, String> labels) {
+        return resourceManagement.getResourcesFromLabels(labels, tenantId);
     }
 }
