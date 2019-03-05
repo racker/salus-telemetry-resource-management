@@ -19,35 +19,37 @@ package com.rackspace.salus.resource_management.services;
 import com.rackspace.salus.resource_management.web.model.ResourceCreate;
 import com.rackspace.salus.resource_management.web.model.ResourceUpdate;
 import com.rackspace.salus.telemetry.errors.ResourceAlreadyExists;
+import com.rackspace.salus.telemetry.messaging.AttachEvent;
+import com.rackspace.salus.telemetry.messaging.OperationType;
 import com.rackspace.salus.telemetry.messaging.ResourceEvent;
-import com.rackspace.salus.telemetry.model.*;
-import com.rackspace.salus.telemetry.messaging.*;
+import com.rackspace.salus.telemetry.model.NotFoundException;
+import com.rackspace.salus.telemetry.model.Resource;
+import com.rackspace.salus.telemetry.model.Resource_;
 import com.rackspace.salus.telemetry.repositories.ResourceRepository;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.stream.Stream;
+import javax.persistence.EntityManager;
+import javax.persistence.NoResultException;
+import javax.persistence.PersistenceContext;
+import javax.persistence.criteria.CriteriaBuilder;
+import javax.persistence.criteria.CriteriaQuery;
+import javax.persistence.criteria.Root;
+import javax.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
-import org.hibernate.Session;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.context.properties.PropertyMapper;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.jdbc.core.RowCountCallbackHandler;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.jdbc.support.rowset.SqlRowSet;
 import org.springframework.stereotype.Service;
-
-import javax.persistence.EntityManager;
-import javax.persistence.NoResultException;
-import javax.persistence.PersistenceContext;
-import javax.persistence.Query;
-import javax.persistence.criteria.CriteriaBuilder;
-import javax.persistence.criteria.CriteriaQuery;
-import javax.persistence.criteria.Root;
-import javax.validation.Valid;
-import java.util.*;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.stream.Stream;
 
 @Slf4j
 @Service
@@ -403,6 +405,41 @@ public class ResourceManagement {
         SqlRowSet values = namedParameterTemplate.queryForRowSet(builder.toString(), paramSource);
         return null;
         //return values;
+    }
+
+    public List<String> getResourceIdsWithEnvoyLabels(Map<String, String> labels, String tenantId) {
+
+        final Map<String, String> envoyLabels = applyNamespaceToKeys(labels, ENVOY_NAMESPACE);
+
+        StringBuilder builder = new StringBuilder("SELECT resource_id FROM resources WHERE id IN ");
+        builder.append(
+            "(SELECT id from resource_labels WHERE id IN ( SELECT id FROM resources WHERE tenant_id = ?) AND ");
+
+        int i = 0;
+        envoyLabels.size();
+        for (Map.Entry<String, String> entry : envoyLabels.entrySet()) {
+            if (i > 0) {
+                builder.append(" OR ");
+            }
+            builder.append("(labels = ? AND labels_key = ?)");
+            i++;
+        }
+        builder.append(" GROUP BY id HAVING COUNT(id) = ?)");
+
+        return jdbcTemplate.query(
+            builder.toString(),
+            ps -> {
+                ps.setString(1, tenantId);
+                int p = 2;
+                for (Entry<String, String> entry : envoyLabels.entrySet()) {
+                    ps.setString(p++, entry.getValue());
+                    ps.setString(p++, entry.getKey());
+                }
+
+                ps.setInt(p, labels.size());
+            },
+            (rs, rowNumber) -> rs.getString(1)
+        );
     }
 
     //public Resource migrateResourceToTenant(String oldTenantId, String newTenantId, String identifierName, String identifierValue) {}
