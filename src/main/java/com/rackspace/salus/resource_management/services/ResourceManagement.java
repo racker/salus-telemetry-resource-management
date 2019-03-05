@@ -30,6 +30,11 @@ import org.springframework.boot.context.properties.PropertyMapper;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.RowCountCallbackHandler;
+import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
+import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
+import org.springframework.jdbc.support.rowset.SqlRowSet;
 import org.springframework.stereotype.Service;
 
 import javax.persistence.EntityManager;
@@ -54,6 +59,9 @@ public class ResourceManagement {
     private final EntityManager entityManager;
 
     private static final String ENVOY_NAMESPACE = "envoy.";
+
+    @Autowired
+    JdbcTemplate jdbcTemplate;
 
     @Autowired
     public ResourceManagement(ResourceRepository resourceRepository, KafkaEgress kafkaEgress, EntityManager entityManager) {
@@ -364,14 +372,16 @@ public class ResourceManagement {
         saveAndPublishResource(resource, resource.getLabels(), true, OperationType.UPDATE);
     }
 
-    public Query constructQuery(Map<String, String> labels, String tenantId) {
+    public List<Resource> constructQuery(Map<String, String> labels, String tenantId) {
         /*
         SELECT * FROM resources where id IN (SELECT id from resource_labels WHERE id IN (select id from resources)
         AND ((labels = "windows" AND labels_key = "os") OR (labels = "prod" AND labels_key="env")) GROUP BY id
         HAVING COUNT(id) = 2) AND tenant_id = "aaaad";
         */
-        StringBuilder builder = new StringBuilder("SELECT r FROM Resource as r WHERE id IN ");
-        builder.append("(SELECT id from resource_labels WHERE id IN ( SELECT id FROM resources WHERE tenant_id = :tenant_id) AND ");
+        MapSqlParameterSource paramSource = new MapSqlParameterSource();
+        paramSource.addValue("tenantId", tenantId);
+        StringBuilder builder = new StringBuilder("SELECT * FROM resources WHERE id IN ");
+        builder.append("(SELECT id from resource_labels WHERE id IN ( SELECT id FROM resources WHERE tenant_id = :tenantId) AND ");
 
         int i = 0;
         labels.size();
@@ -379,25 +389,20 @@ public class ResourceManagement {
             if(i > 0) {
                 builder.append(" OR ");
             }
-            builder.append("(labels = :label"+ i +" AND labels_key = :key" + i + ")");
+            builder.append("(labels = :label"+ i +" AND labels_key = :labelKey" + i + ")");
+            paramSource.addValue("label"+i, entry.getValue());
+            paramSource.addValue("labelKey"+i, entry.getKey());
             i++;
         }
         builder.append(" GROUP BY id HAVING COUNT(id) = :i)");
-        //CriteriaQuery<Resource> query = session.getCriteriaBuilder().createQuery(Resource.class);
+        paramSource.addValue("i", i);
+        //CriteriaQuery<Resource> query = session.getCriteriaBuilder().createQuery(Resource.class)
 
-        Query actualQuery = entityManager.createQuery(builder.toString());
-        //Query actualQuery = entityManager.createQuery("select r from Resource as r");
-        /*actualQuery.setParameter("tenant_id", tenantId);
-        actualQuery.setParameter("i", i);
-        actualQuery.setParameter("star", "*");
-        i = 0;
-        for(Map.Entry<String, String> entry : labels.entrySet()) {
-            actualQuery.setParameter("label"+i, entry.getValue());
-            actualQuery.setParameter("key"+i, entry.getKey());
-            i++;
-        }*/
 
-        return actualQuery;
+        NamedParameterJdbcTemplate namedParameterTemplate = new NamedParameterJdbcTemplate(jdbcTemplate.getDataSource());
+        SqlRowSet values = namedParameterTemplate.queryForRowSet(builder.toString(), paramSource);
+        return null;
+        //return values;
     }
 
     //public Resource migrateResourceToTenant(String oldTenantId, String newTenantId, String identifierName, String identifierValue) {}
