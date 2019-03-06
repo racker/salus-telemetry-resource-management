@@ -26,6 +26,7 @@ import com.rackspace.salus.telemetry.model.NotFoundException;
 import com.rackspace.salus.telemetry.model.Resource;
 import com.rackspace.salus.telemetry.model.Resource_;
 import com.rackspace.salus.telemetry.repositories.ResourceRepository;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -48,7 +49,6 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
-import org.springframework.jdbc.support.rowset.SqlRowSet;
 import org.springframework.stereotype.Service;
 
 @Slf4j
@@ -374,15 +374,23 @@ public class ResourceManagement {
         saveAndPublishResource(resource, resource.getLabels(), true, OperationType.UPDATE);
     }
 
-    public List<Resource> constructQuery(Map<String, String> labels, String tenantId) {
+    /**
+     * takes in a Mapping of labels for a tenant, builds and runs the query to match to those labels
+     * @param labels the labels that we need to match to
+     * @param tenantId The tenant associated to the resource
+     * @return the list of Resource's that match the labels
+     */
+    public List<Resource> getResourcesFromLabels(Map<String, String> labels, String tenantId) {
         /*
         SELECT * FROM resources where id IN (SELECT id from resource_labels WHERE id IN (select id from resources)
         AND ((labels = "windows" AND labels_key = "os") OR (labels = "prod" AND labels_key="env")) GROUP BY id
         HAVING COUNT(id) = 2) AND tenant_id = "aaaad";
         */
+
+
         MapSqlParameterSource paramSource = new MapSqlParameterSource();
-        paramSource.addValue("tenantId", tenantId);
-        StringBuilder builder = new StringBuilder("SELECT * FROM resources WHERE id IN ");
+        paramSource.addValue("tenantId", tenantId);//AS r JOIN resource_labels AS rl
+        StringBuilder builder = new StringBuilder("SELECT * FROM resources JOIN resource_labels AS rl WHERE resources.id = rl.id AND resources.id IN ");
         builder.append("(SELECT id from resource_labels WHERE id IN ( SELECT id FROM resources WHERE tenant_id = :tenantId) AND ");
 
         int i = 0;
@@ -396,15 +404,43 @@ public class ResourceManagement {
             paramSource.addValue("labelKey"+i, entry.getKey());
             i++;
         }
-        builder.append(" GROUP BY id HAVING COUNT(id) = :i)");
+        builder.append(" GROUP BY id HAVING COUNT(id) = :i) ORDER BY resources.id");
         paramSource.addValue("i", i);
-        //CriteriaQuery<Resource> query = session.getCriteriaBuilder().createQuery(Resource.class)
-
 
         NamedParameterJdbcTemplate namedParameterTemplate = new NamedParameterJdbcTemplate(jdbcTemplate.getDataSource());
-        SqlRowSet values = namedParameterTemplate.queryForRowSet(builder.toString(), paramSource);
-        return null;
-        //return values;
+        List<Resource> resources = new ArrayList<>();
+        namedParameterTemplate.query(builder.toString(), paramSource, (resultSet)->{
+
+            long prevId = 0;
+            Resource prevResource = null;
+            boolean iterate = true;
+
+            while(iterate){
+                if(resultSet.getLong("id") == prevId) {
+                    prevResource.getLabels().put(
+                            resultSet.getString("labels_key"),
+                            resultSet.getString("labels"));
+                }else {
+                    Map<String, String> theseLabels = new HashMap<String, String>();
+                    theseLabels.put(
+                            resultSet.getString("labels_key"),
+                            resultSet.getString("labels"));
+                    Resource r = new Resource()
+                            .setId(resultSet.getLong("id"))
+                            .setResourceId(resultSet.getString("resource_id"))
+                            .setTenantId(resultSet.getString("tenant_id"))
+                            .setPresenceMonitoringEnabled(resultSet.getBoolean("presence_monitoring_enabled"))
+                            .setLabels(theseLabels);
+                    prevId = resultSet.getLong("id");
+                    prevResource = r;
+                    resources.add(r);
+
+                }
+                iterate = resultSet.next();
+            }
+        });
+
+        return resources;
     }
 
     public List<String> getResourceIdsWithEnvoyLabels(Map<String, String> labels, String tenantId) {

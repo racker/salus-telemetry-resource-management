@@ -45,6 +45,12 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
+import javax.validation.Valid;
+import java.io.IOException;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Stream;
+
 @Slf4j
 @RestController
 @RequestMapping("/api")
@@ -127,9 +133,8 @@ public class ResourceApi {
 
     @GetMapping("/tenant/{tenantId}/resourceLabels")
     public List<Resource> getResourcesWithLabels(@PathVariable String tenantId,
-                                                 @RequestParam Map<String, String> labels) {
-
-        return resourceManagement.constructQuery(labels, tenantId);
+                                                 @RequestBody Map<String, String> labels) {
+        return resourceManagement.getResourcesFromLabels(labels, tenantId);
     }
 
     @GetMapping("/tenant/{tenantId}/resourceIds/withEnvoyLabels")
