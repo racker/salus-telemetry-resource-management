@@ -1,0 +1,92 @@
+substitutions:
+  _GCS_CACHE_BUCKET: salus-cache
+  _SALUS_PROJECT: salus-telemetry-resource-management
+
+steps:
+
+    # This is ugly because of
+    # https://github.com/GoogleContainerTools/jib/issues/1500#issuecomment-466207421
+  - id: FIX_DOCKER
+    name: gcr.io/cloud-builders/mvn
+    waitFor: ['-']
+    dir: /root
+    entrypoint: bash
+    args:
+    - -c
+    - # Links the Docker config to /root/.docker/config.json so that Jib picks it up.
+      # Note that this is only a temporary workaround.
+      # See https://github.com/GoogleContainerTools/jib/pull/1479.
+      |
+      mkdir .docker &&
+      ln -vs $$HOME/.docker/config.json .docker/config.json
+    volumes:
+    - name: user.home
+      path: /root
+
+  # Pull down settings file for Artifactory settings
+  - id: GET_SETTINGS
+    name: 'gcr.io/cloud-builders/gsutil'
+    waitFor: ['-']
+    args: ['cp', 'gs://salus-mavenrepository/m2-settings.xml', '.mvn/settings.xml']
+
+  # Load the cached files from GCS if they exist.
+  - id: PULL_DOWN_CACHE
+    waitFor: ['-']
+    name: gcr.io/cloud-builders/gsutil
+    dir: /root
+    entrypoint: bash
+    args:
+    - -c
+    - |
+      (
+        gsutil cp gs://${_GCS_CACHE_BUCKET}/${_SALUS_PROJECT}-m2-cache.tar.gz /tmp/m2-cache.tar.gz &&
+        tar -xzf /tmp/m2-cache.tar.gz
+      ) || echo 'Cache not found'
+    volumes:
+    - name: user.home
+      path: /root
+
+  - id: DEPLOY
+    name: 'gcr.io/cloud-builders/mvn'
+    args: ['deploy', '-s', '.mvn/settings.xml']
+    volumes:
+    - name: user.home
+      path: /root
+
+  - id: COMPILE_AND_PUSH_CONTAINER
+    name: 'gcr.io/cloud-builders/mvn'
+    env:
+    - 'SHORT_SHA=$SHORT_SHA'
+    args:
+    - compile
+    # Runs the Jib build by using the latest version of the plugin.
+    # To use a specific version, configure the plugin in the pom.xml.
+    - jib:build
+    # Skip Tests since it happened in the previous test
+    - "-Dmaven.test.skip=true"
+    # Ensure we name the image correctly since its not in pom.xml
+    - "-Ddocker.image.prefix=gcr.io/$PROJECT_ID"
+    - "-s"
+    - .mvn/settings.xml
+    volumes:
+    - name: user.home
+      path: /root
+
+  # Saves the files to the GCS cache.
+  - id: PUSH_UP_CACHE
+    waitFor:
+    - COMPILE_AND_PUSH_CONTAINER
+    name: gcr.io/cloud-builders/gsutil
+    dir: /root
+    entrypoint: bash
+    # Caches the local Maven repository.
+    args:
+    - -c
+    - |
+      set -ex
+      tar -czf /tmp/m2-cache.tar.gz .m2 &&
+      gsutil cp /tmp/m2-cache.tar.gz gs://${_GCS_CACHE_BUCKET}/${_SALUS_PROJECT}-m2-cache.tar.gz
+    volumes:
+    - name: user.home
+      path: /root
+
