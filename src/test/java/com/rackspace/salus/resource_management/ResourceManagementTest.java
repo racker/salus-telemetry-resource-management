@@ -16,8 +16,15 @@
 
 package com.rackspace.salus.resource_management;
 
-import static org.hamcrest.Matchers.*;
-import static org.junit.Assert.*;
+import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.greaterThan;
+import static org.hamcrest.Matchers.hasEntry;
+import static org.hamcrest.Matchers.hasItem;
+import static org.hamcrest.Matchers.hasSize;
+import static org.hamcrest.Matchers.notNullValue;
+import static org.hamcrest.Matchers.nullValue;
+import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
 
 import com.google.common.collect.Maps;
 import com.rackspace.salus.resource_management.services.KafkaEgress;
@@ -27,11 +34,19 @@ import com.rackspace.salus.resource_management.web.model.ResourceUpdate;
 import com.rackspace.salus.telemetry.messaging.AttachEvent;
 import com.rackspace.salus.telemetry.model.Resource;
 import com.rackspace.salus.telemetry.repositories.ResourceRepository;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Random;
+import java.util.stream.Stream;
+import javax.persistence.EntityManager;
 import org.apache.commons.lang3.RandomStringUtils;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.autoconfigure.domain.EntityScan;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.Import;
@@ -42,15 +57,10 @@ import org.springframework.test.context.junit4.SpringRunner;
 import uk.co.jemos.podam.api.PodamFactory;
 import uk.co.jemos.podam.api.PodamFactoryImpl;
 
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Random;
-import java.util.stream.Stream;
-
 @RunWith(SpringRunner.class)
 @DataJpaTest
 @Import({ResourceManagement.class})
+@EntityScan(basePackageClasses = Resource.class)
 public class ResourceManagementTest {
 
     @Autowired
@@ -58,6 +68,9 @@ public class ResourceManagementTest {
 
     @Autowired
     ResourceRepository resourceRepository;
+
+    @Autowired
+    EntityManager entityManager;
 
     @MockBean
     KafkaEgress kafkaEgress;
@@ -118,7 +131,6 @@ public class ResourceManagementTest {
         assertThat(retrieved.getPresenceMonitoringEnabled(), equalTo(returned.getPresenceMonitoringEnabled()));
         assertTrue(Maps.difference(returned.getLabels(), retrieved.getLabels()).areEqual());
     }
-
 
     @Test
     public void testGetAll() {
@@ -190,6 +202,34 @@ public class ResourceManagementTest {
             assertThat(resource.getLabels().get(prefixedLabel), equalTo(value));
         });
         assertThat(resource.getResourceId(), equalTo(attachEvent.getResourceId()));
+    }
+
+    @Test
+    public void testEnvoyAttachAndQueryByLabels() {
+        final Map<String, String> labels = new HashMap<>();
+        labels.put("environment", "localdev");
+        labels.put("arch", "X86_64");
+        labels.put("os", "DARWIN");
+        final AttachEvent attachEvent = new AttachEvent()
+            .setEnvoyId("envoy-1")
+            .setEnvoyAddress("localhost")
+            .setTenantId("tenant-1")
+            .setResourceId("development:0")
+            .setLabels(labels);
+
+        resourceManagement.handleEnvoyAttach(attachEvent);
+
+        final Resource resourceByResourceId =
+            resourceManagement.getResource("tenant-1", "development:0");
+        assertThat(resourceByResourceId, notNullValue());
+
+        final Map<String, String> labelsToQuery = new HashMap<>();
+        labelsToQuery.put("os", "DARWIN");
+        final List<String> resourceIdsWithEnvoyLabels = resourceManagement
+            .getResourceIdsWithEnvoyLabels(labelsToQuery, "tenant-1");
+
+        assertThat(resourceIdsWithEnvoyLabels, hasSize(1));
+        assertThat(resourceIdsWithEnvoyLabels, hasItem("development:0"));
     }
 
     @Test
