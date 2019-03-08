@@ -273,4 +273,123 @@ public class ResourceManagementTest {
         resource = resourceManagement.getResource(tenantId, create.getResourceId());
         assertThat(resource, nullValue());
     }
+
+    @Test
+    public void testLabelMatchingQuery() {
+        Map<String, String> labels = new HashMap<>();
+        labels.put("key", "value");
+
+
+    }
+
+    @Test
+    public void testSpecificCreate() {
+        final Map<String, String> labels = new HashMap<>();
+        labels.put("os", "DARWIN");
+
+        ResourceCreate create = podamFactory.manufacturePojo(ResourceCreate.class);
+        create.setLabels(labels);
+        String tenantId = RandomStringUtils.randomAlphanumeric(10);
+        resourceManagement.createResource(tenantId, create);
+        //Page<Resource> pages = resourceManagement.getAllResources(PageRequest.of(0, 5));
+        try {
+            Thread.sleep(1000);
+        }catch( Exception e) {
+
+        }
+        List<Resource> resources = resourceManagement.getResourcesFromLabels(labels, tenantId);
+        assertEquals(1, resources.size());
+        assertNotNull(resources);
+    }
+
+    @Test
+    public void testResourcesWithSameLabelsAndDifferentTenants() {
+        final Map<String, String> labels = new HashMap<>();
+        labels.put("key", "value");
+
+        ResourceCreate create = podamFactory.manufacturePojo(ResourceCreate.class);
+        create.setLabels(labels);
+        String tenantId = RandomStringUtils.randomAlphanumeric(10);
+        String tenantId2 = RandomStringUtils.randomAlphanumeric(10);
+        resourceManagement.createResource(tenantId, create);
+        resourceManagement.createResource(tenantId2, create);
+
+        List<Resource> resources = resourceManagement.getResourcesFromLabels(labels, "abcde");
+        assertEquals(1, resources.size()); //make sure we only returned the one value
+        assertEquals(tenantId, resources.get(0).getTenantId());
+        assertEquals(create.getResourceId(), resources.get(0).getResourceId());
+    }
+
+    @Test
+    public void testMatchResourceWithMultipleLabels() {
+        final Map<String, String> labels = new HashMap<>();
+        labels.put("os", "DARWIN");
+        labels.put("env", "test");
+
+        ResourceCreate create = podamFactory.manufacturePojo(ResourceCreate.class);
+        create.setLabels(labels);
+        String tenantId = RandomStringUtils.randomAlphanumeric(10);
+        resourceManagement.createResource(tenantId, create);
+
+        List<Resource> resources = resourceManagement.getResourcesFromLabels(labels, tenantId);
+        assertEquals(1, resources.size()); //make sure we only returned the one value
+        assertEquals(tenantId, resources.get(0).getTenantId());
+        assertEquals(create.getResourceId(), resources.get(0).getResourceId());
+        assertEquals(labels, resources.get(0).getLabels());
+    }
+
+    @Test
+    public void testMatchResourceWithSupersetOfLabels() {
+        final Map<String, String> resourceLabels = new HashMap<>();
+        resourceLabels.put("os", "DARWIN");
+        resourceLabels.put("env", "test");
+        resourceLabels.put("architecture", "x86");
+        resourceLabels.put("region", "DFW");
+        final Map<String, String> labels = new HashMap<>();
+        labels.put("os", "DARWIN");
+        labels.put("env", "test");
+
+        ResourceCreate create = podamFactory.manufacturePojo(ResourceCreate.class);
+        create.setLabels(resourceLabels);
+        String tenantId = RandomStringUtils.randomAlphanumeric(10);
+        resourceManagement.createResource(tenantId, create);
+
+        List<Resource> resources = resourceManagement.getResourcesFromLabels(labels, tenantId);
+        assertEquals(1, resources.size()); //make sure we only returned the one value
+        assertEquals(tenantId, resources.get(0).getTenantId());
+        assertEquals(create.getResourceId(), resources.get(0).getResourceId());
+        assertEquals(labels, resources.get(0).getLabels());
+    }
+
+    @Test
+    public void testMatchResourceWithSubsetOfLabels() {
+        final Map<String, String> resourceLabels = new HashMap<>();
+        resourceLabels.put("os", "DARWIN");
+        resourceLabels.put("env", "test");
+        resourceLabels.put("architecture", "x86");
+        resourceLabels.put("region", "DFW");
+        final Map<String, String> labels = new HashMap<>();
+        labels.put("os", "DARWIN");
+        labels.put("env", "test");
+
+        ResourceCreate create = podamFactory.manufacturePojo(ResourceCreate.class);
+        create.setLabels(resourceLabels);
+        String tenantId = RandomStringUtils.randomAlphanumeric(10);
+        resourceManagement.createResource(tenantId, create);
+
+        List<Resource> resources = resourceManagement.getResourcesFromLabels(labels, tenantId);
+        assertEquals(1, resources.size()); //make sure we only returned the one value
+        assertEquals(tenantId, resources.get(0).getTenantId());
+        assertEquals(create.getResourceId(), resources.get(0).getResourceId());
+        assertEquals(labels, resources.get(0).getLabels());
+    }
+
+
+    /*
+    So the question is what tests do I need to write for the Resource Management service?
+
+    We need the Resource before the Monitor... And we need the Monitor before the Resource
+
+    Resources should have many labels and monitors should have few.
+     */
 }
