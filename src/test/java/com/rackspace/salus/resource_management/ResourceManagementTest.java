@@ -43,6 +43,8 @@ import java.util.Map;
 import java.util.Random;
 import java.util.stream.Stream;
 import javax.persistence.EntityManager;
+import javax.persistence.FlushModeType;
+
 import org.apache.commons.lang3.RandomStringUtils;
 import org.junit.Before;
 import org.junit.Test;
@@ -92,7 +94,7 @@ public class ResourceManagementTest {
                 .setResourceId("host:test")
                 .setLabels(Collections.singletonMap("key", "value"))
                 .setPresenceMonitoringEnabled(false);
-
+        entityManager.setFlushMode(FlushModeType.AUTO);
         resourceRepository.save(resource);
     }
 
@@ -299,12 +301,7 @@ public class ResourceManagementTest {
         create.setLabels(labels);
         String tenantId = RandomStringUtils.randomAlphanumeric(10);
         resourceManagement.createResource(tenantId, create);
-        //Page<Resource> pages = resourceManagement.getAllResources(PageRequest.of(0, 5));
-        try {
-            Thread.sleep(1000);
-        }catch( Exception e) {
-
-        }
+        entityManager.flush();
         List<Resource> resources = resourceManagement.getResourcesFromLabels(labels, tenantId);
         assertEquals(1, resources.size());
         assertNotNull(resources);
@@ -322,7 +319,7 @@ public class ResourceManagementTest {
         resourceManagement.createResource(tenantId, create);
         resourceManagement.createResource(tenantId2, create);
 
-        List<Resource> resources = resourceManagement.getResourcesFromLabels(labels, "abcde");
+        List<Resource> resources = resourceManagement.getResourcesFromLabels(labels, tenantId);
         assertEquals(1, resources.size()); //make sure we only returned the one value
         assertEquals(tenantId, resources.get(0).getTenantId());
         assertEquals(create.getResourceId(), resources.get(0).getResourceId());
@@ -338,6 +335,7 @@ public class ResourceManagementTest {
         create.setLabels(labels);
         String tenantId = RandomStringUtils.randomAlphanumeric(10);
         resourceManagement.createResource(tenantId, create);
+        entityManager.flush();
 
         List<Resource> resources = resourceManagement.getResourcesFromLabels(labels, tenantId);
         assertEquals(1, resources.size()); //make sure we only returned the one value
@@ -361,12 +359,13 @@ public class ResourceManagementTest {
         create.setLabels(resourceLabels);
         String tenantId = RandomStringUtils.randomAlphanumeric(10);
         resourceManagement.createResource(tenantId, create);
+        entityManager.flush();
 
         List<Resource> resources = resourceManagement.getResourcesFromLabels(labels, tenantId);
         assertEquals(1, resources.size()); //make sure we only returned the one value
         assertEquals(tenantId, resources.get(0).getTenantId());
         assertEquals(create.getResourceId(), resources.get(0).getResourceId());
-        assertEquals(labels, resources.get(0).getLabels());
+        assertEquals(resourceLabels, resources.get(0).getLabels());
     }
 
     @Test
@@ -374,16 +373,18 @@ public class ResourceManagementTest {
         final Map<String, String> resourceLabels = new HashMap<>();
         resourceLabels.put("os", "DARWIN");
         resourceLabels.put("env", "test");
-        resourceLabels.put("architecture", "x86");
-        resourceLabels.put("region", "DFW");
         final Map<String, String> labels = new HashMap<>();
         labels.put("os", "DARWIN");
         labels.put("env", "test");
+        labels.put("architecture", "x86");
+        labels.put("region", "DFW");
+
 
         ResourceCreate create = podamFactory.manufacturePojo(ResourceCreate.class);
         create.setLabels(resourceLabels);
         String tenantId = RandomStringUtils.randomAlphanumeric(10);
         resourceManagement.createResource(tenantId, create);
+        entityManager.flush();
 
         List<Resource> resources = resourceManagement.getResourcesFromLabels(labels, tenantId);
         assertEquals(1, resources.size()); //make sure we only returned the one value
