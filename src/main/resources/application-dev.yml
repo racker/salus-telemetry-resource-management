@@ -19,3 +19,5 @@ logging:
   level:
     com.rackspace.salus: debug
     org.hibernate.type: trace
+    org.springframework.orm.jpa: debug
+    org.springframework.transaction: debug
