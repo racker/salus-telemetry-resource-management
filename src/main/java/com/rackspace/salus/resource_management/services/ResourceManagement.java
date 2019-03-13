@@ -85,6 +85,7 @@ public class ResourceManagement {
      */
     public Resource saveAndPublishResource(Resource resource, Map<String, String> oldLabels,
                                            boolean presenceMonitoringStateChanged, OperationType operation) {
+        log.debug("Saving resource: {}", resource);
         resourceRepository.save(resource);
         publishResourceEvent(resource, oldLabels, presenceMonitoringStateChanged, operation);
         return resource;
@@ -266,6 +267,8 @@ public class ResourceManagement {
      * @param attachEvent The event triggered from the Ambassador by any envoy attachment.
      */
     public void handleEnvoyAttach(AttachEvent attachEvent) {
+        log.debug("Handling Envoy attach: {}", attachEvent);
+
         String tenantId = attachEvent.getTenantId();
         String resourceId = attachEvent.getResourceId();
         Map<String, String> labels = attachEvent.getLabels();
@@ -333,6 +336,7 @@ public class ResourceManagement {
         event.setPresenceMonitorChange(presenceMonitoringStateChanged);
         event.setOperation(operation);
 
+        log.debug("Publishing resource event: {}", event);
         kafkaEgress.sendResourceEvent(event);
     }
 
