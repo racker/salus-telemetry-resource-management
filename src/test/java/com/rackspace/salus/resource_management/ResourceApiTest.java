@@ -34,6 +34,7 @@ import com.rackspace.salus.resource_management.web.controller.ResourceApi;
 import com.rackspace.salus.resource_management.web.model.ResourceCreate;
 import com.rackspace.salus.resource_management.web.model.ResourceUpdate;
 import com.rackspace.salus.telemetry.model.Resource;
+import com.rackspace.salus.telemetry.repositories.MonitorRepository;
 import com.rackspace.salus.telemetry.repositories.ResourceRepository;
 import org.apache.commons.lang3.RandomStringUtils;
 import org.junit.Test;
@@ -74,6 +75,12 @@ public class ResourceApiTest {
 
     @MockBean
     ResourceRepository resourceRepository;
+
+    // This mock is a hack;
+    //  it is required because the entityManager bean needs to find all the repositories
+    //  need to find a way to filter out the unwanted repos without adding a bean for each of them
+    @MockBean
+    MonitorRepository monitorRepository;
 
     @Autowired
     ObjectMapper objectMapper;
