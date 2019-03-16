@@ -34,7 +34,6 @@ import com.rackspace.salus.resource_management.web.controller.ResourceApi;
 import com.rackspace.salus.resource_management.web.model.ResourceCreate;
 import com.rackspace.salus.resource_management.web.model.ResourceUpdate;
 import com.rackspace.salus.telemetry.model.Resource;
-import com.rackspace.salus.telemetry.repositories.MonitorRepository;
 import com.rackspace.salus.telemetry.repositories.ResourceRepository;
 import org.apache.commons.lang3.RandomStringUtils;
 import org.junit.Test;
@@ -62,7 +61,6 @@ import java.util.stream.Stream;
 @RunWith(SpringRunner.class)
 @WebMvcTest(controllers = ResourceApi.class)
 @AutoConfigureDataJpa
-
 public class ResourceApiTest {
 
     PodamFactory podamFactory = new PodamFactoryImpl();
