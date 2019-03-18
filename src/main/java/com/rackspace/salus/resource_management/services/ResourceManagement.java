@@ -62,14 +62,17 @@ public class ResourceManagement {
 
     private static final String ENVOY_NAMESPACE = "envoy.";
 
-    @Autowired
     JdbcTemplate jdbcTemplate;
 
     @Autowired
-    public ResourceManagement(ResourceRepository resourceRepository, KafkaEgress kafkaEgress, EntityManager entityManager) {
+    public ResourceManagement(ResourceRepository resourceRepository,
+                              KafkaEgress kafkaEgress,
+                              EntityManager entityManager,
+                              JdbcTemplate jdbcTemplate) {
         this.resourceRepository = resourceRepository;
         this.kafkaEgress = kafkaEgress;
         this.entityManager = entityManager;
+        this.jdbcTemplate = jdbcTemplate;
 
     }
 
