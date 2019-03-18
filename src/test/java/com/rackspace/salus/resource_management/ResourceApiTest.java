@@ -39,6 +39,7 @@ import org.apache.commons.lang3.RandomStringUtils;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.orm.jpa.AutoConfigureDataJpa;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.data.domain.Page;
@@ -59,6 +60,7 @@ import java.util.stream.Stream;
 
 @RunWith(SpringRunner.class)
 @WebMvcTest(controllers = ResourceApi.class)
+@AutoConfigureDataJpa
 public class ResourceApiTest {
 
     PodamFactory podamFactory = new PodamFactoryImpl();
@@ -68,12 +70,6 @@ public class ResourceApiTest {
 
     @MockBean
     ResourceManagement resourceManagement;
-
-    @MockBean
-    EntityManagerFactory entityManagerFactory;
-
-    @MockBean
-    ResourceRepository resourceRepository;
 
     @Autowired
     ObjectMapper objectMapper;
