@@ -279,14 +279,6 @@ public class ResourceManagementTest {
     }
 
     @Test
-    public void testLabelMatchingQuery() {
-        Map<String, String> labels = new HashMap<>();
-        labels.put("key", "value");
-
-
-    }
-
-    @Test
     public void testSpecificCreate() {
         final Map<String, String> labels = new HashMap<>();
         labels.put("os", "DARWIN");
