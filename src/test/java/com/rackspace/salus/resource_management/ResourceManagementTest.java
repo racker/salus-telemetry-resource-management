@@ -61,12 +61,6 @@ import org.springframework.test.context.junit4.SpringRunner;
 import uk.co.jemos.podam.api.PodamFactory;
 import uk.co.jemos.podam.api.PodamFactoryImpl;
 
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Random;
-import java.util.stream.Stream;
-
 @RunWith(SpringRunner.class)
 @DataJpaTest
 @Import({ResourceManagement.class})
@@ -390,7 +384,7 @@ public class ResourceManagementTest {
         assertEquals(1, resources.size()); //make sure we only returned the one value
         assertEquals(tenantId, resources.get(0).getTenantId());
         assertEquals(create.getResourceId(), resources.get(0).getResourceId());
-        assertEquals(labels, resources.get(0).getLabels());
+        assertEquals(resourceLabels, resources.get(0).getLabels());
     }
 
 
