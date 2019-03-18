@@ -398,8 +398,8 @@ public class ResourceManagement {
         MapSqlParameterSource paramSource = new MapSqlParameterSource();
         paramSource.addValue("tenantId", tenantId);//AS r JOIN resource_labels AS rl
         StringBuilder builder = new StringBuilder("SELECT * FROM resources JOIN resource_labels AS rl WHERE resources.id = rl.id AND resources.id IN ");
-        builder.append("(SELECT id from resource_labels WHERE id IN ( SELECT id FROM resources WHERE tenant_id = :tenantId) AND ");
-
+        builder.append("(SELECT id from resource_labels WHERE id IN ( SELECT id FROM resources WHERE tenant_id = :tenantId) AND resources.id IN ");
+        builder.append(" (SELECT search_labels.id FROM (SELECT id, COUNT(*) AS count FROM resource_labels GROUP BY id) AS total_labels JOIN (SELECT id, COUNT(*) AS count FROM resource_labels WHERE ");
         int i = 0;
         labels.size();
         for(Map.Entry<String, String> entry : labels.entrySet()) {
@@ -411,7 +411,8 @@ public class ResourceManagement {
             paramSource.addValue("labelKey"+i, entry.getKey());
             i++;
         }
-        builder.append(" GROUP BY id HAVING COUNT(id) = :i) ORDER BY resources.id");
+        builder.append("GROUP BY id) AS search_labels WHERE total_labels.id = search_labels.id AND (search_labels.count >= total_labels.count OR search_labels.count = :i)");
+        builder.append(" GROUP BY total_labels.id)) ORDER BY resources.id");
         paramSource.addValue("i", i);
 
         NamedParameterJdbcTemplate namedParameterTemplate = new NamedParameterJdbcTemplate(jdbcTemplate.getDataSource());

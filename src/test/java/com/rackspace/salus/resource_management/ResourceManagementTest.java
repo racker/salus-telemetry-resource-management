@@ -382,7 +382,7 @@ public class ResourceManagementTest {
         assertEquals(1, resources.size()); //make sure we only returned the one value
         assertEquals(tenantId, resources.get(0).getTenantId());
         assertEquals(create.getResourceId(), resources.get(0).getResourceId());
-        assertEquals(labels, resources.get(0).getLabels());
+        assertEquals(resourceLabels, resources.get(0).getLabels());
     }
 
 
