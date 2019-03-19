@@ -387,19 +387,21 @@ public class ResourceManagement {
      * @param tenantId The tenant associated to the resource
      * @return the list of Resource's that match the labels
      */
-    public List<Resource> getResourcesFromLabels(Map<String, String> labels, String tenantId) {
+    public List<Resource> getResourcesFromLabels(Map<String, String> labels, String tenantId) throws IllegalArgumentException{
         /*
         SELECT * FROM resources where id IN (SELECT id from resource_labels WHERE id IN (select id from resources)
         AND ((labels = "windows" AND labels_key = "os") OR (labels = "prod" AND labels_key="env")) GROUP BY id
         HAVING COUNT(id) = 2) AND tenant_id = "aaaad";
         */
 
-
+        if(labels.size() == 0) {
+            throw new IllegalArgumentException("Labels must be provided for search");
+        }
         MapSqlParameterSource paramSource = new MapSqlParameterSource();
         paramSource.addValue("tenantId", tenantId);//AS r JOIN resource_labels AS rl
         StringBuilder builder = new StringBuilder("SELECT * FROM resources JOIN resource_labels AS rl WHERE resources.id = rl.id AND resources.id IN ");
         builder.append("(SELECT id from resource_labels WHERE id IN ( SELECT id FROM resources WHERE tenant_id = :tenantId) AND resources.id IN ");
-        builder.append(" (SELECT search_labels.id FROM (SELECT id, COUNT(*) AS count FROM resource_labels GROUP BY id) AS total_labels JOIN (SELECT id, COUNT(*) AS count FROM resource_labels WHERE ");
+        builder.append(" (SELECT id FROM resource_labels WHERE ");
         int i = 0;
         labels.size();
         for(Map.Entry<String, String> entry : labels.entrySet()) {
@@ -411,8 +413,7 @@ public class ResourceManagement {
             paramSource.addValue("labelKey"+i, entry.getKey());
             i++;
         }
-        builder.append("GROUP BY id) AS search_labels WHERE total_labels.id = search_labels.id AND (search_labels.count >= total_labels.count OR search_labels.count = :i)");
-        builder.append(" GROUP BY total_labels.id)) ORDER BY resources.id");
+        builder.append(" GROUP BY id HAVING COUNT(*) = :i)) ORDER BY resources.id");
         paramSource.addValue("i", i);
 
         NamedParameterJdbcTemplate namedParameterTemplate = new NamedParameterJdbcTemplate(jdbcTemplate.getDataSource());
@@ -452,6 +453,7 @@ public class ResourceManagement {
     }
 
     public List<String> getResourceIdsWithEnvoyLabels(Map<String, String> labels, String tenantId) {
+
 
         final Map<String, String> envoyLabels = applyNamespaceToKeys(labels, ENVOY_NAMESPACE);
 
