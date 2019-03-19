@@ -331,6 +331,27 @@ public class ResourceManagementTest {
     }
 
     @Test
+    public void testFailedMatchResourceWithMultipleLabels() {
+        final Map<String, String> resourceLabels = new HashMap<>();
+        resourceLabels.put("os", "DARWIN");
+        resourceLabels.put("env", "test");
+
+        final Map<String, String> labels = new HashMap<>();
+        labels.put("os", "DARWIN");
+        labels.put("env", "prod"); //what happens if we dont supply labels?
+
+
+        ResourceCreate create = podamFactory.manufacturePojo(ResourceCreate.class);
+        create.setLabels(resourceLabels);
+        String tenantId = RandomStringUtils.randomAlphanumeric(10);
+        resourceManagement.createResource(tenantId, create);
+        entityManager.flush();
+
+        List<Resource> resources = resourceManagement.getResourcesFromLabels(labels, tenantId);
+        assertEquals(0, resources.size());
+    }
+
+    @Test
     public void testMatchResourceWithSupersetOfLabels() {
         final Map<String, String> resourceLabels = new HashMap<>();
         resourceLabels.put("os", "DARWIN");
@@ -355,7 +376,28 @@ public class ResourceManagementTest {
     }
 
     @Test
-    public void testMatchResourceWithSubsetOfLabels() {
+    public void testFailMatchResourceWithSupersetOfDifferentLabels() {
+        final Map<String, String> resourceLabels = new HashMap<>();
+        resourceLabels.put("os", "DARWIN");
+        resourceLabels.put("env", "test");
+        resourceLabels.put("architecture", "x86");
+        resourceLabels.put("region", "DFW");
+        final Map<String, String> labels = new HashMap<>();
+        labels.put("os", "DARWIN");
+        labels.put("env", "prod");
+
+        ResourceCreate create = podamFactory.manufacturePojo(ResourceCreate.class);
+        create.setLabels(resourceLabels);
+        String tenantId = RandomStringUtils.randomAlphanumeric(10);
+        resourceManagement.createResource(tenantId, create);
+        entityManager.flush();
+
+        List<Resource> resources = resourceManagement.getResourcesFromLabels(labels, tenantId);
+        assertEquals(0, resources.size());
+    }
+
+    @Test
+    public void testFailMatchResourceWithSubsetOfLabels() {
         final Map<String, String> resourceLabels = new HashMap<>();
         resourceLabels.put("os", "DARWIN");
         resourceLabels.put("env", "test");
@@ -373,10 +415,45 @@ public class ResourceManagementTest {
         entityManager.flush();
 
         List<Resource> resources = resourceManagement.getResourcesFromLabels(labels, tenantId);
-        assertEquals(1, resources.size()); //make sure we only returned the one value
-        assertEquals(tenantId, resources.get(0).getTenantId());
-        assertEquals(create.getResourceId(), resources.get(0).getResourceId());
-        assertEquals(resourceLabels, resources.get(0).getLabels());
+        assertEquals(0, resources.size());
+    }
+
+    @Test
+    public void testMatchResourceWithSubsetOfLabels() {
+        final Map<String, String> resourceLabels = new HashMap<>();
+        resourceLabels.put("os", "DARWIN");
+        resourceLabels.put("env", "test");
+        final Map<String, String> labels = new HashMap<>();
+        labels.put("os", "DARWIN");
+        labels.put("env", "test");
+        labels.put("architecture", "x86");
+        labels.put("region", "LON");
+
+
+        ResourceCreate create = podamFactory.manufacturePojo(ResourceCreate.class);
+        create.setLabels(resourceLabels);
+        String tenantId = RandomStringUtils.randomAlphanumeric(10);
+        resourceManagement.createResource(tenantId, create);
+        entityManager.flush();
+
+        List<Resource> resources = resourceManagement.getResourcesFromLabels(labels, tenantId);
+        assertEquals(0, resources.size());
+    }
+
+    @Test (expected = IllegalArgumentException.class)
+    public void testSendNoLabels() {
+        final Map<String, String> resourceLabels = new HashMap<>();
+        resourceLabels.put("os", "DARWIN");
+        resourceLabels.put("env", "test");
+        final Map<String, String> labels = new HashMap<>();
+
+        ResourceCreate create = podamFactory.manufacturePojo(ResourceCreate.class);
+        create.setLabels(resourceLabels);
+        String tenantId = RandomStringUtils.randomAlphanumeric(10);
+        resourceManagement.createResource(tenantId, create);
+        entityManager.flush();
+
+        List<Resource> resources = resourceManagement.getResourcesFromLabels(labels, tenantId);
     }
 
 
