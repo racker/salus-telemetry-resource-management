@@ -19,18 +19,20 @@ package com.rackspace.salus.resource_management.services;
 import com.rackspace.salus.resource_management.web.model.ResourceCreate;
 import com.rackspace.salus.resource_management.web.model.ResourceUpdate;
 import com.rackspace.salus.telemetry.errors.ResourceAlreadyExists;
+import com.rackspace.salus.telemetry.messaging.AttachEvent;
+import com.rackspace.salus.telemetry.messaging.OperationType;
 import com.rackspace.salus.telemetry.messaging.ResourceEvent;
-import com.rackspace.salus.telemetry.model.*;
-import com.rackspace.salus.telemetry.messaging.*;
+import com.rackspace.salus.telemetry.model.LabelNamespaces;
+import com.rackspace.salus.telemetry.model.NotFoundException;
+import com.rackspace.salus.telemetry.model.Resource;
+import com.rackspace.salus.telemetry.model.Resource_;
 import com.rackspace.salus.telemetry.repositories.ResourceRepository;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.context.properties.PropertyMapper;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageImpl;
-import org.springframework.data.domain.Pageable;
-import org.springframework.stereotype.Service;
-
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.stream.Stream;
 import javax.persistence.EntityManager;
 import javax.persistence.NoResultException;
 import javax.persistence.PersistenceContext;
@@ -38,9 +40,13 @@ import javax.persistence.criteria.CriteriaBuilder;
 import javax.persistence.criteria.CriteriaQuery;
 import javax.persistence.criteria.Root;
 import javax.validation.Valid;
-import java.util.*;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.stream.Stream;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.context.properties.PropertyMapper;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.Pageable;
+import org.springframework.stereotype.Service;
 
 @Slf4j
 @Service
@@ -50,8 +56,6 @@ public class ResourceManagement {
 
     @PersistenceContext
     private final EntityManager entityManager;
-
-    private static final String ENVOY_NAMESPACE = "envoy.";
 
     @Autowired
     public ResourceManagement(ResourceRepository resourceRepository, KafkaEgress kafkaEgress, EntityManager entityManager) {
@@ -217,6 +221,16 @@ public class ResourceManagement {
                     != updatedValues.getPresenceMonitoringEnabled().booleanValue();
         }
 
+        for (Entry<String, String> labelEntry : updatedValues.getLabels().entrySet()) {
+            final String labelName = labelEntry.getKey();
+            if (!LabelNamespaces.validateUserLabel(labelName)) {
+                throw new IllegalArgumentException(String
+                    .format("The given label '%s' conflicts with a system namespace",
+                        labelName
+                    ));
+            }
+        }
+
         PropertyMapper map = PropertyMapper.get();
         map.from(updatedValues.getLabels())
                 .whenNonNull()
@@ -256,7 +270,6 @@ public class ResourceManagement {
         String tenantId = attachEvent.getTenantId();
         String resourceId = attachEvent.getResourceId();
         Map<String, String> labels = attachEvent.getLabels();
-        labels = applyNamespaceToKeys(labels, ENVOY_NAMESPACE);
 
         Resource existing = getResource(tenantId, resourceId);
 
@@ -288,19 +301,18 @@ public class ResourceManagement {
         Map<String, String> resourceLabels = resource.getLabels();
         Map<String, String> oldLabels = new HashMap<>(resourceLabels);
 
-        oldLabels.entrySet().stream()
-            .filter(entry -> entry.getKey().startsWith(ENVOY_NAMESPACE))
-            .forEach(entry -> {
-                if (envoyLabels.containsKey(entry.getKey())) {
-                    if (envoyLabels.get(entry.getKey()) != entry.getValue()) {
-                        updated.set(true);
-                        resourceLabels.put(entry.getKey(), entry.getValue());
-                    }
-                } else {
+        oldLabels.forEach((key, value) -> {
+            if (envoyLabels.containsKey(key)) {
+                if (!envoyLabels.get(key).equals(value)) {
                     updated.set(true);
-                    resourceLabels.remove(entry.getKey());
+                    resourceLabels.put(key, value);
                 }
-            });
+            } else {
+                updated.set(true);
+                resourceLabels.remove(key);
+            }
+        });
+
         if (updated.get()) {
             saveAndPublishResource(resource, oldLabels, false, OperationType.UPDATE);
         }
@@ -321,20 +333,6 @@ public class ResourceManagement {
         event.setOperation(operation);
 
         kafkaEgress.sendResourceEvent(event);
-    }
-
-    /**
-     * Receives a map of strings and adds the given namespace as a prefix to the key.
-     * @param map The map to modify.
-     * @param namespace Prefix to apply to map's keys.
-     * @return Original map but with the namespace prefix applied to all keys.
-     */
-    private Map<String, String> applyNamespaceToKeys(Map<String, String> map, String namespace) {
-        Map<String, String> prefixedMap = new HashMap<>();
-        map.forEach((name, value) -> {
-            prefixedMap.put(namespace + name, value);
-        });
-        return prefixedMap;
     }
 
     /**

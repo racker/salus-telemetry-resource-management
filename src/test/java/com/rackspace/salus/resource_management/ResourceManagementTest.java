@@ -16,8 +16,13 @@
 
 package com.rackspace.salus.resource_management;
 
-import static org.hamcrest.Matchers.*;
-import static org.junit.Assert.*;
+import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.greaterThan;
+import static org.hamcrest.Matchers.hasEntry;
+import static org.hamcrest.Matchers.notNullValue;
+import static org.hamcrest.Matchers.nullValue;
+import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
 
 import com.google.common.collect.Maps;
 import com.rackspace.salus.resource_management.services.KafkaEgress;
@@ -25,8 +30,14 @@ import com.rackspace.salus.resource_management.services.ResourceManagement;
 import com.rackspace.salus.resource_management.web.model.ResourceCreate;
 import com.rackspace.salus.resource_management.web.model.ResourceUpdate;
 import com.rackspace.salus.telemetry.messaging.AttachEvent;
+import com.rackspace.salus.telemetry.model.LabelNamespaces;
 import com.rackspace.salus.telemetry.model.Resource;
 import com.rackspace.salus.telemetry.repositories.ResourceRepository;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Random;
+import java.util.stream.Stream;
 import org.apache.commons.lang3.RandomStringUtils;
 import org.junit.Before;
 import org.junit.Test;
@@ -42,16 +53,13 @@ import org.springframework.test.context.junit4.SpringRunner;
 import uk.co.jemos.podam.api.PodamFactory;
 import uk.co.jemos.podam.api.PodamFactoryImpl;
 
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Random;
-import java.util.stream.Stream;
-
 @RunWith(SpringRunner.class)
 @DataJpaTest
 @Import({ResourceManagement.class})
 public class ResourceManagementTest {
+
+    public static final String TENANT = "abcde";
+    public static final String RESOURCE_ID = "host:test";
 
     @Autowired
     ResourceManagement resourceManagement;
@@ -67,8 +75,8 @@ public class ResourceManagementTest {
     @Before
     public void setUp() {
         Resource resource = new Resource()
-                .setTenantId("abcde")
-                .setResourceId("host:test")
+                .setTenantId(TENANT)
+                .setResourceId(RESOURCE_ID)
                 .setLabels(Collections.singletonMap("key", "value"))
                 .setPresenceMonitoringEnabled(false);
 
@@ -92,7 +100,7 @@ public class ResourceManagementTest {
 
     @Test
     public void testGetResource() {
-        Resource r = resourceManagement.getResource("abcde", "host:test");
+        Resource r = resourceManagement.getResource(TENANT, RESOURCE_ID);
 
         assertThat(r.getId(), notNullValue());
         assertThat(r.getLabels(), hasEntry("key", "value"));
@@ -185,9 +193,8 @@ public class ResourceManagementTest {
         assertThat(resource.getLabels().size(), greaterThan(0));
         assertThat(resource.getLabels().size(), equalTo(attachEvent.getLabels().size()));
         attachEvent.getLabels().forEach((name, value) -> {
-            String prefixedLabel = "envoy." + name;
-            assertTrue(resource.getLabels().containsKey(prefixedLabel));
-            assertThat(resource.getLabels().get(prefixedLabel), equalTo(value));
+            assertTrue(resource.getLabels().containsKey(name));
+            assertThat(resource.getLabels().get(name), equalTo(value));
         });
         assertThat(resource.getResourceId(), equalTo(attachEvent.getResourceId()));
     }
@@ -232,5 +239,12 @@ public class ResourceManagementTest {
         resourceManagement.removeResource(tenantId, create.getResourceId());
         resource = resourceManagement.getResource(tenantId, create.getResourceId());
         assertThat(resource, nullValue());
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void testUserLabelConflictsWithSystemNamespace() {
+        final ResourceUpdate update = new ResourceUpdate()
+            .setLabels(Collections.singletonMap(LabelNamespaces.DISCOVERED+".os", "MyCoolOS"));
+        resourceManagement.updateResource(TENANT, RESOURCE_ID, update);
     }
 }
