@@ -26,6 +26,8 @@ import com.rackspace.salus.telemetry.model.NotFoundException;
 import com.rackspace.salus.telemetry.model.Resource;
 import com.rackspace.salus.telemetry.model.Resource_;
 import com.rackspace.salus.telemetry.repositories.ResourceRepository;
+
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
