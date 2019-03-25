@@ -16,7 +16,13 @@
 
 package com.rackspace.salus.resource_management;
 
-import static org.hamcrest.Matchers.*;
+import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.greaterThan;
+import static org.hamcrest.Matchers.hasEntry;
+import static org.hamcrest.Matchers.hasItem;
+import static org.hamcrest.Matchers.hasSize;
+import static org.hamcrest.Matchers.notNullValue;
+import static org.hamcrest.Matchers.nullValue;
 import static org.junit.Assert.*;
 
 import com.google.common.collect.Maps;
@@ -27,11 +33,21 @@ import com.rackspace.salus.resource_management.web.model.ResourceUpdate;
 import com.rackspace.salus.telemetry.messaging.AttachEvent;
 import com.rackspace.salus.telemetry.model.Resource;
 import com.rackspace.salus.telemetry.repositories.ResourceRepository;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Random;
+import java.util.stream.Stream;
+import javax.persistence.EntityManager;
+import javax.persistence.FlushModeType;
+
 import org.apache.commons.lang3.RandomStringUtils;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.autoconfigure.domain.EntityScan;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.Import;
@@ -42,15 +58,10 @@ import org.springframework.test.context.junit4.SpringRunner;
 import uk.co.jemos.podam.api.PodamFactory;
 import uk.co.jemos.podam.api.PodamFactoryImpl;
 
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Random;
-import java.util.stream.Stream;
-
 @RunWith(SpringRunner.class)
 @DataJpaTest
 @Import({ResourceManagement.class})
+@EntityScan(basePackageClasses = Resource.class)
 public class ResourceManagementTest {
 
     @Autowired
@@ -58,6 +69,9 @@ public class ResourceManagementTest {
 
     @Autowired
     ResourceRepository resourceRepository;
+
+    @Autowired
+    EntityManager entityManager;
 
     @MockBean
     KafkaEgress kafkaEgress;
@@ -71,7 +85,7 @@ public class ResourceManagementTest {
                 .setResourceId("host:test")
                 .setLabels(Collections.singletonMap("key", "value"))
                 .setPresenceMonitoringEnabled(false);
-
+        entityManager.setFlushMode(FlushModeType.AUTO);
         resourceRepository.save(resource);
     }
 
@@ -118,7 +132,6 @@ public class ResourceManagementTest {
         assertThat(retrieved.getPresenceMonitoringEnabled(), equalTo(returned.getPresenceMonitoringEnabled()));
         assertTrue(Maps.difference(returned.getLabels(), retrieved.getLabels()).areEqual());
     }
-
 
     @Test
     public void testGetAll() {
@@ -193,6 +206,61 @@ public class ResourceManagementTest {
     }
 
     @Test
+    public void testEnvoyAttachAndQueryByLabels() {
+        final Map<String, String> labels = new HashMap<>();
+        labels.put("environment", "localdev");
+        labels.put("arch", "X86_64");
+        labels.put("os", "DARWIN");
+        final AttachEvent attachEvent = new AttachEvent()
+            .setEnvoyId("envoy-1")
+            .setEnvoyAddress("localhost")
+            .setTenantId("tenant-1")
+            .setResourceId("development:0")
+            .setLabels(labels);
+
+        resourceManagement.handleEnvoyAttach(attachEvent);
+        entityManager.flush();
+        final Resource resourceByResourceId =
+            resourceManagement.getResource("tenant-1", "development:0");
+        assertThat(resourceByResourceId, notNullValue());
+
+        final Map<String, String> labelsToQuery = new HashMap<>();
+        labelsToQuery.put("os", "DARWIN");
+        final List<Long> resourceIdsWithEnvoyLabels = resourceManagement
+            .getResourceIdsWithEnvoyLabels(labelsToQuery, "tenant-1");
+
+        assertThat(resourceIdsWithEnvoyLabels, hasSize(1));
+        assertThat(resourceIdsWithEnvoyLabels, hasItem(resourceByResourceId.getId()));
+    }
+
+    @Test
+    public void testEnvoyAttachAndFailedQueryByLabels() {
+        final Map<String, String> labels = new HashMap<>();
+        labels.put("os", "DARWIN");
+        final AttachEvent attachEvent = new AttachEvent()
+                .setEnvoyId("envoy-1")
+                .setEnvoyAddress("localhost")
+                .setTenantId("tenant-1")
+                .setResourceId("development:0")
+                .setLabels(labels);
+        resourceManagement.handleEnvoyAttach(attachEvent);
+        entityManager.flush();
+        final Resource resourceByResourceId =
+                resourceManagement.getResource("tenant-1", "development:0");
+        assertThat(resourceByResourceId, notNullValue());
+
+        final Map<String, String> labelsToQuery = new HashMap<>();
+        labelsToQuery.put("os", "DARWIN");
+        labelsToQuery.put("environment", "localdev");
+        labelsToQuery.put("arch", "X86_64");
+        final List<Long> resourceIdsWithEnvoyLabels = resourceManagement
+                .getResourceIdsWithEnvoyLabels(labelsToQuery, "tenant-1");
+
+        assertEquals(0, resourceIdsWithEnvoyLabels.size());
+
+    }
+
+    @Test
     public void testUpdateExistingResource() {
         Resource resource = resourceManagement.getAllResources(PageRequest.of(0, 1)).getContent().get(0);
         Map<String, String> newLabels = new HashMap<>(resource.getLabels());
@@ -232,5 +300,160 @@ public class ResourceManagementTest {
         resourceManagement.removeResource(tenantId, create.getResourceId());
         resource = resourceManagement.getResource(tenantId, create.getResourceId());
         assertThat(resource, nullValue());
+    }
+
+    @Test
+    public void testSpecificCreate() {
+        final Map<String, String> labels = new HashMap<>();
+        labels.put("os", "DARWIN");
+
+        ResourceCreate create = podamFactory.manufacturePojo(ResourceCreate.class);
+        create.setLabels(labels);
+        String tenantId = RandomStringUtils.randomAlphanumeric(10);
+        resourceManagement.createResource(tenantId, create);
+        entityManager.flush();
+        List<Resource> resources = resourceManagement.getResourcesFromLabels(labels, tenantId);
+        assertEquals(1, resources.size());
+        assertNotNull(resources);
+    }
+
+    @Test
+    public void testResourcesWithSameLabelsAndDifferentTenants() {
+        final Map<String, String> labels = new HashMap<>();
+        labels.put("key", "value");
+
+        ResourceCreate create = podamFactory.manufacturePojo(ResourceCreate.class);
+        create.setLabels(labels);
+        String tenantId = RandomStringUtils.randomAlphanumeric(10);
+        String tenantId2 = RandomStringUtils.randomAlphanumeric(10);
+        resourceManagement.createResource(tenantId, create);
+        resourceManagement.createResource(tenantId2, create);
+
+        List<Resource> resources = resourceManagement.getResourcesFromLabels(labels, tenantId);
+        assertEquals(1, resources.size()); //make sure we only returned the one value
+        assertEquals(tenantId, resources.get(0).getTenantId());
+        assertEquals(create.getResourceId(), resources.get(0).getResourceId());
+    }
+
+    @Test
+    public void testMatchResourceWithMultipleLabels() {
+        final Map<String, String> labels = new HashMap<>();
+        labels.put("os", "DARWIN");
+        labels.put("env", "test");
+
+        ResourceCreate create = podamFactory.manufacturePojo(ResourceCreate.class);
+        create.setLabels(labels);
+        String tenantId = RandomStringUtils.randomAlphanumeric(10);
+        resourceManagement.createResource(tenantId, create);
+        entityManager.flush();
+
+        List<Resource> resources = resourceManagement.getResourcesFromLabels(labels, tenantId);
+        assertEquals(1, resources.size()); //make sure we only returned the one value
+        assertEquals(tenantId, resources.get(0).getTenantId());
+        assertEquals(create.getResourceId(), resources.get(0).getResourceId());
+        assertEquals(labels, resources.get(0).getLabels());
+    }
+
+    @Test
+    public void testFailedMatchResourceWithMultipleLabels() {
+        final Map<String, String> resourceLabels = new HashMap<>();
+        resourceLabels.put("os", "DARWIN");
+        resourceLabels.put("env", "test");
+
+        final Map<String, String> labels = new HashMap<>();
+        labels.put("os", "DARWIN");
+        labels.put("env", "prod");
+
+        ResourceCreate create = podamFactory.manufacturePojo(ResourceCreate.class);
+        create.setLabels(resourceLabels);
+        String tenantId = RandomStringUtils.randomAlphanumeric(10);
+        resourceManagement.createResource(tenantId, create);
+        entityManager.flush();
+
+        List<Resource> resources = resourceManagement.getResourcesFromLabels(labels, tenantId);
+        assertEquals(0, resources.size());
+    }
+
+    @Test
+    public void testMatchResourceWithSupersetOfLabels() {
+        final Map<String, String> resourceLabels = new HashMap<>();
+        resourceLabels.put("os", "DARWIN");
+        resourceLabels.put("env", "test");
+        resourceLabels.put("architecture", "x86");
+        resourceLabels.put("region", "DFW");
+        final Map<String, String> labels = new HashMap<>();
+        labels.put("os", "DARWIN");
+        labels.put("env", "test");
+
+        ResourceCreate create = podamFactory.manufacturePojo(ResourceCreate.class);
+        create.setLabels(resourceLabels);
+        String tenantId = RandomStringUtils.randomAlphanumeric(10);
+        resourceManagement.createResource(tenantId, create);
+        entityManager.flush();
+
+        List<Resource> resources = resourceManagement.getResourcesFromLabels(labels, tenantId);
+        assertEquals(1, resources.size()); //make sure we only returned the one value
+        assertEquals(tenantId, resources.get(0).getTenantId());
+        assertEquals(create.getResourceId(), resources.get(0).getResourceId());
+        assertEquals(resourceLabels, resources.get(0).getLabels());
+    }
+
+    @Test
+    public void testFailMatchResourceWithSupersetOfDifferentLabels() {
+        final Map<String, String> resourceLabels = new HashMap<>();
+        resourceLabels.put("os", "DARWIN");
+        resourceLabels.put("env", "test");
+        resourceLabels.put("architecture", "x86");
+        resourceLabels.put("region", "DFW");
+        final Map<String, String> labels = new HashMap<>();
+        labels.put("os", "DARWIN");
+        labels.put("env", "prod");
+
+        ResourceCreate create = podamFactory.manufacturePojo(ResourceCreate.class);
+        create.setLabels(resourceLabels);
+        String tenantId = RandomStringUtils.randomAlphanumeric(10);
+        resourceManagement.createResource(tenantId, create);
+        entityManager.flush();
+
+        List<Resource> resources = resourceManagement.getResourcesFromLabels(labels, tenantId);
+        assertEquals(0, resources.size());
+    }
+
+    @Test
+    public void testMatchResourceWithSubsetOfLabels() {
+        final Map<String, String> resourceLabels = new HashMap<>();
+        resourceLabels.put("os", "DARWIN");
+        resourceLabels.put("env", "test");
+        final Map<String, String> labels = new HashMap<>();
+        labels.put("os", "DARWIN");
+        labels.put("env", "test");
+        labels.put("architecture", "x86");
+        labels.put("region", "LON");
+
+
+        ResourceCreate create = podamFactory.manufacturePojo(ResourceCreate.class);
+        create.setLabels(resourceLabels);
+        String tenantId = RandomStringUtils.randomAlphanumeric(10);
+        resourceManagement.createResource(tenantId, create);
+        entityManager.flush();
+
+        List<Resource> resources = resourceManagement.getResourcesFromLabels(labels, tenantId);
+        assertEquals(0, resources.size());
+    }
+
+    @Test (expected = IllegalArgumentException.class)
+    public void testSendNoLabels() {
+        final Map<String, String> resourceLabels = new HashMap<>();
+        resourceLabels.put("os", "DARWIN");
+        resourceLabels.put("env", "test");
+        final Map<String, String> labels = new HashMap<>();
+
+        ResourceCreate create = podamFactory.manufacturePojo(ResourceCreate.class);
+        create.setLabels(resourceLabels);
+        String tenantId = RandomStringUtils.randomAlphanumeric(10);
+        resourceManagement.createResource(tenantId, create);
+        entityManager.flush();
+
+        List<Resource> resources = resourceManagement.getResourcesFromLabels(labels, tenantId);
     }
 }

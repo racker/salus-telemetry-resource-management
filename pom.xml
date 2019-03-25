@@ -112,6 +112,24 @@
         <groupId>com.google.cloud.tools</groupId>
         <artifactId>jib-maven-plugin</artifactId>
       </plugin>
+
+      <plugin>
+        <artifactId>maven-jar-plugin</artifactId>
+        <version>3.0.2</version>
+        <executions>
+          <execution>
+            <id>client-jar</id>
+            <goals><goal>jar</goal></goals>
+            <configuration>
+              <classifier>client</classifier>
+              <includes>
+                <include>**/web/model/**</include>
+              </includes>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+
     </plugins>
   </build>
 
