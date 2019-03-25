@@ -198,9 +198,8 @@ public class ResourceManagementTest {
         assertThat(resource.getLabels().size(), greaterThan(0));
         assertThat(resource.getLabels().size(), equalTo(attachEvent.getLabels().size()));
         attachEvent.getLabels().forEach((name, value) -> {
-            String prefixedLabel = "envoy." + name;
-            assertTrue(resource.getLabels().containsKey(prefixedLabel));
-            assertThat(resource.getLabels().get(prefixedLabel), equalTo(value));
+            assertTrue(resource.getLabels().containsKey(name));
+            assertThat(resource.getLabels().get(name), equalTo(value));
         });
         assertThat(resource.getResourceId(), equalTo(attachEvent.getResourceId()));
     }
