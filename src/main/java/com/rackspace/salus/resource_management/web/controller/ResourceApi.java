@@ -133,13 +133,13 @@ public class ResourceApi {
 
     @GetMapping("/tenant/{tenantId}/resourceLabels")
     public List<Resource> getResourcesWithLabels(@PathVariable String tenantId,
-                                                 @RequestBody Map<String, String> labels) {
+                                                 @RequestParam Map<String, String> labels) {
         return resourceManagement.getResourcesFromLabels(labels, tenantId);
     }
 
     @GetMapping("/tenant/{tenantId}/resourceIds/withEnvoyLabels")
-    public List<String> getResourceIdsWithLabels(@PathVariable String tenantId,
+    public List<Long> getResourceIdsWithLabels(@PathVariable String tenantId,
                                                  @RequestParam Map<String, String> labels) throws IllegalArgumentException{
         return resourceManagement.getResourceIdsWithEnvoyLabels(labels, tenantId);
-    }
+    } // remove
 }

@@ -403,7 +403,6 @@ public class ResourceManagement {
         builder.append("(SELECT id from resource_labels WHERE id IN ( SELECT id FROM resources WHERE tenant_id = :tenantId) AND resources.id IN ");
         builder.append(" (SELECT id FROM resource_labels WHERE ");
         int i = 0;
-        labels.size();
         for(Map.Entry<String, String> entry : labels.entrySet()) {
             if(i > 0) {
                 builder.append(" OR ");
@@ -452,39 +451,34 @@ public class ResourceManagement {
         return resources;
     }
 
-    public List<String> getResourceIdsWithEnvoyLabels(Map<String, String> labels, String tenantId) {
+    public List<Long> getResourceIdsWithEnvoyLabels(Map<String, String> labels, String tenantId) {
 
 
         final Map<String, String> envoyLabels = applyNamespaceToKeys(labels, ENVOY_NAMESPACE);
+        MapSqlParameterSource paramSource = new MapSqlParameterSource();
+        paramSource.addValue("tenantId", tenantId);//AS r JOIN resource_labels AS rl
 
-        StringBuilder builder = new StringBuilder("SELECT resource_id FROM resources WHERE id IN ");
-        builder.append(
-            "(SELECT id from resource_labels WHERE id IN ( SELECT id FROM resources WHERE tenant_id = ?) AND ");
-
+        StringBuilder builder = new StringBuilder("SELECT id FROM resources WHERE resources.id IN ");
+        builder.append("(SELECT id from resource_labels WHERE id IN (SELECT id FROM resources WHERE tenant_id = :tenantId) AND resources.id IN ");
+        builder.append(" (SELECT id FROM resource_labels WHERE ");
         int i = 0;
-        envoyLabels.size();
-        for (Map.Entry<String, String> entry : envoyLabels.entrySet()) {
-            if (i > 0) {
+        for(Map.Entry<String, String> entry : envoyLabels.entrySet()) {
+            if(i > 0) {
                 builder.append(" OR ");
             }
-            builder.append("(labels = ? AND labels_key = ?)");
+            builder.append("(labels = :label"+ i +" AND labels_key = :labelKey" + i + ")");
+            paramSource.addValue("label"+i, entry.getValue());
+            paramSource.addValue("labelKey"+i, entry.getKey());
             i++;
         }
-        builder.append(" GROUP BY id HAVING COUNT(id) = ?)");
+        builder.append(" GROUP BY id HAVING COUNT(*) = :i)) ORDER BY resources.id");
+        paramSource.addValue("i", i);
 
-        return jdbcTemplate.query(
-            builder.toString(),
-            ps -> {
-                ps.setString(1, tenantId);
-                int p = 2;
-                for (Entry<String, String> entry : envoyLabels.entrySet()) {
-                    ps.setString(p++, entry.getValue());
-                    ps.setString(p++, entry.getKey());
-                }
+        return new NamedParameterJdbcTemplate(jdbcTemplate.getDataSource()).query(
+                builder.toString(),
+                paramSource,
+                (rs, rowNumber) -> rs.getLong(1)
 
-                ps.setInt(p, labels.size());
-            },
-            (rs, rowNumber) -> rs.getString(1)
         );
     }
 
