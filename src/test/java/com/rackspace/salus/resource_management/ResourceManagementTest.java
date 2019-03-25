@@ -220,18 +220,45 @@ public class ResourceManagementTest {
             .setLabels(labels);
 
         resourceManagement.handleEnvoyAttach(attachEvent);
-
+        entityManager.flush();
         final Resource resourceByResourceId =
             resourceManagement.getResource("tenant-1", "development:0");
         assertThat(resourceByResourceId, notNullValue());
 
         final Map<String, String> labelsToQuery = new HashMap<>();
         labelsToQuery.put("os", "DARWIN");
-        final List<String> resourceIdsWithEnvoyLabels = resourceManagement
+        final List<Long> resourceIdsWithEnvoyLabels = resourceManagement
             .getResourceIdsWithEnvoyLabels(labelsToQuery, "tenant-1");
 
         assertThat(resourceIdsWithEnvoyLabels, hasSize(1));
-        assertThat(resourceIdsWithEnvoyLabels, hasItem("development:0"));
+        assertThat(resourceIdsWithEnvoyLabels, hasItem(resourceByResourceId.getId()));
+    }
+
+    @Test
+    public void testEnvoyAttachAndFailedQueryByLabels() {
+        final Map<String, String> labels = new HashMap<>();
+        labels.put("os", "DARWIN");
+        final AttachEvent attachEvent = new AttachEvent()
+                .setEnvoyId("envoy-1")
+                .setEnvoyAddress("localhost")
+                .setTenantId("tenant-1")
+                .setResourceId("development:0")
+                .setLabels(labels);
+        resourceManagement.handleEnvoyAttach(attachEvent);
+        entityManager.flush();
+        final Resource resourceByResourceId =
+                resourceManagement.getResource("tenant-1", "development:0");
+        assertThat(resourceByResourceId, notNullValue());
+
+        final Map<String, String> labelsToQuery = new HashMap<>();
+        labelsToQuery.put("os", "DARWIN");
+        labelsToQuery.put("environment", "localdev");
+        labelsToQuery.put("arch", "X86_64");
+        final List<Long> resourceIdsWithEnvoyLabels = resourceManagement
+                .getResourceIdsWithEnvoyLabels(labelsToQuery, "tenant-1");
+
+        assertEquals(0, resourceIdsWithEnvoyLabels.size());
+
     }
 
     @Test
@@ -336,8 +363,7 @@ public class ResourceManagementTest {
 
         final Map<String, String> labels = new HashMap<>();
         labels.put("os", "DARWIN");
-        labels.put("env", "prod"); //what happens if we dont supply labels?
-
+        labels.put("env", "prod");
 
         ResourceCreate create = podamFactory.manufacturePojo(ResourceCreate.class);
         create.setLabels(resourceLabels);
@@ -395,28 +421,6 @@ public class ResourceManagementTest {
     }
 
     @Test
-    public void testFailMatchResourceWithSubsetOfLabels() {
-        final Map<String, String> resourceLabels = new HashMap<>();
-        resourceLabels.put("os", "DARWIN");
-        resourceLabels.put("env", "test");
-        final Map<String, String> labels = new HashMap<>();
-        labels.put("os", "DARWIN");
-        labels.put("env", "test");
-        labels.put("architecture", "x86");
-        labels.put("region", "DFW");
-
-
-        ResourceCreate create = podamFactory.manufacturePojo(ResourceCreate.class);
-        create.setLabels(resourceLabels);
-        String tenantId = RandomStringUtils.randomAlphanumeric(10);
-        resourceManagement.createResource(tenantId, create);
-        entityManager.flush();
-
-        List<Resource> resources = resourceManagement.getResourcesFromLabels(labels, tenantId);
-        assertEquals(0, resources.size());
-    }
-
-    @Test
     public void testMatchResourceWithSubsetOfLabels() {
         final Map<String, String> resourceLabels = new HashMap<>();
         resourceLabels.put("os", "DARWIN");
@@ -453,13 +457,4 @@ public class ResourceManagementTest {
 
         List<Resource> resources = resourceManagement.getResourcesFromLabels(labels, tenantId);
     }
-
-
-    /*
-    So the question is what tests do I need to write for the Resource Management service?
-
-    We need the Resource before the Monitor... And we need the Monitor before the Resource
-
-    Resources should have many labels and monitors should have few.
-     */
 }
