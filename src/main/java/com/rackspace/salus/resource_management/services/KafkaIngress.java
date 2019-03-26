@@ -51,7 +51,7 @@ public class KafkaIngress {
      */
     @KafkaListener(topics = "#{__listener.topic}")
     public void consumeAttachEvents(AttachEvent attachEvent) {
-        log.debug("Processing new attach event: {}", attachEvent.toString());
+        log.debug("Processing new attach event: {}", attachEvent);
         resourceManagement.handleEnvoyAttach(attachEvent);
     }
 }

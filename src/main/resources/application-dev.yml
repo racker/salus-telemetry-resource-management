@@ -3,7 +3,7 @@ server:
 spring:
   jpa:
     hibernate:
-      ddl-auto: create
+      ddl-auto: update
     database-platform: org.hibernate.dialect.MySQL5Dialect
     properties:
       hibernate:
@@ -19,3 +19,5 @@ logging:
   level:
     com.rackspace.salus: debug
     org.hibernate.type: trace
+    org.springframework.orm.jpa: debug
+    org.springframework.transaction: debug

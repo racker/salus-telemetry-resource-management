@@ -27,6 +27,7 @@ import com.rackspace.salus.telemetry.model.NotFoundException;
 import com.rackspace.salus.telemetry.model.Resource;
 import com.rackspace.salus.telemetry.model.Resource_;
 import com.rackspace.salus.telemetry.repositories.ResourceRepository;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -46,6 +47,9 @@ import org.springframework.boot.context.properties.PropertyMapper;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
+import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Service;
 
 @Slf4j
@@ -57,11 +61,18 @@ public class ResourceManagement {
     @PersistenceContext
     private final EntityManager entityManager;
 
+    JdbcTemplate jdbcTemplate;
+
     @Autowired
-    public ResourceManagement(ResourceRepository resourceRepository, KafkaEgress kafkaEgress, EntityManager entityManager) {
+    public ResourceManagement(ResourceRepository resourceRepository,
+                              KafkaEgress kafkaEgress,
+                              EntityManager entityManager,
+                              JdbcTemplate jdbcTemplate) {
         this.resourceRepository = resourceRepository;
         this.kafkaEgress = kafkaEgress;
         this.entityManager = entityManager;
+        this.jdbcTemplate = jdbcTemplate;
+
     }
 
     /**
@@ -76,6 +87,7 @@ public class ResourceManagement {
      */
     public Resource saveAndPublishResource(Resource resource, Map<String, String> oldLabels,
                                            boolean presenceMonitoringStateChanged, OperationType operation) {
+        log.debug("Saving resource: {}", resource);
         resourceRepository.save(resource);
         publishResourceEvent(resource, oldLabels, presenceMonitoringStateChanged, operation);
         return resource;
@@ -267,6 +279,8 @@ public class ResourceManagement {
      * @param attachEvent The event triggered from the Ambassador by any envoy attachment.
      */
     public void handleEnvoyAttach(AttachEvent attachEvent) {
+        log.debug("Handling Envoy attach: {}", attachEvent);
+
         String tenantId = attachEvent.getTenantId();
         String resourceId = attachEvent.getResourceId();
         Map<String, String> labels = attachEvent.getLabels();
@@ -332,6 +346,7 @@ public class ResourceManagement {
         event.setPresenceMonitorChange(presenceMonitoringStateChanged);
         event.setOperation(operation);
 
+        log.debug("Publishing resource event: {}", event);
         kafkaEgress.sendResourceEvent(event);
     }
 
@@ -359,5 +374,103 @@ public class ResourceManagement {
         saveAndPublishResource(resource, resource.getLabels(), true, OperationType.UPDATE);
     }
 
-    //public Resource migrateResourceToTenant(String oldTenantId, String newTenantId, String identifierName, String identifierValue) {}
+    /**
+     * takes in a Mapping of labels for a tenant, builds and runs the query to match to those labels
+     * @param labels the labels that we need to match to
+     * @param tenantId The tenant associated to the resource
+     * @return the list of Resource's that match the labels
+     */
+    public List<Resource> getResourcesFromLabels(Map<String, String> labels, String tenantId) throws IllegalArgumentException{
+        /*
+        SELECT * FROM resources where id IN (SELECT id from resource_labels WHERE id IN (select id from resources)
+        AND ((labels = "windows" AND labels_key = "os") OR (labels = "prod" AND labels_key="env")) GROUP BY id
+        HAVING COUNT(id) = 2) AND tenant_id = "aaaad";
+        */
+
+        if(labels.size() == 0) {
+            throw new IllegalArgumentException("Labels must be provided for search");
+        }
+        MapSqlParameterSource paramSource = new MapSqlParameterSource();
+        paramSource.addValue("tenantId", tenantId);//AS r JOIN resource_labels AS rl
+        StringBuilder builder = new StringBuilder("SELECT * FROM resources JOIN resource_labels AS rl WHERE resources.id = rl.id AND resources.id IN ");
+        builder.append("(SELECT id from resource_labels WHERE id IN ( SELECT id FROM resources WHERE tenant_id = :tenantId) AND resources.id IN ");
+        builder.append(" (SELECT id FROM resource_labels WHERE ");
+        int i = 0;
+        for(Map.Entry<String, String> entry : labels.entrySet()) {
+            if(i > 0) {
+                builder.append(" OR ");
+            }
+            builder.append("(labels = :label"+ i +" AND labels_key = :labelKey" + i + ")");
+            paramSource.addValue("label"+i, entry.getValue());
+            paramSource.addValue("labelKey"+i, entry.getKey());
+            i++;
+        }
+        builder.append(" GROUP BY id HAVING COUNT(*) = :i)) ORDER BY resources.id");
+        paramSource.addValue("i", i);
+
+        NamedParameterJdbcTemplate namedParameterTemplate = new NamedParameterJdbcTemplate(jdbcTemplate.getDataSource());
+        List<Resource> resources = new ArrayList<>();
+        namedParameterTemplate.query(builder.toString(), paramSource, (resultSet)->{
+
+            long prevId = 0;
+            Resource prevResource = null;
+            boolean iterate = true;
+
+            while(iterate){
+                if(resultSet.getLong("id") == prevId) {
+                    prevResource.getLabels().put(
+                            resultSet.getString("labels_key"),
+                            resultSet.getString("labels"));
+                }else {
+                    Map<String, String> theseLabels = new HashMap<String, String>();
+                    theseLabels.put(
+                            resultSet.getString("labels_key"),
+                            resultSet.getString("labels"));
+                    Resource r = new Resource()
+                            .setId(resultSet.getLong("id"))
+                            .setResourceId(resultSet.getString("resource_id"))
+                            .setTenantId(resultSet.getString("tenant_id"))
+                            .setPresenceMonitoringEnabled(resultSet.getBoolean("presence_monitoring_enabled"))
+                            .setLabels(theseLabels);
+                    prevId = resultSet.getLong("id");
+                    prevResource = r;
+                    resources.add(r);
+
+                }
+                iterate = resultSet.next();
+            }
+        });
+
+        return resources;
+    }
+
+    public List<Long> getResourceIdsWithEnvoyLabels(Map<String, String> labels, String tenantId) {
+
+
+        MapSqlParameterSource paramSource = new MapSqlParameterSource();
+        paramSource.addValue("tenantId", tenantId);//AS r JOIN resource_labels AS rl
+
+        StringBuilder builder = new StringBuilder("SELECT id FROM resources WHERE resources.id IN ");
+        builder.append("(SELECT id from resource_labels WHERE id IN (SELECT id FROM resources WHERE tenant_id = :tenantId) AND resources.id IN ");
+        builder.append(" (SELECT id FROM resource_labels WHERE ");
+        int i = 0;
+        for(Map.Entry<String, String> entry : labels.entrySet()) {
+            if(i > 0) {
+                builder.append(" OR ");
+            }
+            builder.append("(labels = :label"+ i +" AND labels_key = :labelKey" + i + ")");
+            paramSource.addValue("label"+i, entry.getValue());
+            paramSource.addValue("labelKey"+i, entry.getKey());
+            i++;
+        }
+        builder.append(" GROUP BY id HAVING COUNT(*) = :i)) ORDER BY resources.id");
+        paramSource.addValue("i", i);
+
+        return new NamedParameterJdbcTemplate(jdbcTemplate.getDataSource()).query(
+                builder.toString(),
+                paramSource,
+                (rs, rowNumber) -> rs.getLong(1)
+
+        );
+    }
 }
