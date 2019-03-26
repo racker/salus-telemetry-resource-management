@@ -244,7 +244,7 @@ public class ResourceManagementTest {
     @Test(expected = IllegalArgumentException.class)
     public void testUserLabelConflictsWithSystemNamespace() {
         final ResourceUpdate update = new ResourceUpdate()
-            .setLabels(Collections.singletonMap(LabelNamespaces.DISCOVERED+".os", "MyCoolOS"));
+            .setLabels(Collections.singletonMap(LabelNamespaces.EVENT_ENGINE_TAGS +".account", "HackedAccount"));
         resourceManagement.updateResource(TENANT, RESOURCE_ID, update);
     }
 }
