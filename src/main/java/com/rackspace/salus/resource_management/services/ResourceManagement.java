@@ -22,11 +22,11 @@ import com.rackspace.salus.telemetry.errors.ResourceAlreadyExists;
 import com.rackspace.salus.telemetry.messaging.AttachEvent;
 import com.rackspace.salus.telemetry.messaging.OperationType;
 import com.rackspace.salus.telemetry.messaging.ResourceEvent;
+import com.rackspace.salus.telemetry.model.LabelNamespaces;
 import com.rackspace.salus.telemetry.model.NotFoundException;
 import com.rackspace.salus.telemetry.model.Resource;
 import com.rackspace.salus.telemetry.model.Resource_;
 import com.rackspace.salus.telemetry.repositories.ResourceRepository;
-
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -50,7 +50,6 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
-import org.springframework.jdbc.support.rowset.SqlRowSet;
 import org.springframework.stereotype.Service;
 
 @Slf4j
@@ -61,8 +60,6 @@ public class ResourceManagement {
 
     @PersistenceContext
     private final EntityManager entityManager;
-
-    private static final String ENVOY_NAMESPACE = "envoy.";
 
     JdbcTemplate jdbcTemplate;
 
@@ -236,6 +233,16 @@ public class ResourceManagement {
                     != updatedValues.getPresenceMonitoringEnabled().booleanValue();
         }
 
+        for (Entry<String, String> labelEntry : updatedValues.getLabels().entrySet()) {
+            final String labelName = labelEntry.getKey();
+            if (!LabelNamespaces.validateUserLabel(labelName)) {
+                throw new IllegalArgumentException(String
+                    .format("The given label '%s' conflicts with a system namespace",
+                        labelName
+                    ));
+            }
+        }
+
         PropertyMapper map = PropertyMapper.get();
         map.from(updatedValues.getLabels())
                 .whenNonNull()
@@ -277,7 +284,6 @@ public class ResourceManagement {
         String tenantId = attachEvent.getTenantId();
         String resourceId = attachEvent.getResourceId();
         Map<String, String> labels = attachEvent.getLabels();
-        labels = applyNamespaceToKeys(labels, ENVOY_NAMESPACE);
 
         Resource existing = getResource(tenantId, resourceId);
 
@@ -309,19 +315,18 @@ public class ResourceManagement {
         Map<String, String> resourceLabels = resource.getLabels();
         Map<String, String> oldLabels = new HashMap<>(resourceLabels);
 
-        oldLabels.entrySet().stream()
-            .filter(entry -> entry.getKey().startsWith(ENVOY_NAMESPACE))
-            .forEach(entry -> {
-                if (envoyLabels.containsKey(entry.getKey())) {
-                    if (envoyLabels.get(entry.getKey()) != entry.getValue()) {
-                        updated.set(true);
-                        resourceLabels.put(entry.getKey(), entry.getValue());
-                    }
-                } else {
+        oldLabels.forEach((key, value) -> {
+            if (envoyLabels.containsKey(key)) {
+                if (!envoyLabels.get(key).equals(value)) {
                     updated.set(true);
-                    resourceLabels.remove(entry.getKey());
+                    resourceLabels.put(key, value);
                 }
-            });
+            } else {
+                updated.set(true);
+                resourceLabels.remove(key);
+            }
+        });
+
         if (updated.get()) {
             saveAndPublishResource(resource, oldLabels, false, OperationType.UPDATE);
         }
@@ -343,20 +348,6 @@ public class ResourceManagement {
 
         log.debug("Publishing resource event: {}", event);
         kafkaEgress.sendResourceEvent(event);
-    }
-
-    /**
-     * Receives a map of strings and adds the given namespace as a prefix to the key.
-     * @param map The map to modify.
-     * @param namespace Prefix to apply to map's keys.
-     * @return Original map but with the namespace prefix applied to all keys.
-     */
-    private Map<String, String> applyNamespaceToKeys(Map<String, String> map, String namespace) {
-        Map<String, String> prefixedMap = new HashMap<>();
-        map.forEach((name, value) -> {
-            prefixedMap.put(namespace + name, value);
-        });
-        return prefixedMap;
     }
 
     /**
@@ -456,7 +447,6 @@ public class ResourceManagement {
     public List<Long> getResourceIdsWithEnvoyLabels(Map<String, String> labels, String tenantId) {
 
 
-        final Map<String, String> envoyLabels = applyNamespaceToKeys(labels, ENVOY_NAMESPACE);
         MapSqlParameterSource paramSource = new MapSqlParameterSource();
         paramSource.addValue("tenantId", tenantId);//AS r JOIN resource_labels AS rl
 
@@ -464,7 +454,7 @@ public class ResourceManagement {
         builder.append("(SELECT id from resource_labels WHERE id IN (SELECT id FROM resources WHERE tenant_id = :tenantId) AND resources.id IN ");
         builder.append(" (SELECT id FROM resource_labels WHERE ");
         int i = 0;
-        for(Map.Entry<String, String> entry : envoyLabels.entrySet()) {
+        for(Map.Entry<String, String> entry : labels.entrySet()) {
             if(i > 0) {
                 builder.append(" OR ");
             }
@@ -483,6 +473,4 @@ public class ResourceManagement {
 
         );
     }
-
-    //public Resource migrateResourceToTenant(String oldTenantId, String newTenantId, String identifierName, String identifierValue) {}
 }

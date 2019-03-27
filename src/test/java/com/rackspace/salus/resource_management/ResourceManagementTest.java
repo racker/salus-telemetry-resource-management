@@ -23,7 +23,10 @@ import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.hamcrest.Matchers.nullValue;
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
 
 import com.google.common.collect.Maps;
 import com.rackspace.salus.resource_management.services.KafkaEgress;
@@ -31,6 +34,7 @@ import com.rackspace.salus.resource_management.services.ResourceManagement;
 import com.rackspace.salus.resource_management.web.model.ResourceCreate;
 import com.rackspace.salus.resource_management.web.model.ResourceUpdate;
 import com.rackspace.salus.telemetry.messaging.AttachEvent;
+import com.rackspace.salus.telemetry.model.LabelNamespaces;
 import com.rackspace.salus.telemetry.model.Resource;
 import com.rackspace.salus.telemetry.repositories.ResourceRepository;
 import java.util.Collections;
@@ -41,7 +45,6 @@ import java.util.Random;
 import java.util.stream.Stream;
 import javax.persistence.EntityManager;
 import javax.persistence.FlushModeType;
-
 import org.apache.commons.lang3.RandomStringUtils;
 import org.junit.Before;
 import org.junit.Test;
@@ -64,6 +67,9 @@ import uk.co.jemos.podam.api.PodamFactoryImpl;
 @EntityScan(basePackageClasses = Resource.class)
 public class ResourceManagementTest {
 
+    public static final String TENANT = "abcde";
+    public static final String RESOURCE_ID = "host:test";
+
     @Autowired
     ResourceManagement resourceManagement;
 
@@ -81,8 +87,8 @@ public class ResourceManagementTest {
     @Before
     public void setUp() {
         Resource resource = new Resource()
-                .setTenantId("abcde")
-                .setResourceId("host:test")
+                .setTenantId(TENANT)
+                .setResourceId(RESOURCE_ID)
                 .setLabels(Collections.singletonMap("key", "value"))
                 .setPresenceMonitoringEnabled(false);
         entityManager.setFlushMode(FlushModeType.AUTO);
@@ -106,7 +112,7 @@ public class ResourceManagementTest {
 
     @Test
     public void testGetResource() {
-        Resource r = resourceManagement.getResource("abcde", "host:test");
+        Resource r = resourceManagement.getResource(TENANT, RESOURCE_ID);
 
         assertThat(r.getId(), notNullValue());
         assertThat(r.getLabels(), hasEntry("key", "value"));
@@ -198,9 +204,8 @@ public class ResourceManagementTest {
         assertThat(resource.getLabels().size(), greaterThan(0));
         assertThat(resource.getLabels().size(), equalTo(attachEvent.getLabels().size()));
         attachEvent.getLabels().forEach((name, value) -> {
-            String prefixedLabel = "envoy." + name;
-            assertTrue(resource.getLabels().containsKey(prefixedLabel));
-            assertThat(resource.getLabels().get(prefixedLabel), equalTo(value));
+            assertTrue(resource.getLabels().containsKey(name));
+            assertThat(resource.getLabels().get(name), equalTo(value));
         });
         assertThat(resource.getResourceId(), equalTo(attachEvent.getResourceId()));
     }
@@ -456,4 +461,11 @@ public class ResourceManagementTest {
 
         List<Resource> resources = resourceManagement.getResourcesFromLabels(labels, tenantId);
     }
+
+  @Test(expected = IllegalArgumentException.class)
+  public void testUserLabelConflictsWithSystemNamespace() {
+    final ResourceUpdate update = new ResourceUpdate()
+        .setLabels(Collections.singletonMap(LabelNamespaces.EVENT_ENGINE_TAGS +".account", "HackedAccount"));
+    resourceManagement.updateResource(TENANT, RESOURCE_ID, update);
+  }
 }
