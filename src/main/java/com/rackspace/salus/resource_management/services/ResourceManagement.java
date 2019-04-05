@@ -206,7 +206,8 @@ public class ResourceManagement {
                 .setTenantId(tenantId)
                 .setResourceId(newResource.getResourceId())
                 .setLabels(newResource.getLabels())
-                .setPresenceMonitoringEnabled(newResource.getPresenceMonitoringEnabled());
+                .setPresenceMonitoringEnabled(newResource.getPresenceMonitoringEnabled())
+                .setRegion(newResource.getRegion());
 
         resource = saveAndPublishResource(resource, null, resource.getPresenceMonitoringEnabled(), OperationType.CREATE);
 
@@ -250,6 +251,9 @@ public class ResourceManagement {
         map.from(updatedValues.getPresenceMonitoringEnabled())
                 .whenNonNull()
                 .to(resource::setPresenceMonitoringEnabled);
+        map.from(updatedValues.getRegion())
+                .whenNonNull()
+                .to(resource::setRegion);
 
         saveAndPublishResource(resource, oldLabels, presenceMonitoringStateChange, OperationType.UPDATE);
 
