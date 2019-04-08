@@ -19,7 +19,6 @@ package com.rackspace.salus.resource_management;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.hasEntry;
-import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.hamcrest.Matchers.nullValue;
@@ -231,11 +230,11 @@ public class ResourceManagementTest {
 
         final Map<String, String> labelsToQuery = new HashMap<>();
         labelsToQuery.put("os", "DARWIN");
-        final List<Long> resourceIdsWithEnvoyLabels = resourceManagement
-            .getResourceIdsWithEnvoyLabels(labelsToQuery, "tenant-1");
+        final List<Resource> resourceIdsWithEnvoyLabels = resourceManagement
+            .getResourcesFromLabels(labelsToQuery, "tenant-1");
 
         assertThat(resourceIdsWithEnvoyLabels, hasSize(1));
-        assertThat(resourceIdsWithEnvoyLabels, hasItem(resourceByResourceId.getId()));
+        assertThat(resourceIdsWithEnvoyLabels.get(0).getResourceId(), equalTo("development:0"));
     }
 
     @Test
@@ -258,8 +257,8 @@ public class ResourceManagementTest {
         labelsToQuery.put("os", "DARWIN");
         labelsToQuery.put("environment", "localdev");
         labelsToQuery.put("arch", "X86_64");
-        final List<Long> resourceIdsWithEnvoyLabels = resourceManagement
-                .getResourceIdsWithEnvoyLabels(labelsToQuery, "tenant-1");
+        final List<Resource> resourceIdsWithEnvoyLabels = resourceManagement
+                .getResourcesFromLabels(labelsToQuery, "tenant-1");
 
         assertEquals(0, resourceIdsWithEnvoyLabels.size());
 

@@ -444,33 +444,4 @@ public class ResourceManagement {
         return resources;
     }
 
-    public List<Long> getResourceIdsWithEnvoyLabels(Map<String, String> labels, String tenantId) {
-
-
-        MapSqlParameterSource paramSource = new MapSqlParameterSource();
-        paramSource.addValue("tenantId", tenantId);//AS r JOIN resource_labels AS rl
-
-        StringBuilder builder = new StringBuilder("SELECT id FROM resources WHERE resources.id IN ");
-        builder.append("(SELECT id from resource_labels WHERE id IN (SELECT id FROM resources WHERE tenant_id = :tenantId) AND resources.id IN ");
-        builder.append(" (SELECT id FROM resource_labels WHERE ");
-        int i = 0;
-        for(Map.Entry<String, String> entry : labels.entrySet()) {
-            if(i > 0) {
-                builder.append(" OR ");
-            }
-            builder.append("(labels = :label"+ i +" AND labels_key = :labelKey" + i + ")");
-            paramSource.addValue("label"+i, entry.getValue());
-            paramSource.addValue("labelKey"+i, entry.getKey());
-            i++;
-        }
-        builder.append(" GROUP BY id HAVING COUNT(*) = :i)) ORDER BY resources.id");
-        paramSource.addValue("i", i);
-
-        return new NamedParameterJdbcTemplate(jdbcTemplate.getDataSource()).query(
-                builder.toString(),
-                paramSource,
-                (rs, rowNumber) -> rs.getLong(1)
-
-        );
-    }
 }

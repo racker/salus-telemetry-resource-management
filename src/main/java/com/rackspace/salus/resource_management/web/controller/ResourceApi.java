@@ -130,10 +130,4 @@ public class ResourceApi {
                                                  @RequestParam Map<String, String> labels) {
         return resourceManagement.getResourcesFromLabels(labels, tenantId);
     }
-
-    @GetMapping("/tenant/{tenantId}/resourceIds/withEnvoyLabels")
-    public List<Long> getResourceIdsWithLabels(@PathVariable String tenantId,
-                                                 @RequestParam Map<String, String> labels) throws IllegalArgumentException{
-        return resourceManagement.getResourceIdsWithEnvoyLabels(labels, tenantId);
-    } // remove
 }
