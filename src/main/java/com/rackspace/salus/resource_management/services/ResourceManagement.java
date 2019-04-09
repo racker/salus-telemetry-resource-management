@@ -202,11 +202,16 @@ public class ResourceManagement {
                     newResource.getResourceId(), tenantId));
         }
 
+        if (newResource.getLabels() != null) {
+            checkLabels(newResource.getLabels());
+        }
+
         Resource resource = new Resource()
                 .setTenantId(tenantId)
                 .setResourceId(newResource.getResourceId())
                 .setLabels(newResource.getLabels())
-                .setPresenceMonitoringEnabled(newResource.getPresenceMonitoringEnabled());
+                .setPresenceMonitoringEnabled(newResource.getPresenceMonitoringEnabled())
+                .setRegion(newResource.getRegion());
 
         resource = saveAndPublishResource(resource, null, resource.getPresenceMonitoringEnabled(), OperationType.CREATE);
 
@@ -232,15 +237,8 @@ public class ResourceManagement {
             presenceMonitoringStateChange = resource.getPresenceMonitoringEnabled().booleanValue()
                     != updatedValues.getPresenceMonitoringEnabled().booleanValue();
         }
-
-        for (Entry<String, String> labelEntry : updatedValues.getLabels().entrySet()) {
-            final String labelName = labelEntry.getKey();
-            if (!LabelNamespaces.validateUserLabel(labelName)) {
-                throw new IllegalArgumentException(String
-                    .format("The given label '%s' conflicts with a system namespace",
-                        labelName
-                    ));
-            }
+        if (updatedValues.getLabels() != null) {
+            checkLabels(updatedValues.getLabels());
         }
 
         PropertyMapper map = PropertyMapper.get();
@@ -250,10 +248,25 @@ public class ResourceManagement {
         map.from(updatedValues.getPresenceMonitoringEnabled())
                 .whenNonNull()
                 .to(resource::setPresenceMonitoringEnabled);
+        map.from(updatedValues.getRegion())
+                .whenNonNull()
+                .to(resource::setRegion);
 
         saveAndPublishResource(resource, oldLabels, presenceMonitoringStateChange, OperationType.UPDATE);
 
         return resource;
+    }
+
+    private void checkLabels(Map<String,String> labels) {
+        for (Entry<String, String> labelEntry : labels.entrySet()) {
+            final String labelName = labelEntry.getKey();
+            if (!LabelNamespaces.validateUserLabel(labelName)) {
+                throw new IllegalArgumentException(String
+                        .format("The given label '%s' conflicts with a system namespace",
+                                labelName
+                        ));
+            }
+        }
     }
 
     /**
