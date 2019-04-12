@@ -8,7 +8,7 @@ spring:
     properties:
       hibernate:
         generate_statistics: false
-    show-sql: true
+    show-sql: false
   datasource:
     username: dev
     password: pass
@@ -18,6 +18,3 @@ spring:
 logging:
   level:
     com.rackspace.salus: debug
-    org.hibernate.type: trace
-    org.springframework.orm.jpa: debug
-    org.springframework.transaction: debug

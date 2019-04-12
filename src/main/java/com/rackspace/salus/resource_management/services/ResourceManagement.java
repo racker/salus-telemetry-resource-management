@@ -16,6 +16,9 @@
 
 package com.rackspace.salus.resource_management.services;
 
+import static com.rackspace.salus.telemetry.model.LabelNamespaces.labelHasNamespace;
+
+import com.rackspace.salus.resource_management.repositories.ResourceRepository;
 import com.rackspace.salus.resource_management.web.model.ResourceCreate;
 import com.rackspace.salus.resource_management.web.model.ResourceUpdate;
 import com.rackspace.salus.telemetry.errors.ResourceAlreadyExists;
@@ -26,12 +29,13 @@ import com.rackspace.salus.telemetry.model.LabelNamespaces;
 import com.rackspace.salus.telemetry.model.NotFoundException;
 import com.rackspace.salus.telemetry.model.Resource;
 import com.rackspace.salus.telemetry.model.Resource_;
-import com.rackspace.salus.telemetry.repositories.ResourceRepository;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Stream;
 import javax.persistence.EntityManager;
@@ -142,6 +146,10 @@ public class ResourceManagement {
         List<Resource> resources = entityManager.createQuery(cr).getResultList();
 
         return new PageImpl<>(resources, page, resources.size());
+    }
+
+    public List<Resource> getAllTenantResources(String tenantid) {
+        return resourceRepository.findAllByTenantId(tenantid);
     }
 
     /**
@@ -311,10 +319,7 @@ public class ResourceManagement {
         } else {
             log.debug("Found existing resource related to envoy: {}", existing.toString());
 
-            Map<String,String> oldLabels = new HashMap<>(existing.getLabels());
-
             updateEnvoyLabels(existing, labels);
-            saveAndPublishResource(existing, oldLabels, false, OperationType.UPDATE);
         }
     }
 
@@ -324,24 +329,43 @@ public class ResourceManagement {
      * @param envoyLabels The list of labels received from a newly connected envoy.
      */
     private void updateEnvoyLabels(Resource resource, Map<String, String> envoyLabels) {
-        AtomicBoolean updated = new AtomicBoolean(false);
-        Map<String, String> resourceLabels = resource.getLabels();
-        Map<String, String> oldLabels = new HashMap<>(resourceLabels);
+        final AtomicBoolean updated = new AtomicBoolean(false);
+        final Map<String, String> oldResourceLabels = resource.getLabels();
+        // Work with a new map to avoid mutating the labels in-place
+        final Map<String, String> resourceLabels = new HashMap<>(oldResourceLabels);
+        final Set<String> newEnvoyLabelKeys = new HashSet<>(envoyLabels.keySet());
 
-        oldLabels.forEach((key, value) -> {
-            if (envoyLabels.containsKey(key)) {
-                if (!envoyLabels.get(key).equals(value)) {
+        // The goals are:
+        // 1. don't touch non-agent labels
+        // 2. update envoy labels that have a new value
+        // 3. remove envoy labels not in the given envoy labels
+        // 4. add any new envoy labels
+
+        oldResourceLabels.forEach((key, value) -> {
+            final String envoyLabelValue = envoyLabels.get(key);
+            if (envoyLabelValue != null) {
+                if (!envoyLabelValue.equals(value)) {
+                    // goal 2
                     updated.set(true);
-                    resourceLabels.put(key, value);
+                    resourceLabels.put(key, envoyLabelValue);
                 }
-            } else {
+                newEnvoyLabelKeys.remove(key);
+            } else if (labelHasNamespace(key, LabelNamespaces.AGENT)) { // goal 1
+                // goal 3
                 updated.set(true);
                 resourceLabels.remove(key);
             }
         });
 
+        if (!newEnvoyLabelKeys.isEmpty()) {
+            // goal 4
+            newEnvoyLabelKeys.forEach(key -> resourceLabels.put(key, envoyLabels.get(key)));
+            updated.set(true);
+        }
+
         if (updated.get()) {
-            saveAndPublishResource(resource, oldLabels, false, OperationType.UPDATE);
+            resource.setLabels(resourceLabels);
+            saveAndPublishResource(resource, oldResourceLabels, false, OperationType.UPDATE);
         }
     }
 
@@ -391,18 +415,20 @@ public class ResourceManagement {
      * takes in a Mapping of labels for a tenant, builds and runs the query to match to those labels
      * @param labels the labels that we need to match to
      * @param tenantId The tenant associated to the resource
-     * @return the list of Resource's that match the labels
+     * @return the list of Resource's that match the labels or all tenant resources if no labels
+     * given
      */
-    public List<Resource> getResourcesFromLabels(Map<String, String> labels, String tenantId) throws IllegalArgumentException{
+    public List<Resource> getResourcesFromLabels(Map<String, String> labels, String tenantId) {
         /*
         SELECT * FROM resources where id IN (SELECT id from resource_labels WHERE id IN (select id from resources)
         AND ((labels = "windows" AND labels_key = "os") OR (labels = "prod" AND labels_key="env")) GROUP BY id
         HAVING COUNT(id) = 2) AND tenant_id = "aaaad";
         */
 
-        if(labels.size() == 0) {
-            throw new IllegalArgumentException("Labels must be provided for search");
+        if(labels == null || labels.isEmpty()) {
+            return getAllTenantResources(tenantId);
         }
+
         MapSqlParameterSource paramSource = new MapSqlParameterSource();
         paramSource.addValue("tenantId", tenantId);//AS r JOIN resource_labels AS rl
         StringBuilder builder = new StringBuilder("SELECT * FROM resources JOIN resource_labels AS rl WHERE resources.id = rl.id AND resources.id IN ");
