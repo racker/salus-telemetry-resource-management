@@ -399,6 +399,33 @@ public class ResourceManagementTest {
     }
 
     @Test
+    public void testUpdateExistingResourceWithMetadata() {
+        Resource resource = resourceManagement.getAllResources(PageRequest.of(0, 1)).getContent()
+            .get(0);
+        Map<String, String> newLabels = new HashMap<>(resource.getLabels());
+        newLabels.put("newLabel", "newValue");
+
+        final HashMap<String, String> newMetadata = new HashMap<>();
+        newMetadata.put("local_ip", "127.0.0.1");
+        boolean presenceMonitoring = !resource.getPresenceMonitoringEnabled();
+        ResourceUpdate update = new ResourceUpdate()
+            .setLabels(newLabels)
+            .setMetadata(newMetadata)
+            .setPresenceMonitoringEnabled(presenceMonitoring);
+
+        Resource newResource = resourceManagement.updateResource(
+            resource.getTenantId(),
+            resource.getResourceId(),
+            update
+        );
+
+        assertThat(newResource.getLabels(), equalTo(resource.getLabels()));
+        assertThat(newResource.getMetadata(), equalTo(resource.getMetadata()));
+        assertThat(newResource.getId(), equalTo(resource.getId()));
+        assertThat(newResource.getPresenceMonitoringEnabled(), equalTo(presenceMonitoring));
+    }
+
+    @Test
     public void testRemoveResource() {
         ResourceCreate create = podamFactory.manufacturePojo(ResourceCreate.class);
         String tenantId = RandomStringUtils.randomAlphanumeric(10);

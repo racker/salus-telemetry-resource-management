@@ -253,6 +253,9 @@ public class ResourceManagement {
         map.from(updatedValues.getLabels())
                 .whenNonNull()
                 .to(resource::setLabels);
+        map.from(updatedValues.getMetadata())
+                .whenNonNull()
+                .to(resource::setMetadata);
         map.from(updatedValues.getPresenceMonitoringEnabled())
                 .whenNonNull()
                 .to(resource::setPresenceMonitoringEnabled);
