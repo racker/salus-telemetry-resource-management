@@ -37,6 +37,7 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import javax.persistence.EntityManager;
 import javax.persistence.NoResultException;
@@ -218,6 +219,7 @@ public class ResourceManagement {
                 .setTenantId(tenantId)
                 .setResourceId(newResource.getResourceId())
                 .setLabels(newResource.getLabels())
+                .setMetadata(newResource.getMetadata())
                 .setPresenceMonitoringEnabled(newResource.getPresenceMonitoringEnabled())
                 .setRegion(newResource.getRegion());
 
@@ -245,14 +247,22 @@ public class ResourceManagement {
             presenceMonitoringStateChange = resource.getPresenceMonitoringEnabled().booleanValue()
                     != updatedValues.getPresenceMonitoringEnabled().booleanValue();
         }
+
         if (updatedValues.getLabels() != null) {
             checkLabels(updatedValues.getLabels());
+
+            final Map<String, String> mergedLabels = Stream
+                .concat(
+                    updatedValues.getLabels().entrySet().stream(),
+                    oldLabels.entrySet().stream()
+                        .filter(entry -> labelHasNamespace(entry.getKey(), LabelNamespaces.AGENT))
+                )
+                .collect(Collectors.toMap(Entry::getKey, Entry::getValue));
+
+            resource.setLabels(mergedLabels);
         }
 
         PropertyMapper map = PropertyMapper.get();
-        map.from(updatedValues.getLabels())
-                .whenNonNull()
-                .to(resource::setLabels);
         map.from(updatedValues.getMetadata())
                 .whenNonNull()
                 .to(resource::setMetadata);
@@ -434,7 +444,7 @@ public class ResourceManagement {
 
         MapSqlParameterSource paramSource = new MapSqlParameterSource();
         paramSource.addValue("tenantId", tenantId);//AS r JOIN resource_labels AS rl
-        StringBuilder builder = new StringBuilder("SELECT * FROM resources JOIN resource_labels AS rl WHERE resources.id = rl.id AND resources.id IN ");
+        StringBuilder builder = new StringBuilder("SELECT resources.id as id FROM resources JOIN resource_labels AS rl WHERE resources.id = rl.id AND resources.id IN ");
         builder.append("(SELECT id from resource_labels WHERE id IN ( SELECT id FROM resources WHERE tenant_id = :tenantId) AND resources.id IN ");
         builder.append(" (SELECT id FROM resource_labels WHERE ");
         int i = 0;
@@ -451,37 +461,14 @@ public class ResourceManagement {
         paramSource.addValue("i", i);
 
         NamedParameterJdbcTemplate namedParameterTemplate = new NamedParameterJdbcTemplate(jdbcTemplate.getDataSource());
-        List<Resource> resources = new ArrayList<>();
-        namedParameterTemplate.query(builder.toString(), paramSource, (resultSet)->{
+        final List<Long> resourceIds = namedParameterTemplate.query(builder.toString(), paramSource,
+            (resultSet, rowIndex) -> resultSet.getLong(1)
+        );
 
-            long prevId = 0;
-            Resource prevResource = null;
-            boolean iterate = true;
-
-            while(iterate){
-                if(resultSet.getLong("id") == prevId) {
-                    prevResource.getLabels().put(
-                            resultSet.getString("labels_key"),
-                            resultSet.getString("labels"));
-                }else {
-                    Map<String, String> theseLabels = new HashMap<String, String>();
-                    theseLabels.put(
-                            resultSet.getString("labels_key"),
-                            resultSet.getString("labels"));
-                    Resource r = new Resource()
-                            .setId(resultSet.getLong("id"))
-                            .setResourceId(resultSet.getString("resource_id"))
-                            .setTenantId(resultSet.getString("tenant_id"))
-                            .setPresenceMonitoringEnabled(resultSet.getBoolean("presence_monitoring_enabled"))
-                            .setLabels(theseLabels);
-                    prevId = resultSet.getLong("id");
-                    prevResource = r;
-                    resources.add(r);
-
-                }
-                iterate = resultSet.next();
-            }
-        });
+        final List<Resource> resources = new ArrayList<Resource>();
+        for (Resource resource : resourceRepository.findAllById(resourceIds)) {
+            resources.add(resource);
+        }
 
         return resources;
     }

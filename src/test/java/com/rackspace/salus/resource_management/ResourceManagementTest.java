@@ -47,6 +47,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Random;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 import java.util.stream.Stream;
 import javax.persistence.EntityManager;
 import javax.persistence.FlushModeType;
@@ -400,14 +402,26 @@ public class ResourceManagementTest {
 
     @Test
     public void testUpdateExistingResourceWithMetadata() {
-        Resource resource = resourceManagement.getAllResources(PageRequest.of(0, 1)).getContent()
-            .get(0);
-        Map<String, String> newLabels = new HashMap<>(resource.getLabels());
+        Map<String, String> labels = new HashMap<>();
+        labels.put("oldlabel", "oldValue");
+        labels.put(LabelNamespaces.applyNamespace(AGENT, "env"), "prod");
+
+        Resource resource = resourceRepository.save(
+            new Resource()
+            .setTenantId("t-testUpdateExistingResourceWithMetadata")
+            .setLabels(labels)
+            .setResourceId("r-1")
+            .setPresenceMonitoringEnabled(true)
+        );
+
+        Map<String, String> newLabels = new HashMap<>();
         newLabels.put("newLabel", "newValue");
 
         final HashMap<String, String> newMetadata = new HashMap<>();
         newMetadata.put("local_ip", "127.0.0.1");
-        boolean presenceMonitoring = !resource.getPresenceMonitoringEnabled();
+
+        final boolean presenceMonitoring = !resource.getPresenceMonitoringEnabled();
+
         ResourceUpdate update = new ResourceUpdate()
             .setLabels(newLabels)
             .setMetadata(newMetadata)
@@ -419,7 +433,11 @@ public class ResourceManagementTest {
             update
         );
 
-        assertThat(newResource.getLabels(), equalTo(resource.getLabels()));
+        Map<String, String> expectedLabels = new HashMap<>();
+        expectedLabels.put("newLabel", "newValue");
+        expectedLabels.put(LabelNamespaces.applyNamespace(AGENT, "env"), "prod");
+
+        assertThat(newResource.getLabels(), equalTo(expectedLabels));
         assertThat(newResource.getMetadata(), equalTo(resource.getMetadata()));
         assertThat(newResource.getId(), equalTo(resource.getId()));
         assertThat(newResource.getPresenceMonitoringEnabled(), equalTo(presenceMonitoring));
@@ -444,13 +462,18 @@ public class ResourceManagementTest {
         final Map<String, String> labels = new HashMap<>();
         labels.put("os", "DARWIN");
 
+        final Map<String, String> metadata = new HashMap<>();
+        metadata.put("local_ip", "127.0.0.1");
+
         ResourceCreate create = podamFactory.manufacturePojo(ResourceCreate.class);
         create.setLabels(labels);
+        create.setMetadata(metadata);
         String tenantId = RandomStringUtils.randomAlphanumeric(10);
         resourceManagement.createResource(tenantId, create);
         entityManager.flush();
         List<Resource> resources = resourceManagement.getResourcesFromLabels(labels, tenantId);
         assertEquals(1, resources.size());
+        assertEquals(metadata, resources.get(0).getMetadata());
         assertNotNull(resources);
     }
 
@@ -594,6 +617,31 @@ public class ResourceManagementTest {
         assertThat(resources, hasSize(1));
         assertThat(resources.get(0).getTenantId(), equalTo(tenantId));
         assertThat(resources.get(0).getResourceId(), equalTo(create.getResourceId()));
+    }
+
+    @Test
+    public void testGetResourcesFromLabels_multipleMatches() {
+
+        final Map<String, String> labels = new HashMap<>();
+        labels.put("os", "linux");
+        labels.put("arch", "x86_64");
+
+        final List<Resource> resourcesToSave = IntStream.range(0, 10)
+            .mapToObj(value -> new Resource()
+                .setTenantId("testGetResourcesFromLabels_multipleMatches")
+                .setPresenceMonitoringEnabled(true)
+                .setLabels(new HashMap<>(labels))
+                .setResourceId(RandomStringUtils.randomAlphanumeric(10))
+            )
+            .collect(Collectors.toList());
+
+        resourceRepository.saveAll(resourcesToSave);
+        entityManager.flush();
+
+        List<Resource> resources = resourceManagement.getResourcesFromLabels(
+            Collections.singletonMap("os", "linux"), "testGetResourcesFromLabels_multipleMatches");
+        assertThat(resources, hasSize(10));
+        assertThat(resources.get(0).getTenantId(), equalTo("testGetResourcesFromLabels_multipleMatches"));
     }
 
   @Test(expected = IllegalArgumentException.class)

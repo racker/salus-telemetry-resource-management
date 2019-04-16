@@ -16,13 +16,13 @@
 
 package com.rackspace.salus.resource_management.web.model;
 
+import java.io.Serializable;
+import java.util.Map;
+import javax.validation.constraints.NotNull;
 import lombok.Data;
 import org.hibernate.validator.constraints.NotBlank;
 
 //import javax.validation.constraints.NotBlank;
-import javax.validation.constraints.NotNull;
-import java.io.Serializable;
-import java.util.Map;
 
 @Data
 public class ResourceCreate implements Serializable {
@@ -30,6 +30,8 @@ public class ResourceCreate implements Serializable {
     String resourceId;
 
     Map<String,String> labels;
+
+    Map<String,String> metadata;
 
     @NotNull
     Boolean presenceMonitoringEnabled;
