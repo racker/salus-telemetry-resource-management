@@ -16,6 +16,9 @@
 
 package com.rackspace.salus.resource_management.services;
 
+import static com.rackspace.salus.telemetry.model.LabelNamespaces.labelHasNamespace;
+
+import com.rackspace.salus.resource_management.repositories.ResourceRepository;
 import com.rackspace.salus.resource_management.web.model.ResourceCreate;
 import com.rackspace.salus.resource_management.web.model.ResourceUpdate;
 import com.rackspace.salus.telemetry.errors.ResourceAlreadyExists;
@@ -26,13 +29,15 @@ import com.rackspace.salus.telemetry.model.LabelNamespaces;
 import com.rackspace.salus.telemetry.model.NotFoundException;
 import com.rackspace.salus.telemetry.model.Resource;
 import com.rackspace.salus.telemetry.model.Resource_;
-import com.rackspace.salus.telemetry.repositories.ResourceRepository;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import javax.persistence.EntityManager;
 import javax.persistence.NoResultException;
@@ -144,6 +149,10 @@ public class ResourceManagement {
         return new PageImpl<>(resources, page, resources.size());
     }
 
+    public List<Resource> getAllTenantResources(String tenantid) {
+        return resourceRepository.findAllByTenantId(tenantid);
+    }
+
     /**
     public List<Resource> getResources(String tenantId, Map<String, String> labels) {
         // use geoff's label search query
@@ -210,6 +219,7 @@ public class ResourceManagement {
                 .setTenantId(tenantId)
                 .setResourceId(newResource.getResourceId())
                 .setLabels(newResource.getLabels())
+                .setMetadata(newResource.getMetadata())
                 .setPresenceMonitoringEnabled(newResource.getPresenceMonitoringEnabled())
                 .setRegion(newResource.getRegion());
 
@@ -237,14 +247,25 @@ public class ResourceManagement {
             presenceMonitoringStateChange = resource.getPresenceMonitoringEnabled().booleanValue()
                     != updatedValues.getPresenceMonitoringEnabled().booleanValue();
         }
+
         if (updatedValues.getLabels() != null) {
             checkLabels(updatedValues.getLabels());
+
+            final Map<String, String> mergedLabels = Stream
+                .concat(
+                    updatedValues.getLabels().entrySet().stream(),
+                    oldLabels.entrySet().stream()
+                        .filter(entry -> labelHasNamespace(entry.getKey(), LabelNamespaces.AGENT))
+                )
+                .collect(Collectors.toMap(Entry::getKey, Entry::getValue));
+
+            resource.setLabels(mergedLabels);
         }
 
         PropertyMapper map = PropertyMapper.get();
-        map.from(updatedValues.getLabels())
+        map.from(updatedValues.getMetadata())
                 .whenNonNull()
-                .to(resource::setLabels);
+                .to(resource::setMetadata);
         map.from(updatedValues.getPresenceMonitoringEnabled())
                 .whenNonNull()
                 .to(resource::setPresenceMonitoringEnabled);
@@ -311,10 +332,7 @@ public class ResourceManagement {
         } else {
             log.debug("Found existing resource related to envoy: {}", existing.toString());
 
-            Map<String,String> oldLabels = new HashMap<>(existing.getLabels());
-
             updateEnvoyLabels(existing, labels);
-            saveAndPublishResource(existing, oldLabels, false, OperationType.UPDATE);
         }
     }
 
@@ -324,24 +342,43 @@ public class ResourceManagement {
      * @param envoyLabels The list of labels received from a newly connected envoy.
      */
     private void updateEnvoyLabels(Resource resource, Map<String, String> envoyLabels) {
-        AtomicBoolean updated = new AtomicBoolean(false);
-        Map<String, String> resourceLabels = resource.getLabels();
-        Map<String, String> oldLabels = new HashMap<>(resourceLabels);
+        final AtomicBoolean updated = new AtomicBoolean(false);
+        final Map<String, String> oldResourceLabels = resource.getLabels();
+        // Work with a new map to avoid mutating the labels in-place
+        final Map<String, String> resourceLabels = new HashMap<>(oldResourceLabels);
+        final Set<String> newEnvoyLabelKeys = new HashSet<>(envoyLabels.keySet());
 
-        oldLabels.forEach((key, value) -> {
-            if (envoyLabels.containsKey(key)) {
-                if (!envoyLabels.get(key).equals(value)) {
+        // The goals are:
+        // 1. don't touch non-agent labels
+        // 2. update envoy labels that have a new value
+        // 3. remove envoy labels not in the given envoy labels
+        // 4. add any new envoy labels
+
+        oldResourceLabels.forEach((key, value) -> {
+            final String envoyLabelValue = envoyLabels.get(key);
+            if (envoyLabelValue != null) {
+                if (!envoyLabelValue.equals(value)) {
+                    // goal 2
                     updated.set(true);
-                    resourceLabels.put(key, value);
+                    resourceLabels.put(key, envoyLabelValue);
                 }
-            } else {
+                newEnvoyLabelKeys.remove(key);
+            } else if (labelHasNamespace(key, LabelNamespaces.AGENT)) { // goal 1
+                // goal 3
                 updated.set(true);
                 resourceLabels.remove(key);
             }
         });
 
+        if (!newEnvoyLabelKeys.isEmpty()) {
+            // goal 4
+            newEnvoyLabelKeys.forEach(key -> resourceLabels.put(key, envoyLabels.get(key)));
+            updated.set(true);
+        }
+
         if (updated.get()) {
-            saveAndPublishResource(resource, oldLabels, false, OperationType.UPDATE);
+            resource.setLabels(resourceLabels);
+            saveAndPublishResource(resource, oldResourceLabels, false, OperationType.UPDATE);
         }
     }
 
@@ -391,21 +428,23 @@ public class ResourceManagement {
      * takes in a Mapping of labels for a tenant, builds and runs the query to match to those labels
      * @param labels the labels that we need to match to
      * @param tenantId The tenant associated to the resource
-     * @return the list of Resource's that match the labels
+     * @return the list of Resource's that match the labels or all tenant resources if no labels
+     * given
      */
-    public List<Resource> getResourcesFromLabels(Map<String, String> labels, String tenantId) throws IllegalArgumentException{
+    public List<Resource> getResourcesFromLabels(Map<String, String> labels, String tenantId) {
         /*
         SELECT * FROM resources where id IN (SELECT id from resource_labels WHERE id IN (select id from resources)
         AND ((labels = "windows" AND labels_key = "os") OR (labels = "prod" AND labels_key="env")) GROUP BY id
         HAVING COUNT(id) = 2) AND tenant_id = "aaaad";
         */
 
-        if(labels.size() == 0) {
-            throw new IllegalArgumentException("Labels must be provided for search");
+        if(labels == null || labels.isEmpty()) {
+            return getAllTenantResources(tenantId);
         }
+
         MapSqlParameterSource paramSource = new MapSqlParameterSource();
         paramSource.addValue("tenantId", tenantId);//AS r JOIN resource_labels AS rl
-        StringBuilder builder = new StringBuilder("SELECT * FROM resources JOIN resource_labels AS rl WHERE resources.id = rl.id AND resources.id IN ");
+        StringBuilder builder = new StringBuilder("SELECT resources.id as id FROM resources JOIN resource_labels AS rl WHERE resources.id = rl.id AND resources.id IN ");
         builder.append("(SELECT id from resource_labels WHERE id IN ( SELECT id FROM resources WHERE tenant_id = :tenantId) AND resources.id IN ");
         builder.append(" (SELECT id FROM resource_labels WHERE ");
         int i = 0;
@@ -422,68 +461,16 @@ public class ResourceManagement {
         paramSource.addValue("i", i);
 
         NamedParameterJdbcTemplate namedParameterTemplate = new NamedParameterJdbcTemplate(jdbcTemplate.getDataSource());
-        List<Resource> resources = new ArrayList<>();
-        namedParameterTemplate.query(builder.toString(), paramSource, (resultSet)->{
+        final List<Long> resourceIds = namedParameterTemplate.query(builder.toString(), paramSource,
+            (resultSet, rowIndex) -> resultSet.getLong(1)
+        );
 
-            long prevId = 0;
-            Resource prevResource = null;
-            boolean iterate = true;
-
-            while(iterate){
-                if(resultSet.getLong("id") == prevId) {
-                    prevResource.getLabels().put(
-                            resultSet.getString("labels_key"),
-                            resultSet.getString("labels"));
-                }else {
-                    Map<String, String> theseLabels = new HashMap<String, String>();
-                    theseLabels.put(
-                            resultSet.getString("labels_key"),
-                            resultSet.getString("labels"));
-                    Resource r = new Resource()
-                            .setId(resultSet.getLong("id"))
-                            .setResourceId(resultSet.getString("resource_id"))
-                            .setTenantId(resultSet.getString("tenant_id"))
-                            .setPresenceMonitoringEnabled(resultSet.getBoolean("presence_monitoring_enabled"))
-                            .setLabels(theseLabels);
-                    prevId = resultSet.getLong("id");
-                    prevResource = r;
-                    resources.add(r);
-
-                }
-                iterate = resultSet.next();
-            }
-        });
+        final List<Resource> resources = new ArrayList<Resource>();
+        for (Resource resource : resourceRepository.findAllById(resourceIds)) {
+            resources.add(resource);
+        }
 
         return resources;
     }
 
-    public List<Long> getResourceIdsWithEnvoyLabels(Map<String, String> labels, String tenantId) {
-
-
-        MapSqlParameterSource paramSource = new MapSqlParameterSource();
-        paramSource.addValue("tenantId", tenantId);//AS r JOIN resource_labels AS rl
-
-        StringBuilder builder = new StringBuilder("SELECT id FROM resources WHERE resources.id IN ");
-        builder.append("(SELECT id from resource_labels WHERE id IN (SELECT id FROM resources WHERE tenant_id = :tenantId) AND resources.id IN ");
-        builder.append(" (SELECT id FROM resource_labels WHERE ");
-        int i = 0;
-        for(Map.Entry<String, String> entry : labels.entrySet()) {
-            if(i > 0) {
-                builder.append(" OR ");
-            }
-            builder.append("(labels = :label"+ i +" AND labels_key = :labelKey" + i + ")");
-            paramSource.addValue("label"+i, entry.getValue());
-            paramSource.addValue("labelKey"+i, entry.getKey());
-            i++;
-        }
-        builder.append(" GROUP BY id HAVING COUNT(*) = :i)) ORDER BY resources.id");
-        paramSource.addValue("i", i);
-
-        return new NamedParameterJdbcTemplate(jdbcTemplate.getDataSource()).query(
-                builder.toString(),
-                paramSource,
-                (rs, rowNumber) -> rs.getLong(1)
-
-        );
-    }
 }

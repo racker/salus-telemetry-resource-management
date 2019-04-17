@@ -16,10 +16,11 @@
 
 package com.rackspace.salus.resource_management;
 
+import static com.rackspace.salus.telemetry.model.LabelNamespaces.AGENT;
+import static com.rackspace.salus.telemetry.model.LabelNamespaces.applyNamespace;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.hasEntry;
-import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.hamcrest.Matchers.nullValue;
@@ -27,28 +28,37 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoMoreInteractions;
 
 import com.google.common.collect.Maps;
+import com.rackspace.salus.resource_management.repositories.ResourceRepository;
 import com.rackspace.salus.resource_management.services.KafkaEgress;
 import com.rackspace.salus.resource_management.services.ResourceManagement;
 import com.rackspace.salus.resource_management.web.model.ResourceCreate;
 import com.rackspace.salus.resource_management.web.model.ResourceUpdate;
 import com.rackspace.salus.telemetry.messaging.AttachEvent;
+import com.rackspace.salus.telemetry.messaging.ResourceEvent;
 import com.rackspace.salus.telemetry.model.LabelNamespaces;
 import com.rackspace.salus.telemetry.model.Resource;
-import com.rackspace.salus.telemetry.repositories.ResourceRepository;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Random;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 import java.util.stream.Stream;
 import javax.persistence.EntityManager;
 import javax.persistence.FlushModeType;
 import org.apache.commons.lang3.RandomStringUtils;
+import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.mockito.ArgumentCaptor;
+import org.mockito.Captor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.domain.EntityScan;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
@@ -82,6 +92,9 @@ public class ResourceManagementTest {
     @MockBean
     KafkaEgress kafkaEgress;
 
+    @Captor
+    ArgumentCaptor<ResourceEvent> resourceEventArg;
+
     PodamFactory podamFactory = new PodamFactoryImpl();
 
     @Before
@@ -93,6 +106,11 @@ public class ResourceManagementTest {
                 .setPresenceMonitoringEnabled(false);
         entityManager.setFlushMode(FlushModeType.AUTO);
         resourceRepository.save(resource);
+    }
+
+    @After
+    public void tearDown() throws Exception {
+        resourceRepository.deleteAll();
     }
 
     private void createResources(int count) {
@@ -231,11 +249,11 @@ public class ResourceManagementTest {
 
         final Map<String, String> labelsToQuery = new HashMap<>();
         labelsToQuery.put("os", "DARWIN");
-        final List<Long> resourceIdsWithEnvoyLabels = resourceManagement
-            .getResourceIdsWithEnvoyLabels(labelsToQuery, "tenant-1");
+        final List<Resource> resourceIdsWithEnvoyLabels = resourceManagement
+            .getResourcesFromLabels(labelsToQuery, "tenant-1");
 
         assertThat(resourceIdsWithEnvoyLabels, hasSize(1));
-        assertThat(resourceIdsWithEnvoyLabels, hasItem(resourceByResourceId.getId()));
+        assertThat(resourceIdsWithEnvoyLabels.get(0).getResourceId(), equalTo("development:0"));
     }
 
     @Test
@@ -258,11 +276,100 @@ public class ResourceManagementTest {
         labelsToQuery.put("os", "DARWIN");
         labelsToQuery.put("environment", "localdev");
         labelsToQuery.put("arch", "X86_64");
-        final List<Long> resourceIdsWithEnvoyLabels = resourceManagement
-                .getResourceIdsWithEnvoyLabels(labelsToQuery, "tenant-1");
+        final List<Resource> resourceIdsWithEnvoyLabels = resourceManagement
+                .getResourcesFromLabels(labelsToQuery, "tenant-1");
 
         assertEquals(0, resourceIdsWithEnvoyLabels.size());
 
+    }
+
+    @Test
+    public void testEnvoyAttach_existingResourceWithNoLabels() {
+        final Resource resource = resourceRepository.save(
+            new Resource()
+                .setResourceId("r-1")
+                .setLabels(Collections.emptyMap())
+                .setTenantId("t-1")
+                .setPresenceMonitoringEnabled(false)
+        );
+        entityManager.flush();
+
+        final Map<String, String> envoyLabels = new HashMap<>();
+        envoyLabels.put(applyNamespace(AGENT, "discovered.hostname"), "h-1");
+        envoyLabels.put(applyNamespace(AGENT, "discovered.os"), "linux");
+        envoyLabels.put(applyNamespace(AGENT, "discovered.arch"), "amd64");
+
+        resourceManagement.handleEnvoyAttach(
+            new AttachEvent()
+            .setEnvoyAddress("localhost:1234")
+            .setEnvoyId("e-1")
+            .setLabels(envoyLabels)
+            .setResourceId("r-1")
+            .setTenantId("t-1")
+        );
+        entityManager.flush();
+
+        final Optional<Resource> actualResource = resourceRepository.findById(resource.getId());
+
+        assertThat(actualResource.isPresent(), equalTo(true));
+        //noinspection OptionalGetWithoutIsPresent
+        assertThat(actualResource.get().getLabels(), equalTo(envoyLabels));
+
+        verify(kafkaEgress).sendResourceEvent(resourceEventArg.capture());
+        assertThat(resourceEventArg.getValue().getResource().getResourceId(), equalTo("r-1"));
+        assertThat(resourceEventArg.getValue().getResource().getLabels(), equalTo(envoyLabels));
+
+        verifyNoMoreInteractions(kafkaEgress);
+    }
+
+    @Test
+    public void testEnvoyAttach_existingResourceWithChangedLabels() {
+        final Map<String, String> resourceLabels = new HashMap<>();
+        resourceLabels.put(applyNamespace(AGENT, "discovered.hostname"), "old-h-1");
+        resourceLabels.put(applyNamespace(AGENT, "notInNew"), "old-agent-value");
+        resourceLabels.put("nonAgentLabel", "someValue");
+
+        final Resource resource = resourceRepository.save(
+            new Resource()
+                .setResourceId("r-1")
+                .setLabels(resourceLabels)
+                .setTenantId("t-1")
+                .setPresenceMonitoringEnabled(false)
+        );
+        entityManager.flush();
+
+        final Map<String, String> envoyLabels = new HashMap<>();
+        envoyLabels.put(applyNamespace(AGENT, "discovered.hostname"), "new-h-1");
+        envoyLabels.put(applyNamespace(AGENT, "discovered.os"), "linux");
+        envoyLabels.put(applyNamespace(AGENT, "discovered.arch"), "amd64");
+
+        resourceManagement.handleEnvoyAttach(
+            new AttachEvent()
+            .setEnvoyAddress("localhost:1234")
+            .setEnvoyId("e-1")
+            .setLabels(envoyLabels)
+            .setResourceId("r-1")
+            .setTenantId("t-1")
+        );
+        entityManager.flush();
+
+        final Optional<Resource> actualResource = resourceRepository.findById(resource.getId());
+
+        final Map<String, String> expectedResourceLabels = new HashMap<>();
+        expectedResourceLabels.put(applyNamespace(AGENT, "discovered.hostname"), "new-h-1");
+        expectedResourceLabels.put(applyNamespace(AGENT, "discovered.os"), "linux");
+        expectedResourceLabels.put(applyNamespace(AGENT, "discovered.arch"), "amd64");
+        expectedResourceLabels.put("nonAgentLabel", "someValue");
+
+        assertThat(actualResource.isPresent(), equalTo(true));
+        //noinspection OptionalGetWithoutIsPresent
+        assertThat(actualResource.get().getLabels(), equalTo(expectedResourceLabels));
+
+        verify(kafkaEgress).sendResourceEvent(resourceEventArg.capture());
+        assertThat(resourceEventArg.getValue().getResource().getResourceId(), equalTo("r-1"));
+        assertThat(resourceEventArg.getValue().getResource().getLabels(), equalTo(expectedResourceLabels));
+
+        verifyNoMoreInteractions(kafkaEgress);
     }
 
     @Test
@@ -294,6 +401,49 @@ public class ResourceManagementTest {
     }
 
     @Test
+    public void testUpdateExistingResourceWithMetadata() {
+        Map<String, String> labels = new HashMap<>();
+        labels.put("oldlabel", "oldValue");
+        labels.put(LabelNamespaces.applyNamespace(AGENT, "env"), "prod");
+
+        Resource resource = resourceRepository.save(
+            new Resource()
+            .setTenantId("t-testUpdateExistingResourceWithMetadata")
+            .setLabels(labels)
+            .setResourceId("r-1")
+            .setPresenceMonitoringEnabled(true)
+        );
+
+        Map<String, String> newLabels = new HashMap<>();
+        newLabels.put("newLabel", "newValue");
+
+        final HashMap<String, String> newMetadata = new HashMap<>();
+        newMetadata.put("local_ip", "127.0.0.1");
+
+        final boolean presenceMonitoring = !resource.getPresenceMonitoringEnabled();
+
+        ResourceUpdate update = new ResourceUpdate()
+            .setLabels(newLabels)
+            .setMetadata(newMetadata)
+            .setPresenceMonitoringEnabled(presenceMonitoring);
+
+        Resource newResource = resourceManagement.updateResource(
+            resource.getTenantId(),
+            resource.getResourceId(),
+            update
+        );
+
+        Map<String, String> expectedLabels = new HashMap<>();
+        expectedLabels.put("newLabel", "newValue");
+        expectedLabels.put(LabelNamespaces.applyNamespace(AGENT, "env"), "prod");
+
+        assertThat(newResource.getLabels(), equalTo(expectedLabels));
+        assertThat(newResource.getMetadata(), equalTo(resource.getMetadata()));
+        assertThat(newResource.getId(), equalTo(resource.getId()));
+        assertThat(newResource.getPresenceMonitoringEnabled(), equalTo(presenceMonitoring));
+    }
+
+    @Test
     public void testRemoveResource() {
         ResourceCreate create = podamFactory.manufacturePojo(ResourceCreate.class);
         String tenantId = RandomStringUtils.randomAlphanumeric(10);
@@ -312,13 +462,18 @@ public class ResourceManagementTest {
         final Map<String, String> labels = new HashMap<>();
         labels.put("os", "DARWIN");
 
+        final Map<String, String> metadata = new HashMap<>();
+        metadata.put("local_ip", "127.0.0.1");
+
         ResourceCreate create = podamFactory.manufacturePojo(ResourceCreate.class);
         create.setLabels(labels);
+        create.setMetadata(metadata);
         String tenantId = RandomStringUtils.randomAlphanumeric(10);
         resourceManagement.createResource(tenantId, create);
         entityManager.flush();
         List<Resource> resources = resourceManagement.getResourcesFromLabels(labels, tenantId);
         assertEquals(1, resources.size());
+        assertEquals(metadata, resources.get(0).getMetadata());
         assertNotNull(resources);
     }
 
@@ -446,12 +601,11 @@ public class ResourceManagementTest {
         assertEquals(0, resources.size());
     }
 
-    @Test (expected = IllegalArgumentException.class)
-    public void testSendNoLabels() {
+    @Test
+    public void testGetResourcesFromLabels_noLabels() {
         final Map<String, String> resourceLabels = new HashMap<>();
         resourceLabels.put("os", "DARWIN");
         resourceLabels.put("env", "test");
-        final Map<String, String> labels = new HashMap<>();
 
         ResourceCreate create = podamFactory.manufacturePojo(ResourceCreate.class);
         create.setLabels(resourceLabels);
@@ -459,7 +613,35 @@ public class ResourceManagementTest {
         resourceManagement.createResource(tenantId, create);
         entityManager.flush();
 
-        List<Resource> resources = resourceManagement.getResourcesFromLabels(labels, tenantId);
+        List<Resource> resources = resourceManagement.getResourcesFromLabels(Collections.emptyMap(), tenantId);
+        assertThat(resources, hasSize(1));
+        assertThat(resources.get(0).getTenantId(), equalTo(tenantId));
+        assertThat(resources.get(0).getResourceId(), equalTo(create.getResourceId()));
+    }
+
+    @Test
+    public void testGetResourcesFromLabels_multipleMatches() {
+
+        final Map<String, String> labels = new HashMap<>();
+        labels.put("os", "linux");
+        labels.put("arch", "x86_64");
+
+        final List<Resource> resourcesToSave = IntStream.range(0, 10)
+            .mapToObj(value -> new Resource()
+                .setTenantId("testGetResourcesFromLabels_multipleMatches")
+                .setPresenceMonitoringEnabled(true)
+                .setLabels(new HashMap<>(labels))
+                .setResourceId(RandomStringUtils.randomAlphanumeric(10))
+            )
+            .collect(Collectors.toList());
+
+        resourceRepository.saveAll(resourcesToSave);
+        entityManager.flush();
+
+        List<Resource> resources = resourceManagement.getResourcesFromLabels(
+            Collections.singletonMap("os", "linux"), "testGetResourcesFromLabels_multipleMatches");
+        assertThat(resources, hasSize(10));
+        assertThat(resources.get(0).getTenantId(), equalTo("testGetResourcesFromLabels_multipleMatches"));
     }
 
   @Test(expected = IllegalArgumentException.class)

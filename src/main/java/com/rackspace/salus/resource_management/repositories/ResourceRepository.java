@@ -14,27 +14,15 @@
  * limitations under the License.
  */
 
-package com.rackspace.salus.resource_management.web.model;
+package com.rackspace.salus.resource_management.repositories;
 
-import java.io.Serializable;
-import java.util.Map;
-import javax.validation.constraints.NotNull;
-import lombok.Data;
-import org.hibernate.validator.constraints.NotBlank;
+import com.rackspace.salus.telemetry.model.Resource;
+import java.util.List;
+import org.springframework.data.repository.PagingAndSortingRepository;
 
-//import javax.validation.constraints.NotBlank;
 
-@Data
-public class ResourceCreate implements Serializable {
-    @NotBlank
-    String resourceId;
+public interface ResourceRepository extends PagingAndSortingRepository<Resource, Long> {
 
-    Map<String,String> labels;
+  List<Resource> findAllByTenantId(String tenantId);
 
-    Map<String,String> metadata;
-
-    @NotNull
-    Boolean presenceMonitoringEnabled;
-
-    String region;
 }

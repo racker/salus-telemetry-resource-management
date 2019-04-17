@@ -48,7 +48,7 @@ steps:
 
   - id: DEPLOY
     name: 'gcr.io/cloud-builders/mvn'
-    args: ['deploy', '-s', '.mvn/settings.xml']
+    args: ['-B', 'deploy', '-s', '.mvn/settings.xml']
     volumes:
     - name: user.home
       path: /root
@@ -62,6 +62,7 @@ steps:
     # Runs the Jib build by using the latest version of the plugin.
     # To use a specific version, configure the plugin in the pom.xml.
     - jib:build
+    - "-B"
     # Skip Tests since it happened in the previous test
     - "-Dmaven.test.skip=true"
     # Ensure we name the image correctly since its not in pom.xml

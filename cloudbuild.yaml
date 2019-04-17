@@ -29,7 +29,7 @@ steps:
 
   - id: DEPLOY
     name: 'gcr.io/cloud-builders/mvn'
-    args: ['deploy', '-s', '.mvn/settings.xml']
+    args: ['-B', 'deploy', '-s', '.mvn/settings.xml']
     volumes:
     - name: user.home
       path: /root

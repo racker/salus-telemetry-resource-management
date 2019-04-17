@@ -16,14 +16,15 @@
 
 package com.rackspace.salus.resource_management.web.model;
 
-import lombok.Data;
-
 import java.io.Serializable;
 import java.util.Map;
+import lombok.Data;
 
 @Data
 public class ResourceUpdate implements Serializable {
     Map<String,String> labels;
+
+    Map<String,String> metadata;
 
     Boolean presenceMonitoringEnabled;
 
