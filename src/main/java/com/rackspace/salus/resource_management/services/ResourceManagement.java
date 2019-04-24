@@ -23,7 +23,6 @@ import com.rackspace.salus.resource_management.web.model.ResourceCreate;
 import com.rackspace.salus.resource_management.web.model.ResourceUpdate;
 import com.rackspace.salus.telemetry.errors.ResourceAlreadyExists;
 import com.rackspace.salus.telemetry.messaging.AttachEvent;
-import com.rackspace.salus.telemetry.messaging.OperationType;
 import com.rackspace.salus.telemetry.messaging.ResourceEvent;
 import com.rackspace.salus.telemetry.model.LabelNamespaces;
 import com.rackspace.salus.telemetry.model.NotFoundException;
@@ -85,16 +84,12 @@ public class ResourceManagement {
      * Also sends a resource event to kafka for consumption by other services.
      *
      * @param resource The resource object to create/update in the database.
-     * @param oldLabels The labels of the resource prior to any modifications.
-     * @param presenceMonitoringStateChanged Whether the presence monitoring flag has been switched.
-     * @param operation The type of event that occurred. e.g. create, update, or delete.
      * @return
      */
-    public Resource saveAndPublishResource(Resource resource, Map<String, String> oldLabels,
-                                           boolean presenceMonitoringStateChanged, OperationType operation) {
+    public Resource saveAndPublishResource(Resource resource) {
         log.debug("Saving resource: {}", resource);
         resourceRepository.save(resource);
-        publishResourceEvent(resource, oldLabels, presenceMonitoringStateChanged, operation);
+        publishResourceEvent(resource);
         return resource;
     }
 
@@ -223,7 +218,7 @@ public class ResourceManagement {
                 .setPresenceMonitoringEnabled(newResource.getPresenceMonitoringEnabled())
                 .setRegion(newResource.getRegion());
 
-        resource = saveAndPublishResource(resource, null, resource.getPresenceMonitoringEnabled(), OperationType.CREATE);
+        resource = saveAndPublishResource(resource);
 
         return resource;
     }
@@ -242,12 +237,6 @@ public class ResourceManagement {
                     resourceId, tenantId));
         }
         Map<String, String> oldLabels = new HashMap<>(resource.getLabels());
-        boolean presenceMonitoringStateChange = false;
-        if (updatedValues.getPresenceMonitoringEnabled() != null) {
-            presenceMonitoringStateChange = resource.getPresenceMonitoringEnabled().booleanValue()
-                    != updatedValues.getPresenceMonitoringEnabled().booleanValue();
-        }
-
         if (updatedValues.getLabels() != null) {
             checkLabels(updatedValues.getLabels());
 
@@ -273,7 +262,7 @@ public class ResourceManagement {
                 .whenNonNull()
                 .to(resource::setRegion);
 
-        saveAndPublishResource(resource, oldLabels, presenceMonitoringStateChange, OperationType.UPDATE);
+        saveAndPublishResource(resource);
 
         return resource;
     }
@@ -299,7 +288,7 @@ public class ResourceManagement {
         Resource resource = getResource(tenantId, resourceId);
         if (resource != null) {
             resourceRepository.deleteById(resource.getId());
-            publishResourceEvent(resource, null, resource.getPresenceMonitoringEnabled(), OperationType.DELETE);
+            publishResourceEvent(resource);
         } else {
             throw new NotFoundException(String.format("No resource found for %s on tenant %s",
                     resourceId, tenantId));
@@ -328,7 +317,7 @@ public class ResourceManagement {
                     .setResourceId(resourceId)
                     .setLabels(labels)
                     .setPresenceMonitoringEnabled(true);
-            saveAndPublishResource(newResource, null, true, OperationType.CREATE);
+            saveAndPublishResource(newResource);
         } else {
             log.debug("Found existing resource related to envoy: {}", existing.toString());
 
@@ -378,23 +367,18 @@ public class ResourceManagement {
 
         if (updated.get()) {
             resource.setLabels(resourceLabels);
-            saveAndPublishResource(resource, oldResourceLabels, false, OperationType.UPDATE);
+            saveAndPublishResource(resource);
         }
     }
 
     /**
      * Publish a resource event to kafka for consumption by other services.
      * @param resource The updated resource the operation was performed on.
-     * @param oldLabels The resource labels prior to any update.
-     * @param presenceMonitoringStateChanged Whether the presence monitoring flag has been switched.
-     * @param operation The type of event that occurred. e.g. create, update, or delete.
      */
-    private void publishResourceEvent(Resource resource, Map<String, String> oldLabels, boolean presenceMonitoringStateChanged, OperationType operation) {
+    private void publishResourceEvent(Resource resource) {
         ResourceEvent event = new ResourceEvent();
-        event.setResource(resource);
-        event.setOldLabels(oldLabels);
-        event.setPresenceMonitorChange(presenceMonitoringStateChanged);
-        event.setOperation(operation);
+        event.setResourceId(resource.getResourceId());
+        event.setTenantId(resource.getTenantId());
 
         log.debug("Publishing resource event: {}", event);
         kafkaEgress.sendResourceEvent(event);
@@ -421,7 +405,7 @@ public class ResourceManagement {
             resource.setPresenceMonitoringEnabled(false);
         }
 
-        saveAndPublishResource(resource, resource.getLabels(), true, OperationType.UPDATE);
+        saveAndPublishResource(resource);
     }
 
     /**
@@ -452,7 +436,9 @@ public class ResourceManagement {
             if(i > 0) {
                 builder.append(" OR ");
             }
-            builder.append("(labels = :label"+ i +" AND labels_key = :labelKey" + i + ")");
+            builder.append("(labels = :label").append(i)
+                    .append(" AND labels_key = :labelKey").append(i)
+                    .append(")");
             paramSource.addValue("label"+i, entry.getValue());
             paramSource.addValue("labelKey"+i, entry.getKey());
             i++;
@@ -465,7 +451,7 @@ public class ResourceManagement {
             (resultSet, rowIndex) -> resultSet.getLong(1)
         );
 
-        final List<Resource> resources = new ArrayList<Resource>();
+        final List<Resource> resources = new ArrayList<>();
         for (Resource resource : resourceRepository.findAllById(resourceIds)) {
             resources.add(resource);
         }
