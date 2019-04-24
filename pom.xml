@@ -122,6 +122,7 @@
             <configuration>
               <classifier>client</classifier>
               <includes>
+                <include>**/web/client/**</include>
                 <include>**/web/model/**</include>
               </includes>
             </configuration>
