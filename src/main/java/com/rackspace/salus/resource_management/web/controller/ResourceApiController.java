@@ -28,6 +28,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Stream;
 import javax.validation.Valid;
+
+
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.task.TaskExecutor;
@@ -45,9 +47,18 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
+import io.swagger.annotations.*;
+
 
 @Slf4j
 @RestController
+@Api(value = "/testInformation", description = "Resource operations", authorizations = {
+        @Authorization(value = "petstore_auth",
+                scopes = {
+                        @AuthorizationScope(scope = "write:resource", description = "modify resources in your account"),
+                        @AuthorizationScope(scope = "read:resource", description = "read your resource")
+                })
+})
 @RequestMapping("/api")
 public class ResourceApiController implements ResourceApi {
     private ResourceManagement resourceManagement;
@@ -60,6 +71,7 @@ public class ResourceApiController implements ResourceApi {
     }
 
     @GetMapping("/resources")
+    @ApiOperation(value = "Gets all things")
     public Page<Resource> getAll(@RequestParam(defaultValue = "100") int size,
                                  @RequestParam(defaultValue = "0") int page) {
 
@@ -86,6 +98,9 @@ public class ResourceApiController implements ResourceApi {
 
     @Override
     @GetMapping("/tenant/{tenantId}/resources/{resourceId}")
+    @ApiOperation(value = "Gets specific Resource for specific Tenant")
+    @ApiResponses(value = { @ApiResponse(code = 400, message = "Invalid ID supplied"),
+            @ApiResponse(code = 404, message = "Resource not found") })
     public Resource getByResourceId(@PathVariable String tenantId,
                                     @PathVariable String resourceId) throws NotFoundException {
 
@@ -98,6 +113,11 @@ public class ResourceApiController implements ResourceApi {
     }
 
     @GetMapping("/tenant/{tenantId}/resources")
+    @ApiOperation(value = "Gets all Resources for authenticated tenant")
+    @ApiResponses(value = { @ApiResponse(code = 400, message = "Invalid ID supplied"),
+            @ApiResponse(code = 404, message = "Tenant not found"),
+            @ApiResponse(code = 405, message = "Validation exception") })
+
     public Page<Resource>  getAllForTenant(@PathVariable String tenantId,
                                    @RequestParam(defaultValue = "100") int size,
                                    @RequestParam(defaultValue = "0") int page) {
