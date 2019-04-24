@@ -17,7 +17,13 @@
 package com.rackspace.salus.resource_management.web.client;
 
 import com.rackspace.salus.telemetry.model.Resource;
+import java.util.List;
+import java.util.Map;
+import org.springframework.core.ParameterizedTypeReference;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.client.RestTemplate;
+import org.springframework.web.util.UriComponentsBuilder;
 
 /**
  * This client component provides a small subset of Resource Management REST operations that
@@ -47,6 +53,8 @@ import org.springframework.web.client.RestTemplate;
  */
 public class ResourceApiClient implements ResourceApi {
 
+  public static final ParameterizedTypeReference<List<Resource>> LIST_OF_RESOURCE =
+      new ParameterizedTypeReference<List<Resource>>() {};
   private final RestTemplate restTemplate;
 
   public ResourceApiClient(RestTemplate restTemplate) {
@@ -60,5 +68,23 @@ public class ResourceApiClient implements ResourceApi {
         Resource.class,
         tenantId, resourceId
     );
+  }
+
+  @Override
+  public List<Resource> getResourcesWithLabels(String tenantId, Map<String, String> labels) {
+    String endpoint = "/api/tenant/{tenantId}/resourceLabels";
+    UriComponentsBuilder uriComponentsBuilder = UriComponentsBuilder.fromUriString(endpoint);
+    for (Map.Entry<String, String> e : labels.entrySet()) {
+      uriComponentsBuilder.queryParam(e.getKey(), e.getValue());
+    }
+    String uriString = uriComponentsBuilder.buildAndExpand(tenantId).toUriString();
+    ResponseEntity<List<Resource>> resp = restTemplate.exchange(
+        uriString,
+        HttpMethod.GET,
+        null,
+        LIST_OF_RESOURCE
+    );
+
+    return resp.getBody();
   }
 }

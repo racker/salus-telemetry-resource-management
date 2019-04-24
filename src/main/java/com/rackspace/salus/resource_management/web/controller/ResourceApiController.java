@@ -127,6 +127,7 @@ public class ResourceApiController implements ResourceApi {
         resourceManagement.removeResource(tenantId, resourceId);
     }
 
+    @Override
     @GetMapping("/tenant/{tenantId}/resourceLabels")
     public List<Resource> getResourcesWithLabels(@PathVariable String tenantId,
                                                  @RequestParam Map<String, String> labels) {

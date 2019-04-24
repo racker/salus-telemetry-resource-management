@@ -17,6 +17,8 @@
 package com.rackspace.salus.resource_management.web.client;
 
 import com.rackspace.salus.telemetry.model.Resource;
+import java.util.List;
+import java.util.Map;
 
 /**
  * This interface declares a subset of internal REST API calls exposed by the Resource Management
@@ -28,4 +30,7 @@ public interface ResourceApi {
 
   Resource getByResourceId(String tenantId,
                            String resourceId);
+
+  List<Resource> getResourcesWithLabels(String tenantId,
+                                        Map<String, String> labels);
 }

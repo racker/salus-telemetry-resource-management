@@ -24,42 +24,45 @@ import static org.springframework.test.web.client.response.MockRestResponseCreat
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.rackspace.salus.telemetry.model.Resource;
-import org.junit.Before;
+import java.util.Collections;
+import java.util.List;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.client.RestClientTest;
+import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.web.client.RestTemplateBuilder;
+import org.springframework.context.annotation.Bean;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.junit4.SpringRunner;
 import org.springframework.test.web.client.MockRestServiceServer;
-import org.springframework.web.client.RestTemplate;
 import uk.co.jemos.podam.api.PodamFactory;
 import uk.co.jemos.podam.api.PodamFactoryImpl;
 
 @RunWith(SpringRunner.class)
 @RestClientTest
 public class ResourceApiClientTest {
+
+  @TestConfiguration
+  public static class ExtraTestConfig {
+    @Bean
+    public ResourceApiClient resourceApiClient(RestTemplateBuilder restTemplateBuilder) {
+      return new ResourceApiClient(restTemplateBuilder.build());
+    }
+  }
+
   @Autowired
   MockRestServiceServer mockServer;
 
   @Autowired
-  RestTemplateBuilder restTemplateBuilder;
-
-  @Autowired
   ObjectMapper objectMapper;
 
-  private RestTemplate restTempate;
-
-  private ResourceApiClient resourceApiClient;
+  @Autowired
+  ResourceApiClient resourceApiClient;
 
   private PodamFactory podamFactory = new PodamFactoryImpl();
-
-  @Before
-  public void setUp() throws Exception {
-    restTempate = restTemplateBuilder.build();
-    resourceApiClient = new ResourceApiClient(restTempate);
-  }
 
   @Test
   public void getByResourceId() throws JsonProcessingException {
@@ -73,5 +76,22 @@ public class ResourceApiClientTest {
     final Resource resource = resourceApiClient.getByResourceId("t-1", "r-1");
 
     assertThat(resource, equalTo(expectedResource));
+  }
+
+  @Test
+  public void testGetResourcesWithLabels() throws JsonProcessingException {
+    final List<Resource> expectedResources = IntStream.range(0, 4)
+        .mapToObj(value -> podamFactory.manufacturePojo(Resource.class))
+        .collect(Collectors.toList());
+
+    mockServer.expect(requestTo("/api/tenant/t-1/resourceLabels?env=prod"))
+        .andRespond(withSuccess(
+            objectMapper.writeValueAsString(expectedResources), MediaType.APPLICATION_JSON
+        ));
+
+    final List<Resource> resources = resourceApiClient
+        .getResourcesWithLabels("t-1", Collections.singletonMap("env", "prod"));
+
+    assertThat(resources, equalTo(expectedResources));
   }
 }
