@@ -17,8 +17,10 @@
 package com.rackspace.salus.resource_management.web.client;
 
 import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.nullValue;
 import static org.junit.Assert.assertThat;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
+import static org.springframework.test.web.client.response.MockRestResponseCreators.withStatus;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -35,6 +37,7 @@ import org.springframework.boot.test.autoconfigure.web.client.RestClientTest;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.web.client.RestTemplateBuilder;
 import org.springframework.context.annotation.Bean;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.junit4.SpringRunner;
 import org.springframework.test.web.client.MockRestServiceServer;
@@ -76,6 +79,16 @@ public class ResourceApiClientTest {
     final Resource resource = resourceApiClient.getByResourceId("t-1", "r-1");
 
     assertThat(resource, equalTo(expectedResource));
+  }
+
+  @Test
+  public void testGetByResourceId_notFound() {
+    mockServer.expect(requestTo("/api/tenant/t-1/resources/r-not-here"))
+        .andRespond(withStatus(HttpStatus.NOT_FOUND));
+
+    final Resource resource = resourceApiClient.getByResourceId("t-1", "r-not-here");
+
+    assertThat(resource, nullValue());
   }
 
   @Test

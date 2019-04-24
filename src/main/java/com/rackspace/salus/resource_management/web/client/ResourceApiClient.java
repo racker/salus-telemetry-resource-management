@@ -21,7 +21,9 @@ import java.util.List;
 import java.util.Map;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpMethod;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponentsBuilder;
 
@@ -63,11 +65,20 @@ public class ResourceApiClient implements ResourceApi {
 
   @Override
   public Resource getByResourceId(String tenantId, String resourceId) {
-    return restTemplate.getForObject(
-        "/api/tenant/{tenantId}/resources/{resourceId}",
-        Resource.class,
-        tenantId, resourceId
-    );
+    try {
+      return restTemplate.getForObject(
+          "/api/tenant/{tenantId}/resources/{resourceId}",
+          Resource.class,
+          tenantId, resourceId
+      );
+    } catch (HttpClientErrorException e) {
+      if (e.getStatusCode() == HttpStatus.NOT_FOUND) {
+        return null;
+      }
+      else {
+        throw new IllegalArgumentException(e);
+      }
+    }
   }
 
   @Override
