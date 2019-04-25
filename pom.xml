@@ -115,6 +115,21 @@
       <artifactId>swagger-hibernate-validations</artifactId>
       <version>1.5.6</version>
     </dependency>
+    <dependency>
+      <groupId>com.googlecode.json-simple</groupId>
+      <artifactId>json-simple</artifactId>
+      <version>1.1.1</version>
+    </dependency>
+    <dependency>
+      <groupId>org.codehaus.jackson</groupId>
+      <artifactId>jackson-mapper-asl</artifactId>
+      <version>1.9.13</version>
+    </dependency>
+    <dependency>
+      <groupId>org.codehaus.jackson</groupId>
+      <artifactId>jackson-mapper-asl</artifactId>
+      <version>1.9.13</version>
+    </dependency>
   </dependencies>
 
   <build>
@@ -156,7 +171,7 @@
               <springmvc>true</springmvc>
               <locations>
                 <location>com.rackspace.salus.resource_management.web.model</location>
-                <location>com.rackspace.salus.resource_management.web.controller.ResourceApi</location>
+                <location>com.rackspace.salus.resource_management.web.controller</location>
               </locations>
               <templatePath>${basedir}/templates/strapdown.html.hbs</templatePath>
               <schemes>

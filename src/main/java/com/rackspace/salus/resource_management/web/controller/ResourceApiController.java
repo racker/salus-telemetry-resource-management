@@ -70,8 +70,7 @@ public class ResourceApiController implements ResourceApi {
     }
 
     @GetMapping("/resources")
-    @ApiOperation(value = "Gets all Resources irrespective of Tenant",
-        nickname = "/thisIsAFunnyThing")
+    @ApiOperation(value = "Gets all Resources irrespective of Tenant")
     public Page<Resource> getAll(@RequestParam(defaultValue = "100") int size,
                                  @RequestParam(defaultValue = "0") int page) {
 
