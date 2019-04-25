@@ -157,17 +157,11 @@
                 <location>com.rackspace.salus.resource_management.web.model</location>
                 <location>com.rackspace.salus.resource_management.web.controller.ResourceApi</location>
               </locations>
-              <securityDefinitions>
-                <securityDefinition>
-                  <json>/securityDefinitions.json</json>
-                </securityDefinition>
-              </securityDefinitions>
               <templatePath>${basedir}/templates/strapdown.html.hbs</templatePath>
               <schemes>
                 <scheme> https </scheme>
                 <scheme> http </scheme>
               </schemes>
-            <!--  <templatePath> Need to add a handlebar template file </templatePath> -->
               <info>
                 <title>Salus Resource Management</title>
                 <version>0.1.0</version>
@@ -175,6 +169,11 @@
               <outputPath>${project.build.directory}/generated/swagger/document.html</outputPath>
               <swaggerDirectory>${project.build.directory}/generated/swagger</swaggerDirectory>
               <outputFormats>json</outputFormats>
+ <!--             <securityDefinitions>
+                <securityDefinition>
+                  <json>/securityDefinitions.json</json>
+                </securityDefinition>
+              </securityDefinitions> -->
             </apiSource>
           </apiSources>
         </configuration>
