@@ -158,10 +158,12 @@
                 <location>com.rackspace.salus.resource_management.web.model</location>
                 <location>com.rackspace.salus.resource_management.web.controller.ResourceApi</location>
               </locations>
-              <securityDefinition>
-                <jsonPath>/templates/securityDefinition.json</jsonPath>
-              </securityDefinition>
-              <templatePath>/templates/strapdown.html.hbs</templatePath>
+              <securityDefinitions>
+                <securityDefinition>
+                  <json>/securityDefinitions.json</json>
+                </securityDefinition>
+              </securityDefinitions>
+              <templatePath>${basedir}/templates/strapdown.html.hbs</templatePath>
               <schemes>
                 <scheme> https </scheme>
                 <scheme> http </scheme>
