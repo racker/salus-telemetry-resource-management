@@ -51,12 +51,13 @@ import io.swagger.annotations.*;
 
 @Slf4j
 @RestController
-@Api(value = "/testInformation", description = "Resource operations", authorizations = {
-        @Authorization(value = "petstore_auth",
-                scopes = {
-                        @AuthorizationScope(scope = "write:resource", description = "modify resources in your account"),
-                        @AuthorizationScope(scope = "read:resource", description = "read your resource")
-                })
+@Api(value = "/api", description = "Resource operations", authorizations = {
+    @Authorization(value = "repose_auth",
+        scopes = {
+            @AuthorizationScope(scope = "write:resource", description = "modify resources in your account"),
+            @AuthorizationScope(scope = "read:resource", description = "read your resource"),
+            @AuthorizationScope(scope = "delete:resource", description = "delete your resource")
+        })
 })
 @RequestMapping("/api")
 public class ResourceApi {
@@ -70,7 +71,7 @@ public class ResourceApi {
     }
 
     @GetMapping("/resources")
-    @ApiOperation(value = "Gets all things")
+    @ApiOperation(value = "Gets all Resources irrespective of Tenant")
     public Page<Resource> getAll(@RequestParam(defaultValue = "100") int size,
                                  @RequestParam(defaultValue = "0") int page) {
 
@@ -115,7 +116,6 @@ public class ResourceApi {
     @ApiResponses(value = { @ApiResponse(code = 400, message = "Invalid ID supplied"),
             @ApiResponse(code = 404, message = "Tenant not found"),
             @ApiResponse(code = 405, message = "Validation exception") })
-
     public Page<Resource>  getAllForTenant(@PathVariable String tenantId,
                                    @RequestParam(defaultValue = "100") int size,
                                    @RequestParam(defaultValue = "0") int page) {
@@ -125,6 +125,7 @@ public class ResourceApi {
 
     @PostMapping("/tenant/{tenantId}/resources")
     @ResponseStatus(HttpStatus.CREATED)
+    @ApiOperation(value = "Create one Resource for Tenant")
     public Resource create(@PathVariable String tenantId,
                            @Valid @RequestBody final ResourceCreate input)
             throws IllegalArgumentException, ResourceAlreadyExists {
@@ -132,6 +133,7 @@ public class ResourceApi {
     }
 
     @PutMapping("/tenant/{tenantId}/resources/{resourceId}")
+    @ApiOperation(value = "Updates specific Resource for Tenant")
     public Resource update(@PathVariable String tenantId,
                            @PathVariable String resourceId,
                            @Valid @RequestBody final ResourceUpdate input) throws IllegalArgumentException {
@@ -140,6 +142,11 @@ public class ResourceApi {
 
     @DeleteMapping("/tenant/{tenantId}/resources/{resourceId}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
+    @ApiOperation(value = "Gets all Resources for authenticated tenant")
+    @ApiResponses(value = { @ApiResponse(code = 400, message = "Invalid ID supplied"),
+            @ApiResponse(code = 404, message = "Tenant not found"),
+            @ApiResponse(code = 405, message = "Validation exception"),
+            @ApiResponse(code = 204, message = "Resource Deleted")})
     public void delete(@PathVariable String tenantId,
                        @PathVariable String resourceId) {
         resourceManagement.removeResource(tenantId, resourceId);
