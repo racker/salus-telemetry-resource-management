@@ -158,8 +158,13 @@
                 <location>com.rackspace.salus.resource_management.web.model</location>
                 <location>com.rackspace.salus.resource_management.web.controller.ResourceApi</location>
               </locations>
+              <securityDefinition>
+                <jsonPath>/templates/securityDefinition.json</jsonPath>
+              </securityDefinition>
+              <templatePath>/templates/strapdown.html.hbs</templatePath>
               <schemes>
                 <scheme> https </scheme>
+                <scheme> http </scheme>
               </schemes>
             <!--  <templatePath> Need to add a handlebar template file </templatePath> -->
               <info>
@@ -174,7 +179,6 @@
         </configuration>
         <executions>
           <execution>
-            <!-- currently failing because the Scala plugin is empty -->
             <phase>compile</phase>
             <goals>
               <goal>generate</goal>
