@@ -316,8 +316,8 @@ public class ResourceManagementTest {
         assertThat(actualResource.get().getLabels(), equalTo(envoyLabels));
 
         verify(kafkaEgress).sendResourceEvent(resourceEventArg.capture());
-        assertThat(resourceEventArg.getValue().getResource().getResourceId(), equalTo("r-1"));
-        assertThat(resourceEventArg.getValue().getResource().getLabels(), equalTo(envoyLabels));
+        assertThat(resourceEventArg.getValue().getResourceId(), equalTo("r-1"));
+        assertThat(resourceEventArg.getValue().getTenantId(), equalTo("t-1"));
 
         verifyNoMoreInteractions(kafkaEgress);
     }
@@ -366,8 +366,8 @@ public class ResourceManagementTest {
         assertThat(actualResource.get().getLabels(), equalTo(expectedResourceLabels));
 
         verify(kafkaEgress).sendResourceEvent(resourceEventArg.capture());
-        assertThat(resourceEventArg.getValue().getResource().getResourceId(), equalTo("r-1"));
-        assertThat(resourceEventArg.getValue().getResource().getLabels(), equalTo(expectedResourceLabels));
+        assertThat(resourceEventArg.getValue().getResourceId(), equalTo("r-1"));
+        assertThat(resourceEventArg.getValue().getTenantId(), equalTo("t-1"));
 
         verifyNoMoreInteractions(kafkaEgress);
     }
