@@ -163,6 +163,7 @@
               <templatePath>/templates/strapdown.html.hbs</templatePath>
               <schemes>
                 <scheme> https </scheme>
+                <scheme> http </scheme>
               </schemes>
             <!--  <templatePath> Need to add a handlebar template file </templatePath> -->
               <info>
