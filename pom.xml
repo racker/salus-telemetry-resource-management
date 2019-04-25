@@ -102,12 +102,18 @@
     <dependency>
       <groupId>io.swagger</groupId>
       <artifactId>swagger-core</artifactId>
-      <version>1.5.6</version>
+      <version>1.5.22</version>
+      <exclusions>
+        <exclusion>
+          <groupId>javax.ws.rs</groupId>
+          <artifactId>jsr311-api</artifactId>
+        </exclusion>
+      </exclusions>
     </dependency>
     <dependency>
-      <groupId>org.codehaus.jackson</groupId>
-      <artifactId>jackson-mapper-asl</artifactId>
-      <version>1.9.13</version>
+      <groupId>io.swagger</groupId>
+      <artifactId>swagger-hibernate-validations</artifactId>
+      <version>1.5.6</version>
     </dependency>
   </dependencies>
 
@@ -137,6 +143,53 @@
             </configuration>
           </execution>
         </executions>
+      </plugin>
+
+      <plugin>
+        <groupId>com.github.kongchen</groupId>
+        <artifactId>swagger-maven-plugin</artifactId>
+        <version>3.1.8</version>
+        <configuration>
+          <apiSources>
+            <apiSource>
+              <springmvc>true</springmvc>
+              <locations>
+                <location>com.rackspace.salus.resource_management.web.model</location>
+                <location>com.rackspace.salus.resource_management.web.controller.ResourceApi</location>
+              </locations>
+              <schemes>
+                <scheme> https </scheme>
+              </schemes>
+            <!--  <templatePath> Need to add a handlebar template file </templatePath> -->
+              <info>
+                <title>Salus Resource Management</title>
+                <version>0.1.0</version>
+              </info>
+              <outputPath>${project.build.directory}/generated/swagger/document.html</outputPath>
+              <swaggerDirectory>${project.build.directory}/generated/swagger</swaggerDirectory>
+              <outputFormats>json</outputFormats>
+            </apiSource>
+          </apiSources>
+        </configuration>
+        <executions>
+          <execution>
+            <!-- currently failing because the Scala plugin is empty -->
+            <phase>compile</phase>
+            <goals>
+              <goal>generate</goal>
+            </goals>
+          </execution>
+        </executions>
+        <dependencies>
+          <!-- Adding dependency to swagger-hibernate-validations to enable the BeanValidator as a custom
+               model converter -->
+          <dependency>
+            <groupId>io.swagger</groupId>
+            <artifactId>swagger-hibernate-validations</artifactId>
+            <version>1.5.6</version>
+          </dependency>
+        </dependencies>
+
       </plugin>
 
     </plugins>
