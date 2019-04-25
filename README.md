@@ -17,6 +17,28 @@ kafka-console-consumer --bootstrap-server localhost:9093 --topic telemetry.resou
 
 You can trigger these events to be posted by utilizing some of the API operations below.
 
+# Resource Management REST API Client
+
+Internal clients of the Resource Management REST API can declare a Maven dependency as follows:
+
+```xml
+<dependency>
+  <groupId>com.rackspace.salus</groupId>
+  <artifactId>salus-telemetry-resource-management</artifactId>
+  <version>${resource-management.version}</version>
+  <classifier>client</classifier>
+  <exclusions>
+    <exclusion>
+      <groupId>*</groupId>
+      <artifactId>*</artifactId>
+    </exclusion>
+  </exclusions>
+</dependency>
+```
+
+Included in that artifact is the client implementation `ResourceApiClient`. Refer to the javadoc
+of that class for more information.
+
 # API Operations
 Examples of a subset of the available API operations.
 

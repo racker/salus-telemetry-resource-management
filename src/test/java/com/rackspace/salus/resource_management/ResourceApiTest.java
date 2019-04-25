@@ -36,7 +36,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.rackspace.salus.resource_management.services.ResourceManagement;
-import com.rackspace.salus.resource_management.web.controller.ResourceApi;
+import com.rackspace.salus.resource_management.web.controller.ResourceApiController;
 import com.rackspace.salus.resource_management.web.model.ResourceCreate;
 import com.rackspace.salus.resource_management.web.model.ResourceUpdate;
 import com.rackspace.salus.telemetry.model.Resource;
@@ -62,7 +62,7 @@ import uk.co.jemos.podam.api.PodamFactory;
 import uk.co.jemos.podam.api.PodamFactoryImpl;
 
 @RunWith(SpringRunner.class)
-@WebMvcTest(controllers = ResourceApi.class)
+@WebMvcTest(controllers = ResourceApiController.class)
 @AutoConfigureDataJpa
 public class ResourceApiTest {
 

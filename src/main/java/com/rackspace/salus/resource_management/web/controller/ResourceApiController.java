@@ -17,6 +17,7 @@
 package com.rackspace.salus.resource_management.web.controller;
 
 import com.rackspace.salus.resource_management.services.ResourceManagement;
+import com.rackspace.salus.resource_management.web.client.ResourceApi;
 import com.rackspace.salus.resource_management.web.model.ResourceCreate;
 import com.rackspace.salus.resource_management.web.model.ResourceUpdate;
 import com.rackspace.salus.telemetry.errors.ResourceAlreadyExists;
@@ -48,12 +49,12 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 @Slf4j
 @RestController
 @RequestMapping("/api")
-public class ResourceApi {
+public class ResourceApiController implements ResourceApi {
     private ResourceManagement resourceManagement;
     private TaskExecutor taskExecutor;
 
     @Autowired
-    public ResourceApi(ResourceManagement resourceManagement, TaskExecutor taskExecutor) {
+    public ResourceApiController(ResourceManagement resourceManagement, TaskExecutor taskExecutor) {
         this.resourceManagement = resourceManagement;
         this.taskExecutor = taskExecutor;
     }
@@ -83,6 +84,7 @@ public class ResourceApi {
         return emitter;
     }
 
+    @Override
     @GetMapping("/tenant/{tenantId}/resources/{resourceId}")
     public Resource getByResourceId(@PathVariable String tenantId,
                                     @PathVariable String resourceId) throws NotFoundException {
@@ -125,6 +127,7 @@ public class ResourceApi {
         resourceManagement.removeResource(tenantId, resourceId);
     }
 
+    @Override
     @GetMapping("/tenant/{tenantId}/resourceLabels")
     public List<Resource> getResourcesWithLabels(@PathVariable String tenantId,
                                                  @RequestParam Map<String, String> labels) {
