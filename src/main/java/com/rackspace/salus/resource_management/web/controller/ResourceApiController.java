@@ -72,8 +72,7 @@ public class ResourceApiController implements ResourceApi {
     }
 
     @GetMapping("/resources")
-    @ApiOperation(value = "Gets all Resources irrespective of Tenant",
-        nickname = "/thisIsAFunnyThing")
+    @ApiOperation(value = "Gets all Resources irrespective of Tenant")
     public Page<Resource> getAll(@RequestParam(defaultValue = "100") int size,
                                  @RequestParam(defaultValue = "0") int page) {
 
@@ -101,8 +100,6 @@ public class ResourceApiController implements ResourceApi {
     @Override
     @GetMapping("/tenant/{tenantId}/resources/{resourceId}")
     @ApiOperation(value = "Gets specific Resource for specific Tenant")
-    @ApiResponses(value = { @ApiResponse(code = 400, message = "Invalid ID supplied"),
-            @ApiResponse(code = 404, message = "Resource not found") })
     public Resource getByResourceId(@PathVariable String tenantId,
                                     @PathVariable String resourceId) throws NotFoundException {
 
@@ -116,9 +113,6 @@ public class ResourceApiController implements ResourceApi {
 
     @GetMapping("/tenant/{tenantId}/resources")
     @ApiOperation(value = "Gets all Resources for authenticated tenant")
-    @ApiResponses(value = { @ApiResponse(code = 400, message = "Invalid ID supplied"),
-            @ApiResponse(code = 404, message = "Tenant not found"),
-            @ApiResponse(code = 405, message = "Validation exception") })
     public Page<Resource>  getAllForTenant(@PathVariable String tenantId,
                                    @RequestParam(defaultValue = "100") int size,
                                    @RequestParam(defaultValue = "0") int page) {
@@ -129,6 +123,7 @@ public class ResourceApiController implements ResourceApi {
     @PostMapping("/tenant/{tenantId}/resources")
     @ResponseStatus(HttpStatus.CREATED)
     @ApiOperation(value = "Create one Resource for Tenant")
+    @ApiResponses(value = { @ApiResponse(code = 201, message = "Successfully Created Resource")})
     public Resource create(@PathVariable String tenantId,
                            @Valid @RequestBody final ResourceCreate input)
             throws IllegalArgumentException, ResourceAlreadyExists {
@@ -146,10 +141,7 @@ public class ResourceApiController implements ResourceApi {
     @DeleteMapping("/tenant/{tenantId}/resources/{resourceId}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     @ApiOperation(value = "Gets all Resources for authenticated tenant")
-    @ApiResponses(value = { @ApiResponse(code = 400, message = "Invalid ID supplied"),
-            @ApiResponse(code = 404, message = "Tenant not found"),
-            @ApiResponse(code = 405, message = "Validation exception"),
-            @ApiResponse(code = 204, message = "Resource Deleted")})
+    @ApiResponses(value = { @ApiResponse(code = 204, message = "Resource Deleted")})
     public void delete(@PathVariable String tenantId,
                        @PathVariable String resourceId) {
         resourceManagement.removeResource(tenantId, resourceId);
