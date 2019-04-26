@@ -36,6 +36,7 @@ public class SwaggerJsonConverter {
                             ((ArrayNode)temp.get(webVerbs.getKey()).get("parameters")).remove(i);
                             break;
                         }
+                        i++;
                     }
                 });*/
 
@@ -49,8 +50,6 @@ public class SwaggerJsonConverter {
 
         temp.forEach((key, node)->{
             pathNode.set(key, node);
-            //for some reason this works but placing it in the path doesnt...
-
         });
         root.set("paths", pathNode);
         mapper.writeValue(new java.io.File(args[0]+"/convertedOutput.json"), (JsonNode)root);
