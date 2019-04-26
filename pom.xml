@@ -199,7 +199,7 @@
         </executions>
         <configuration>
           <classpathScope>test</classpathScope>
-          <mainClass>com.rackspace.salus.resource_management.Converter.SwaggerJsonConverter</mainClass>
+          <mainClass>com.rackspace.salus.resource_management.converter.SwaggerJsonConverter</mainClass>
           <arguments>
             <argument>${project.build.directory}/generated/swagger</argument>
           </arguments>
