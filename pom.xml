@@ -116,16 +116,6 @@
       <version>1.5.6</version>
     </dependency>
     <dependency>
-      <groupId>com.googlecode.json-simple</groupId>
-      <artifactId>json-simple</artifactId>
-      <version>1.1.1</version>
-    </dependency>
-    <dependency>
-      <groupId>org.codehaus.jackson</groupId>
-      <artifactId>jackson-mapper-asl</artifactId>
-      <version>1.9.13</version>
-    </dependency>
-    <dependency>
       <groupId>org.codehaus.jackson</groupId>
       <artifactId>jackson-mapper-asl</artifactId>
       <version>1.9.13</version>
@@ -210,7 +200,25 @@
             <version>1.5.6</version>
           </dependency>
         </dependencies>
+      </plugin>
 
+      <plugin>
+        <groupId>org.codehaus.mojo</groupId>
+        <artifactId>exec-maven-plugin</artifactId>
+        <version>1.2.1</version>
+        <executions>
+          <execution>
+            <goals>
+              <goal>java</goal>
+            </goals>
+          </execution>
+        </executions>
+        <configuration>
+          <mainClass>com.rackspace.salus.resource_management.swaggerJsonConverter</mainClass>
+          <arguments>
+            <argument>${project.build.directory}/generated/swagger</argument>
+          </arguments>
+        </configuration>
       </plugin>
 
     </plugins>
