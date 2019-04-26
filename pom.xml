@@ -188,15 +188,18 @@
         <groupId>org.codehaus.mojo</groupId>
         <artifactId>exec-maven-plugin</artifactId>
         <version>1.2.1</version>
+
         <executions>
           <execution>
+            <phase>compile</phase>
             <goals>
               <goal>java</goal>
             </goals>
           </execution>
         </executions>
         <configuration>
-          <mainClass>com.rackspace.salus.resource_management.SwaggerJsonConverter</mainClass>
+          <classpathScope>test</classpathScope>
+          <mainClass>com.rackspace.salus.resource_management.Converter.SwaggerJsonConverter</mainClass>
           <arguments>
             <argument>${project.build.directory}/generated/swagger</argument>
           </arguments>
