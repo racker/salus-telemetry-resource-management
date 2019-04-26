@@ -24,6 +24,9 @@ public class SwaggerJsonConverter {
             {
                 String newKey = elt.getKey().replace("tenant/{tenantId}/", "");
                 temp.put(newKey, elt.getValue());
+                /*
+                Code to remove the parameters as well... currently hitting array index out of bounts
+
                 elt.getValue().fields().forEachRemaining((webVerbs)->{
                     int i = 0;
                     for (Iterator<Map.Entry<String, JsonNode>> parameters = elt.getValue().get("parameters").fields(); parameters.hasNext(); ) {
@@ -33,8 +36,9 @@ public class SwaggerJsonConverter {
                             ((ArrayNode)temp.get(webVerbs.getKey()).get("parameters")).remove(i);
                             break;
                         }
+                        i++;
                     }
-                });
+                });*/
 
                 it.remove();
 
