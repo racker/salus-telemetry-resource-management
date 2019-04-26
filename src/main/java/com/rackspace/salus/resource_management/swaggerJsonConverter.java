@@ -27,25 +27,20 @@ public class swaggerJsonConverter {
                 String newKey = elt.getKey().replace("tenant/{tenantId}/", "");
                 temp.put(newKey, elt.getValue());
 
-               /* ((ObjectNode)root.get("paths")).set(
-                        elt.getKey().replace("tenant/{tenantId}/", ""),
-                        elt.getValue());
-                */
-                //another foreach
-                //elt.getValue().fields();
-
                 it.remove();
-                //((ObjectNode) root.get("paths")).remove(elt.getKey());
+
             } else {
                 it.remove();
-                //((ObjectNode) root.get("paths")).remove(elt.getKey());
             }
         }
+        ObjectNode pathNode = mapper.getNodeFactory().objectNode();
 
         temp.forEach((key, node)->{
-            root.put(key, node);
-        });
+            pathNode.set(key, node);
+            //for some reason this works but placing it in the path doesnt...
 
+           });
+        root.set("paths", pathNode);
         mapper.writeValue(new java.io.File("/Users/adam9500/workspace/salus-telemetry-bundle/apps/resource-management/target/generated/swagger/convertedOutput.json"), (JsonNode)root);
 
     }
