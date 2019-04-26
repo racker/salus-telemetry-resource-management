@@ -101,17 +101,6 @@
     </dependency>
     <dependency>
       <groupId>io.swagger</groupId>
-      <artifactId>swagger-core</artifactId>
-      <version>1.5.22</version>
-      <exclusions>
-        <exclusion>
-          <groupId>javax.ws.rs</groupId>
-          <artifactId>jsr311-api</artifactId>
-        </exclusion>
-      </exclusions>
-    </dependency>
-    <dependency>
-      <groupId>io.swagger</groupId>
       <artifactId>swagger-hibernate-validations</artifactId>
       <version>1.5.6</version>
     </dependency>
@@ -175,11 +164,6 @@
               <outputPath>${project.build.directory}/generated/swagger/document.html</outputPath>
               <swaggerDirectory>${project.build.directory}/generated/swagger</swaggerDirectory>
               <outputFormats>json</outputFormats>
- <!--             <securityDefinitions>
-                <securityDefinition>
-                  <json>/securityDefinitions.json</json>
-                </securityDefinition>
-              </securityDefinitions> -->
             </apiSource>
           </apiSources>
         </configuration>
@@ -192,8 +176,6 @@
           </execution>
         </executions>
         <dependencies>
-          <!-- Adding dependency to swagger-hibernate-validations to enable the BeanValidator as a custom
-               model converter -->
           <dependency>
             <groupId>io.swagger</groupId>
             <artifactId>swagger-hibernate-validations</artifactId>
@@ -214,7 +196,7 @@
           </execution>
         </executions>
         <configuration>
-          <mainClass>com.rackspace.salus.resource_management.swaggerJsonConverter</mainClass>
+          <mainClass>com.rackspace.salus.resource_management.SwaggerJsonConverter</mainClass>
           <arguments>
             <argument>${project.build.directory}/generated/swagger</argument>
           </arguments>
