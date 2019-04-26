@@ -52,7 +52,7 @@ import io.swagger.annotations.*;
 
 @Slf4j
 @RestController
-@Api(value = "/api", description = "Resource operations", authorizations = {
+@Api(description = "Resource operations", authorizations = {
     @Authorization(value = "repose_auth",
         scopes = {
             @AuthorizationScope(scope = "write:resource", description = "modify resources in your account"),
