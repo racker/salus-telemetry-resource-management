@@ -144,8 +144,8 @@ public class ResourceManagement {
         return new PageImpl<>(resources, page, resources.size());
     }
 
-    public List<Resource> getAllTenantResources(String tenantid) {
-        return resourceRepository.findAllByTenantId(tenantid);
+    public List<Resource> getAllTenantResources(String tenantId) {
+        return resourceRepository.findAllByTenantId(tenantId);
     }
 
     /**
@@ -167,6 +167,15 @@ public class ResourceManagement {
                 cb.equal(root.get(Resource_.presenceMonitoringEnabled), presenceMonitoringEnabled));
 
         return entityManager.createQuery(cr).getResultStream();
+    }
+
+    /**
+     * Get a list of all resources where the presence monitoring is enabled.
+     *
+     * @return List of resources.
+     */
+    public List<Resource> getExpectedEnvoys() {
+        return resourceRepository.findAllByPresenceMonitoringEnabled(true);
     }
 
     /**
