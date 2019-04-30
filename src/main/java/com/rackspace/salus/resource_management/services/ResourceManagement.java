@@ -144,8 +144,8 @@ public class ResourceManagement {
         return new PageImpl<>(resources, page, resources.size());
     }
 
-    public List<Resource> getAllTenantResources(String tenantid) {
-        return resourceRepository.findAllByTenantId(tenantid);
+    public List<Resource> getAllTenantResources(String tenantId) {
+        return resourceRepository.findAllByTenantId(tenantId);
     }
 
     /**
@@ -175,14 +175,7 @@ public class ResourceManagement {
      * @return List of resources.
      */
     public List<Resource> getExpectedEnvoys() {
-        CriteriaBuilder cb = entityManager.getCriteriaBuilder();
-        CriteriaQuery<Resource> cr = cb.createQuery(Resource.class);
-        Root<Resource> root = cr.from(Resource.class);
-
-        cr.select(root).where(
-                cb.equal(root.get(Resource_.presenceMonitoringEnabled), true));
-
-        return entityManager.createQuery(cr).getResultList();
+        return resourceRepository.findAllByPresenceMonitoringEnabled(true);
     }
 
     /**
