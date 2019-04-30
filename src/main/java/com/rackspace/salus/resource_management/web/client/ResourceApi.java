@@ -33,4 +33,6 @@ public interface ResourceApi {
 
   List<Resource> getResourcesWithLabels(String tenantId,
                                         Map<String, String> labels);
+
+  List<Resource> getExpectedEnvoys();
 }

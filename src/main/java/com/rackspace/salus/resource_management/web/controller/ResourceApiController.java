@@ -133,4 +133,17 @@ public class ResourceApiController implements ResourceApi {
                                                  @RequestParam Map<String, String> labels) {
         return resourceManagement.getResourcesFromLabels(labels, tenantId);
     }
+
+    /**
+     * Gets the list of all envoys with presence monitoring enabled.
+     *
+     * This is primary included due to the requirement to implement all interface methods.
+     * In practice, the clients will call getAllWithPresenceMonitoringAsStream.
+     *
+     * @return A list of resources.
+     */
+    @Override
+    public List<Resource> getExpectedEnvoys() {
+        return resourceManagement.getExpectedEnvoys();
+    }
 }

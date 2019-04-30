@@ -16,8 +16,7 @@
 
 package com.rackspace.salus.resource_management.web.client;
 
-import static org.hamcrest.Matchers.equalTo;
-import static org.hamcrest.Matchers.nullValue;
+import static org.hamcrest.Matchers.*;
 import static org.junit.Assert.assertThat;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withStatus;
@@ -26,10 +25,12 @@ import static org.springframework.test.web.client.response.MockRestResponseCreat
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.rackspace.salus.telemetry.model.Resource;
+
 import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
+
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -52,7 +53,7 @@ public class ResourceApiClientTest {
   public static class ExtraTestConfig {
     @Bean
     public ResourceApiClient resourceApiClient(RestTemplateBuilder restTemplateBuilder) {
-      return new ResourceApiClient(restTemplateBuilder.build());
+      return new ResourceApiClient(objectMapper, restTemplateBuilder.build());
     }
   }
 
@@ -60,12 +61,14 @@ public class ResourceApiClientTest {
   MockRestServiceServer mockServer;
 
   @Autowired
-  ObjectMapper objectMapper;
+  static final ObjectMapper objectMapper = new ObjectMapper();
 
   @Autowired
   ResourceApiClient resourceApiClient;
 
   private PodamFactory podamFactory = new PodamFactoryImpl();
+
+  private static final String SSEHdr = "data:";
 
   @Test
   public void getByResourceId() throws JsonProcessingException {
@@ -105,6 +108,27 @@ public class ResourceApiClientTest {
     final List<Resource> resources = resourceApiClient
         .getResourcesWithLabels("t-1", Collections.singletonMap("env", "prod"));
 
+    assertThat(resources, equalTo(expectedResources));
+  }
+
+  @Test
+  public void testGetExpectedEnvoys() throws JsonProcessingException {
+    final List<Resource> expectedResources = IntStream.range(0, 4)
+            .mapToObj(value -> podamFactory.manufacturePojo(Resource.class))
+            .collect(Collectors.toList());
+
+    StringBuilder responseStream = new StringBuilder();
+    for (Resource r : expectedResources) {
+      String line = String.format("%s%s\n", SSEHdr, objectMapper.writeValueAsString(r));
+      responseStream.append(line);
+    }
+
+    mockServer.expect(requestTo("/api/envoys"))
+            .andRespond(withSuccess(responseStream.toString(), MediaType.TEXT_EVENT_STREAM));
+
+    final List<Resource> resources = resourceApiClient.getExpectedEnvoys();
+
+    assertThat(resources.size(), equalTo(expectedResources.size()));
     assertThat(resources, equalTo(expectedResources));
   }
 }

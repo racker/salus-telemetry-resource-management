@@ -170,6 +170,22 @@ public class ResourceManagement {
     }
 
     /**
+     * Get a list of all resources where the presence monitoring is enabled.
+     *
+     * @return List of resources.
+     */
+    public List<Resource> getExpectedEnvoys() {
+        CriteriaBuilder cb = entityManager.getCriteriaBuilder();
+        CriteriaQuery<Resource> cr = cb.createQuery(Resource.class);
+        Root<Resource> root = cr.from(Resource.class);
+
+        cr.select(root).where(
+                cb.equal(root.get(Resource_.presenceMonitoringEnabled), true));
+
+        return entityManager.createQuery(cr).getResultList();
+    }
+
+    /**
      * Similar to {@link #getResources(boolean presenceMonitoringEnabled) getResources} except restricted to a
      * single tenant, and returns a list.
      * @param tenantId The tenant to select resources from.

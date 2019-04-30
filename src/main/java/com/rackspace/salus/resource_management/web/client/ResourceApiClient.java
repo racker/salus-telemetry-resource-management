@@ -16,9 +16,15 @@
 
 package com.rackspace.salus.resource_management.web.client;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.rackspace.salus.telemetry.model.Resource;
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
@@ -53,13 +59,18 @@ import org.springframework.web.util.UriComponentsBuilder;
  * </pre>
  *
  */
+@Slf4j
 public class ResourceApiClient implements ResourceApi {
 
-  public static final ParameterizedTypeReference<List<Resource>> LIST_OF_RESOURCE =
+  private static final ParameterizedTypeReference<List<Resource>> LIST_OF_RESOURCE =
       new ParameterizedTypeReference<List<Resource>>() {};
-  private final RestTemplate restTemplate;
 
-  public ResourceApiClient(RestTemplate restTemplate) {
+  private ObjectMapper objectMapper;
+  private final RestTemplate restTemplate;
+  private static final String SSEHdr = "data:";
+
+  public ResourceApiClient(ObjectMapper objectMapper, RestTemplate restTemplate) {
+    this.objectMapper = objectMapper;
     this.restTemplate = restTemplate;
   }
 
@@ -97,5 +108,29 @@ public class ResourceApiClient implements ResourceApi {
     );
 
     return resp.getBody();
+  }
+
+  @Override
+  public List<Resource> getExpectedEnvoys() {
+    String endpoint = "/api/envoys";
+    List<Resource> resources = new ArrayList<>();
+
+    restTemplate.execute(endpoint, HttpMethod.GET, request -> {}, response -> {
+      BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(response.getBody()));
+      String line;
+      while ((line = bufferedReader.readLine()) != null) {
+        if (line.length() > SSEHdr.length())
+          try {
+            Resource resource;
+            // remove the "data:" hdr
+            resource = objectMapper.readValue(line.substring(SSEHdr.length()), Resource.class);
+            resources.add(resource);
+          } catch (IOException e) {
+            log.warn("Failed to parse Resource", e);
+          }
+      }
+      return response;
+    });
+    return resources;
   }
 }
