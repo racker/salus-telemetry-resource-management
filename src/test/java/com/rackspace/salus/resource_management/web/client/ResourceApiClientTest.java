@@ -61,12 +61,11 @@ public class ResourceApiClientTest {
   MockRestServiceServer mockServer;
 
   @Autowired
-  static final ObjectMapper objectMapper = new ObjectMapper();
-
-  @Autowired
   ResourceApiClient resourceApiClient;
 
   private PodamFactory podamFactory = new PodamFactoryImpl();
+
+  private static final ObjectMapper objectMapper = new ObjectMapper();
 
   private static final String SSEHdr = "data:";
 
