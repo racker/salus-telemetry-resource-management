@@ -154,8 +154,8 @@
               </locations>
               <templatePath>${basedir}/templates/strapdown.html.hbs</templatePath>
               <schemes>
-                <scheme> https </scheme>
-                <scheme> http </scheme>
+                <scheme>https</scheme>
+                <scheme>http</scheme>
               </schemes>
               <info>
                 <title>Salus Resource Management</title>
