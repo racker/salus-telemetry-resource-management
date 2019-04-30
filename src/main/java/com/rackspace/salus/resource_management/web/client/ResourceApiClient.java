@@ -24,6 +24,8 @@ import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Stream;
+
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpMethod;
@@ -111,7 +113,7 @@ public class ResourceApiClient implements ResourceApi {
   }
 
   @Override
-  public List<Resource> getExpectedEnvoys() {
+  public Stream<Resource> getExpectedEnvoys() {
     String endpoint = "/api/envoys";
     List<Resource> resources = new ArrayList<>();
 
@@ -119,18 +121,16 @@ public class ResourceApiClient implements ResourceApi {
       BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(response.getBody()));
       String line;
       while ((line = bufferedReader.readLine()) != null) {
-        if (line.length() > SSEHdr.length())
-          try {
-            Resource resource;
-            // remove the "data:" hdr
-            resource = objectMapper.readValue(line.substring(SSEHdr.length()), Resource.class);
-            resources.add(resource);
-          } catch (IOException e) {
-            log.warn("Failed to parse Resource", e);
-          }
+        try {
+          Resource resource;
+          resource = objectMapper.readValue(line, Resource.class);
+          resources.add(resource);
+        } catch (IOException e) {
+          log.warn("Failed to parse Resource", e);
+        }
       }
       return response;
     });
-    return resources;
+    return resources.stream();
   }
 }

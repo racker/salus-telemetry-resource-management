@@ -23,7 +23,6 @@ import com.rackspace.salus.resource_management.web.model.ResourceUpdate;
 import com.rackspace.salus.telemetry.errors.ResourceAlreadyExists;
 import com.rackspace.salus.telemetry.model.NotFoundException;
 import com.rackspace.salus.telemetry.model.Resource;
-import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Stream;
@@ -46,7 +45,6 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 import io.swagger.annotations.*;
 
 
@@ -78,23 +76,6 @@ public class ResourceApiController implements ResourceApi {
 
         return resourceManagement.getAllResources(PageRequest.of(page, size));
 
-    }
-
-    @GetMapping("/envoys")
-    public SseEmitter getAllWithPresenceMonitoringAsStream() {
-        SseEmitter emitter = new SseEmitter();
-        Stream<Resource> resourcesWithEnvoys = resourceManagement.getResources(true);
-        taskExecutor.execute(() -> {
-            resourcesWithEnvoys.forEach(r -> {
-                try {
-                    emitter.send(r);
-                } catch (IOException e) {
-                    emitter.completeWithError(e);
-                }
-            });
-            emitter.complete();
-        });
-        return emitter;
     }
 
     @Override
@@ -155,15 +136,13 @@ public class ResourceApiController implements ResourceApi {
     }
 
     /**
-     * Gets the list of all envoys with presence monitoring enabled.
+     * Gets the stream of all envoys with presence monitoring enabled.
      *
-     * This is primary included due to the requirement to implement all interface methods.
-     * In practice, the clients will call getAllWithPresenceMonitoringAsStream.
-     *
-     * @return A list of resources.
+     * @return A stream of resources.
      */
     @Override
-    public List<Resource> getExpectedEnvoys() {
+    @GetMapping("/envoys")
+    public Stream<Resource> getExpectedEnvoys() {
         return resourceManagement.getExpectedEnvoys();
     }
 }

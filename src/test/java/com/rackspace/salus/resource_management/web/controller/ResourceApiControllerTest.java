@@ -106,4 +106,22 @@ public class ResourceApiControllerTest {
         "t-1"
     );
   }
+
+  @Test
+  public void testGetResourcesWithPresenceMonitoringEnabled() throws Exception {
+    final List<Resource> expectedResources = IntStream.range(0, 4)
+            .mapToObj(value -> podamFactory.manufacturePojo(Resource.class).setPresenceMonitoringEnabled(true))
+            .collect(Collectors.toList());
+
+    when(resourceManagement.getExpectedEnvoys())
+            .thenReturn(expectedResources.stream());
+
+    mvc.perform(get(
+            "/api/envoys"
+    ).accept(MediaType.APPLICATION_JSON))
+            .andExpect(status().isOk())
+            .andExpect(content().json(objectMapper.writeValueAsString(expectedResources)));
+
+    verify(resourceManagement).getExpectedEnvoys();
+  }
 }

@@ -170,12 +170,14 @@ public class ResourceManagement {
     }
 
     /**
-     * Get a list of all resources where the presence monitoring is enabled.
+     * Get a stream of all resources where the presence monitoring is enabled.
      *
-     * @return List of resources.
+     * @return Stream of resources.
      */
-    public List<Resource> getExpectedEnvoys() {
-        return resourceRepository.findAllByPresenceMonitoringEnabled(true);
+    public Stream<Resource> getExpectedEnvoys() {
+        try (Stream<Resource> results = resourceRepository.findAllByPresenceMonitoringEnabledIsTrue()) {
+            return results;
+        }
     }
 
     /**

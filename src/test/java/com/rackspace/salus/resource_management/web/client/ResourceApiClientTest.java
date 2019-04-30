@@ -30,6 +30,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
+import java.util.stream.Stream;
 
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -118,16 +119,17 @@ public class ResourceApiClientTest {
 
     StringBuilder responseStream = new StringBuilder();
     for (Resource r : expectedResources) {
-      String line = String.format("%s%s\n", SSEHdr, objectMapper.writeValueAsString(r));
+      String line = String.format("%s\n", objectMapper.writeValueAsString(r));
       responseStream.append(line);
     }
 
     mockServer.expect(requestTo("/api/envoys"))
             .andRespond(withSuccess(responseStream.toString(), MediaType.TEXT_EVENT_STREAM));
 
-    final List<Resource> resources = resourceApiClient.getExpectedEnvoys();
+    final Stream<Resource> resources = resourceApiClient.getExpectedEnvoys();
+    final List<Resource> receivedResources = resources.collect(Collectors.toList());
 
-    assertThat(resources.size(), equalTo(expectedResources.size()));
-    assertThat(resources, equalTo(expectedResources));
+    assertThat(receivedResources, hasSize(expectedResources.size()));
+    assertThat(receivedResources, equalTo(expectedResources));
   }
 }

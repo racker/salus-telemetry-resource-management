@@ -29,9 +29,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -58,6 +56,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.junit4.SpringRunner;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.MvcResult;
 import uk.co.jemos.podam.api.PodamFactory;
 import uk.co.jemos.podam.api.PodamFactoryImpl;
 
@@ -305,33 +304,36 @@ public class ResourceApiTest {
 
     @Test
     public void testGetStreamOfResources() throws Exception {
-        int numberOfResources = 20;
+        int numberOfResources = 2000;
         List<Resource> resources = new ArrayList<>();
         for (int i=0; i<numberOfResources; i++) {
             resources.add(podamFactory.manufacturePojo(Resource.class));
         }
 
         List<String> expectedData = resources.stream()
-            .map(r -> {
-                try {
-                    return "data:" + objectMapper.writeValueAsString(r);
-                } catch (JsonProcessingException e) {
-                    assertThat(e, nullValue());
-                    return null;
-                }
-            }).collect(Collectors.toList());
+                .map(r -> {
+                    try {
+                        return objectMapper.writeValueAsString(r);
+                    } catch (JsonProcessingException e) {
+                        assertThat(e, nullValue());
+                        return null;
+                    }
+                }).collect(Collectors.toList());
         assertThat(expectedData.size(), equalTo(resources.size()));
 
         String url = "/api/envoys";
         Stream<Resource> resourceStream = resources.stream();
 
-        when(resourceManagement.getResources(true))
+        when(resourceManagement.getExpectedEnvoys())
                 .thenReturn(resourceStream);
 
         mockMvc.perform(get(url))
+                // these may or may not be needed.
+                //.andExpect(request().asyncStarted())
+                //.andDo(MvcResult::getAsyncResult)
                 .andDo(print())
                 .andExpect(status().isOk())
-                .andExpect(content().contentTypeCompatibleWith("text/event-stream;charset=UTF-8"))
+                .andExpect(content().contentTypeCompatibleWith("application/stream+json;charset=UTF-8"))
                 .andExpect(content().string(stringContainsInOrder(expectedData)));
     }
 }
