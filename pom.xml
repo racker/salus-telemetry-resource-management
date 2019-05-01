@@ -105,9 +105,15 @@
       <version>1.5.6</version>
     </dependency>
     <dependency>
-      <groupId>org.codehaus.jackson</groupId>
-      <artifactId>jackson-mapper-asl</artifactId>
-      <version>1.9.13</version>
+    <groupId>org.codehaus.jackson</groupId>
+    <artifactId>jackson-mapper-asl</artifactId>
+    <version>1.9.13</version>
+  </dependency>
+    <dependency>
+      <groupId>com.rackspace.salus</groupId>
+      <artifactId>salus-tools</artifactId>
+      <version>0.0.1-SNAPSHOT</version>
+      <scope>test</scope>
     </dependency>
   </dependencies>
 
@@ -154,8 +160,8 @@
               </locations>
               <templatePath>${basedir}/templates/strapdown.html.hbs</templatePath>
               <schemes>
-                <scheme> https </scheme>
-                <scheme> http </scheme>
+                <scheme>https</scheme>
+                <scheme>http</scheme>
               </schemes>
               <info>
                 <title>Salus Resource Management</title>
@@ -199,7 +205,7 @@
         </executions>
         <configuration>
           <classpathScope>test</classpathScope>
-          <mainClass>com.rackspace.salus.resource_management.converter.SwaggerJsonConverter</mainClass>
+          <mainClass>com.rackspace.salus.salus_tools.converter.SwaggerJsonConverter</mainClass>
           <arguments>
             <argument>${project.build.directory}/generated/swagger</argument>
           </arguments>
