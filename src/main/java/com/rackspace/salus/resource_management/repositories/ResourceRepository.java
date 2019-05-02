@@ -28,6 +28,8 @@ public interface ResourceRepository extends PagingAndSortingRepository<Resource,
 
   List<Resource> findAllByTenantId(String tenantId);
 
+  boolean existsByTenantIdAndResourceId(String tenantId, String resourceId);
+
   List<Resource> findAllByPresenceMonitoringEnabled(boolean value);
 
   Page<Resource> findAllByTenantId(String tenantId, Pageable pageable);

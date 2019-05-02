@@ -40,6 +40,7 @@ import com.rackspace.salus.resource_management.web.model.ResourceUpdate;
 import com.rackspace.salus.telemetry.messaging.AttachEvent;
 import com.rackspace.salus.telemetry.messaging.ResourceEvent;
 import com.rackspace.salus.telemetry.model.LabelNamespaces;
+import com.rackspace.salus.telemetry.model.NotFoundException;
 import com.rackspace.salus.telemetry.model.Resource;
 import java.util.Collections;
 import java.util.HashMap;
@@ -457,6 +458,12 @@ public class ResourceManagementTest {
         resourceManagement.removeResource(tenantId, create.getResourceId());
         Optional<Resource> deleted = resourceManagement.getResource(tenantId, create.getResourceId());
         assertTrue(!deleted.isPresent());
+    }
+
+    @Test(expected = NotFoundException.class)
+    public void testRemoveNonExistentMonitor() {
+        String random = RandomStringUtils.randomAlphanumeric(10);
+        resourceManagement.removeResource(random, random);
     }
 
     @Test

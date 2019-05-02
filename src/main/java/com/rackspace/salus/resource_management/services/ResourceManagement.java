@@ -84,6 +84,16 @@ public class ResourceManagement {
     }
 
     /**
+     * Tests whether the resource exists on the given tenant.
+     * @param tenantId The tenant owning the resource.
+     * @param resourceId The unique value representing the resource.
+     * @return True if the resource exists on the tenant, otherwise false.
+     */
+    public boolean exists(String tenantId, String resourceId) {
+        return resourceRepository.existsByTenantIdAndResourceId(tenantId, resourceId);
+    }
+
+    /**
      * Gets an individual resource object by the public facing id.
      * @param tenantId The tenant owning the resource.
      * @param resourceId The unique value representing the resource.
@@ -157,8 +167,7 @@ public class ResourceManagement {
      * @throws ResourceAlreadyExists
      */
     public Resource createResource(String tenantId, @Valid ResourceCreate newResource) throws IllegalArgumentException, ResourceAlreadyExists {
-        Optional<Resource> existing = getResource(tenantId, newResource.getResourceId());
-        if (existing.isPresent()) {
+        if (exists(tenantId, newResource.getResourceId())) {
             throw new ResourceAlreadyExists(String.format("Resource already exists with identifier %s on tenant %s",
                     newResource.getResourceId(), tenantId));
         }
