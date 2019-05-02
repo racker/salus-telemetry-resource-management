@@ -156,7 +156,7 @@
               <springmvc>true</springmvc>
               <locations>
                 <location>com.rackspace.salus.resource_management.web.model</location>
-                <location>com.rackspace.salus.resource_management.web.controller.ResourceApi</location>
+                <location>com.rackspace.salus.resource_management.web.controller.ResourceApiController</location>
               </locations>
               <templatePath>${basedir}/templates/strapdown.html.hbs</templatePath>
               <schemes>
@@ -208,6 +208,7 @@
           <mainClass>com.rackspace.salus.salus_tools.converter.SwaggerJsonConverter</mainClass>
           <arguments>
             <argument>${project.build.directory}/generated/swagger</argument>
+            <argument>/tenant/{tenantId}</argument>
           </arguments>
         </configuration>
       </plugin>
