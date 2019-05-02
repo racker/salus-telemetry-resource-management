@@ -208,6 +208,7 @@
           <mainClass>com.rackspace.salus.salus_tools.converter.SwaggerJsonConverter</mainClass>
           <arguments>
             <argument>${project.build.directory}/generated/swagger</argument>
+            <argument>/tenant/{tenantId}=</argument>
           </arguments>
         </configuration>
       </plugin>
