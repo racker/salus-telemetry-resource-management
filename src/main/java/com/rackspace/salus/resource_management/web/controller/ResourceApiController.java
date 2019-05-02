@@ -26,6 +26,7 @@ import com.rackspace.salus.telemetry.model.Resource;
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Stream;
 import javax.validation.Valid;
 
@@ -103,12 +104,9 @@ public class ResourceApiController implements ResourceApi {
     public Resource getByResourceId(@PathVariable String tenantId,
                                     @PathVariable String resourceId) throws NotFoundException {
 
-        Resource resource = resourceManagement.getResource(tenantId, resourceId);
-        if (resource == null) {
-            throw new NotFoundException(String.format("No resource found for %s on tenant %s",
-                    resourceId, tenantId));
-        }
-        return resource;
+        Optional<Resource> resource = resourceManagement.getResource(tenantId, resourceId);
+        return resource.orElseThrow(() -> new NotFoundException(String.format("No resource found for %s on tenant %s",
+                    resourceId, tenantId)));
     }
 
     @GetMapping("/tenant/{tenantId}/resources")

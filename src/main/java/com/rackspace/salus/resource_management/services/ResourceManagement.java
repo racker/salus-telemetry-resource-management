@@ -27,23 +27,13 @@ import com.rackspace.salus.telemetry.messaging.ResourceEvent;
 import com.rackspace.salus.telemetry.model.LabelNamespaces;
 import com.rackspace.salus.telemetry.model.NotFoundException;
 import com.rackspace.salus.telemetry.model.Resource;
-import com.rackspace.salus.telemetry.model.Resource_;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.Map.Entry;
-import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import javax.persistence.EntityManager;
-import javax.persistence.NoResultException;
 import javax.persistence.PersistenceContext;
-import javax.persistence.criteria.CriteriaBuilder;
-import javax.persistence.criteria.CriteriaQuery;
-import javax.persistence.criteria.Root;
 import javax.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -99,22 +89,8 @@ public class ResourceManagement {
      * @param resourceId The unique value representing the resource.
      * @return The resource object.
      */
-    public Resource getResource(String tenantId, String resourceId) {
-        CriteriaBuilder cb = entityManager.getCriteriaBuilder();
-        CriteriaQuery<Resource> cr = cb.createQuery(Resource.class);
-        Root<Resource> root = cr.from(Resource.class);
-        cr.select(root).where(cb.and(
-                cb.equal(root.get(Resource_.tenantId), tenantId),
-                cb.equal(root.get(Resource_.resourceId), resourceId)));
-
-        Resource result;
-        try {
-            result = entityManager.createQuery(cr).getSingleResult();
-        } catch (NoResultException e) {
-            result = null;
-        }
-
-        return result;
+    public Optional<Resource> getResource(String tenantId, String resourceId) {
+        return resourceRepository.findByTenantIdAndResourceId(tenantId, resourceId);
     }
 
     /**
@@ -133,40 +109,19 @@ public class ResourceManagement {
      * @return The resources found for the tenant that match the page criteria.
      */
     public Page<Resource> getResources(String tenantId, Pageable page) {
-        CriteriaBuilder cb = entityManager.getCriteriaBuilder();
-        CriteriaQuery<Resource> cr = cb.createQuery(Resource.class);
-        Root<Resource> root = cr.from(Resource.class);
-        cr.select(root).where(
-                cb.equal(root.get(Resource_.tenantId), tenantId));
-
-        List<Resource> resources = entityManager.createQuery(cr).getResultList();
-
-        return new PageImpl<>(resources, page, resources.size());
+        return resourceRepository.findAllByTenantId(tenantId, page);
     }
 
     public List<Resource> getAllTenantResources(String tenantId) {
         return resourceRepository.findAllByTenantId(tenantId);
     }
-
-    /**
-    public List<Resource> getResources(String tenantId, Map<String, String> labels) {
-        // use geoff's label search query
-    }*/
-
     /**
      * Get all resources where the presence monitoring field matches the parameter provided.
      * @param presenceMonitoringEnabled Whether presence monitoring is enabled or not.
      * @return Stream of resources.
      */
     public Stream<Resource> getResources(boolean presenceMonitoringEnabled) {
-        CriteriaBuilder cb = entityManager.getCriteriaBuilder();
-        CriteriaQuery<Resource> cr = cb.createQuery(Resource.class);
-        Root<Resource> root = cr.from(Resource.class);
-
-        cr.select(root).where(
-                cb.equal(root.get(Resource_.presenceMonitoringEnabled), presenceMonitoringEnabled));
-
-        return entityManager.createQuery(cr).getResultStream();
+        return resourceRepository.findAllByPresenceMonitoringEnabled(presenceMonitoringEnabled).stream();
     }
 
     /**
@@ -187,15 +142,8 @@ public class ResourceManagement {
      * @return A page or resources matching the given criteria.
      */
     public Page<Resource> getResources(String tenantId, boolean presenceMonitoringEnabled, Pageable page) {
-        CriteriaBuilder cb = entityManager.getCriteriaBuilder();
-        CriteriaQuery<Resource> cr = cb.createQuery(Resource.class);
-        Root<Resource> root = cr.from(Resource.class);
-
-        cr.select(root).where(cb.and(
-                cb.equal(root.get(Resource_.tenantId), tenantId),
-                cb.equal(root.get(Resource_.presenceMonitoringEnabled), presenceMonitoringEnabled)));
-
-        List<Resource> resources = entityManager.createQuery(cr).getResultList();
+        List<Resource> resources =
+                resourceRepository.findAllByTenantIdAndPresenceMonitoringEnabled(tenantId, presenceMonitoringEnabled);
 
         return new PageImpl<>(resources, page, resources.size());
     }
@@ -209,8 +157,8 @@ public class ResourceManagement {
      * @throws ResourceAlreadyExists
      */
     public Resource createResource(String tenantId, @Valid ResourceCreate newResource) throws IllegalArgumentException, ResourceAlreadyExists {
-        Resource existing = getResource(tenantId, newResource.getResourceId());
-        if (existing != null) {
+        Optional<Resource> existing = getResource(tenantId, newResource.getResourceId());
+        if (existing.isPresent()) {
             throw new ResourceAlreadyExists(String.format("Resource already exists with identifier %s on tenant %s",
                     newResource.getResourceId(), tenantId));
         }
@@ -240,11 +188,10 @@ public class ResourceManagement {
      * @return The newly updated resource.
      */
     public Resource updateResource(String tenantId, String resourceId, @Valid ResourceUpdate updatedValues) {
-        Resource resource = getResource(tenantId, resourceId);
-        if (resource == null) {
-            throw new NotFoundException(String.format("No resource found for %s on tenant %s",
-                    resourceId, tenantId));
-        }
+        Resource resource = getResource(tenantId, resourceId)
+                .orElseThrow(() -> new NotFoundException(String.format("No resource found for %s on tenant %s",
+                        resourceId, tenantId)));
+
         Map<String, String> oldLabels = new HashMap<>(resource.getLabels());
         if (updatedValues.getLabels() != null) {
             checkLabels(updatedValues.getLabels());
@@ -294,14 +241,11 @@ public class ResourceManagement {
      * @param resourceId The id of the resource.
      */
     public void removeResource(String tenantId, String resourceId) {
-        Resource resource = getResource(tenantId, resourceId);
-        if (resource != null) {
-            resourceRepository.deleteById(resource.getId());
-            publishResourceEvent(resource);
-        } else {
-            throw new NotFoundException(String.format("No resource found for %s on tenant %s",
-                    resourceId, tenantId));
-        }
+        Resource resource = getResource(tenantId, resourceId).orElseThrow(() ->
+                new NotFoundException(String.format("No resource found for %s on tenant %s", resourceId, tenantId)));
+
+        resourceRepository.deleteById(resource.getId());
+        publishResourceEvent(resource);
     }
 
     /**
@@ -317,9 +261,12 @@ public class ResourceManagement {
         String resourceId = attachEvent.getResourceId();
         Map<String, String> labels = attachEvent.getLabels();
 
-        Resource existing = getResource(tenantId, resourceId);
+        Optional<Resource> existing = getResource(tenantId, resourceId);
 
-        if (existing == null) {
+        if (existing.isPresent()) {
+            log.debug("Found existing resource related to envoy: {}", existing.toString());
+            updateEnvoyLabels(existing.get(), labels);
+        } else {
             log.debug("No resource found for new envoy attach");
             Resource newResource = new Resource()
                     .setTenantId(tenantId)
@@ -327,10 +274,6 @@ public class ResourceManagement {
                     .setLabels(labels)
                     .setPresenceMonitoringEnabled(true);
             saveAndPublishResource(newResource);
-        } else {
-            log.debug("Found existing resource related to envoy: {}", existing.toString());
-
-            updateEnvoyLabels(existing, labels);
         }
     }
 
@@ -403,17 +346,10 @@ public class ResourceManagement {
      * @param resourceId THe id of the resource we need to disable monitoring of.
      */
     private void removePresenceMonitoring(String tenantId, String resourceId) {
-        Resource resource = getResource(tenantId, resourceId);
-        if (resource == null) {
-            log.debug("No resource found to remove presence monitoring");
-            resource = new Resource()
-                    .setTenantId(tenantId)
-                    .setResourceId(resourceId)
-                    .setPresenceMonitoringEnabled(false);
-        } else {
-            resource.setPresenceMonitoringEnabled(false);
-        }
-
+        Resource resource = getResource(tenantId, resourceId).orElse(
+                new Resource().setTenantId(tenantId).setResourceId(resourceId)
+        );
+        resource.setPresenceMonitoringEnabled(false);
         saveAndPublishResource(resource);
     }
 

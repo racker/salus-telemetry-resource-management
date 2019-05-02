@@ -28,6 +28,7 @@ import com.rackspace.salus.resource_management.services.ResourceManagement;
 import com.rackspace.salus.telemetry.model.Resource;
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import org.junit.Test;
@@ -73,7 +74,7 @@ public class ResourceApiControllerTest {
 
     final Resource expectedResource = podamFactory.manufacturePojo(Resource.class);
     when(resourceManagement.getResource(any(), any()))
-        .thenReturn(expectedResource);
+        .thenReturn(Optional.of(expectedResource));
 
     mvc.perform(get(
         "/api/tenant/{tenantId}/resources/{resourceId}",
