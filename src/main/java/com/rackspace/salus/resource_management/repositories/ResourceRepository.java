@@ -18,6 +18,9 @@ package com.rackspace.salus.resource_management.repositories;
 
 import com.rackspace.salus.telemetry.model.Resource;
 import java.util.List;
+import java.util.Optional;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.repository.PagingAndSortingRepository;
 
 
@@ -25,6 +28,13 @@ public interface ResourceRepository extends PagingAndSortingRepository<Resource,
 
   List<Resource> findAllByTenantId(String tenantId);
 
+  boolean existsByTenantIdAndResourceId(String tenantId, String resourceId);
+
   List<Resource> findAllByPresenceMonitoringEnabled(boolean value);
 
+  Page<Resource> findAllByTenantId(String tenantId, Pageable pageable);
+
+  Optional<Resource> findByTenantIdAndResourceId(String tenantId, String resourceId);
+
+  List<Resource> findAllByTenantIdAndPresenceMonitoringEnabled(String tenantId, boolean presenceMonitoringEnabled);
 }

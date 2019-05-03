@@ -40,6 +40,7 @@ import com.rackspace.salus.resource_management.web.model.ResourceUpdate;
 import com.rackspace.salus.telemetry.messaging.AttachEvent;
 import com.rackspace.salus.telemetry.messaging.ResourceEvent;
 import com.rackspace.salus.telemetry.model.LabelNamespaces;
+import com.rackspace.salus.telemetry.model.NotFoundException;
 import com.rackspace.salus.telemetry.model.Resource;
 import java.util.Collections;
 import java.util.HashMap;
@@ -52,6 +53,7 @@ import java.util.stream.IntStream;
 import java.util.stream.Stream;
 import javax.persistence.EntityManager;
 import javax.persistence.FlushModeType;
+
 import org.apache.commons.lang3.RandomStringUtils;
 import org.junit.After;
 import org.junit.Before;
@@ -130,10 +132,10 @@ public class ResourceManagementTest {
 
     @Test
     public void testGetResource() {
-        Resource r = resourceManagement.getResource(TENANT, RESOURCE_ID);
-
-        assertThat(r.getId(), notNullValue());
-        assertThat(r.getLabels(), hasEntry("key", "value"));
+        Optional<Resource> r = resourceManagement.getResource(TENANT, RESOURCE_ID);
+        assertTrue(r.isPresent());
+        assertThat(r.get().getId(), notNullValue());
+        assertThat(r.get().getLabels(), hasEntry("key", "value"));
     }
 
     @Test
@@ -150,11 +152,11 @@ public class ResourceManagementTest {
         assertThat(returned.getLabels().size(), greaterThan(0));
         assertTrue(Maps.difference(create.getLabels(), returned.getLabels()).areEqual());
 
-        Resource retrieved = resourceManagement.getResource(tenantId, create.getResourceId());
+        Optional<Resource> retrieved = resourceManagement.getResource(tenantId, create.getResourceId());
 
-        assertThat(retrieved.getResourceId(), equalTo(returned.getResourceId()));
-        assertThat(retrieved.getPresenceMonitoringEnabled(), equalTo(returned.getPresenceMonitoringEnabled()));
-        assertTrue(Maps.difference(returned.getLabels(), retrieved.getLabels()).areEqual());
+        assertThat(retrieved.get().getResourceId(), equalTo(returned.getResourceId()));
+        assertThat(retrieved.get().getPresenceMonitoringEnabled(), equalTo(returned.getPresenceMonitoringEnabled()));
+        assertTrue(Maps.difference(returned.getLabels(), retrieved.get().getLabels()).areEqual());
     }
 
     @Test
@@ -213,19 +215,20 @@ public class ResourceManagementTest {
         AttachEvent attachEvent = podamFactory.manufacturePojo(AttachEvent.class);
         resourceManagement.handleEnvoyAttach(attachEvent);
 
-        final Resource resource = resourceManagement.getResource(
+        final Optional<Resource> resource = resourceManagement.getResource(
                 attachEvent.getTenantId(),
                 attachEvent.getResourceId());
-        assertThat(resource, notNullValue());
-        assertThat(resource.getId(), greaterThan(0L));
-        assertThat(resource.getTenantId(), equalTo(attachEvent.getTenantId()));
-        assertThat(resource.getLabels().size(), greaterThan(0));
-        assertThat(resource.getLabels().size(), equalTo(attachEvent.getLabels().size()));
+        assertTrue(resource.isPresent());
+        assertThat(resource.get(), notNullValue());
+        assertThat(resource.get().getId(), greaterThan(0L));
+        assertThat(resource.get().getTenantId(), equalTo(attachEvent.getTenantId()));
+        assertThat(resource.get().getLabels().size(), greaterThan(0));
+        assertThat(resource.get().getLabels().size(), equalTo(attachEvent.getLabels().size()));
         attachEvent.getLabels().forEach((name, value) -> {
-            assertTrue(resource.getLabels().containsKey(name));
-            assertThat(resource.getLabels().get(name), equalTo(value));
+            assertTrue(resource.get().getLabels().containsKey(name));
+            assertThat(resource.get().getLabels().get(name), equalTo(value));
         });
-        assertThat(resource.getResourceId(), equalTo(attachEvent.getResourceId()));
+        assertThat(resource.get().getResourceId(), equalTo(attachEvent.getResourceId()));
     }
 
     @Test
@@ -244,7 +247,7 @@ public class ResourceManagementTest {
         resourceManagement.handleEnvoyAttach(attachEvent);
         entityManager.flush();
         final Resource resourceByResourceId =
-            resourceManagement.getResource("tenant-1", "development:0");
+            resourceManagement.getResource("tenant-1", "development:0").get();
         assertThat(resourceByResourceId, notNullValue());
 
         final Map<String, String> labelsToQuery = new HashMap<>();
@@ -268,9 +271,10 @@ public class ResourceManagementTest {
                 .setLabels(labels);
         resourceManagement.handleEnvoyAttach(attachEvent);
         entityManager.flush();
-        final Resource resourceByResourceId =
+        final Optional<Resource> resourceByResourceId =
                 resourceManagement.getResource("tenant-1", "development:0");
-        assertThat(resourceByResourceId, notNullValue());
+        assertTrue(resourceByResourceId.isPresent());
+        assertThat(resourceByResourceId.get(), notNullValue());
 
         final Map<String, String> labelsToQuery = new HashMap<>();
         labelsToQuery.put("os", "DARWIN");
@@ -312,7 +316,6 @@ public class ResourceManagementTest {
         final Optional<Resource> actualResource = resourceRepository.findById(resource.getId());
 
         assertThat(actualResource.isPresent(), equalTo(true));
-        //noinspection OptionalGetWithoutIsPresent
         assertThat(actualResource.get().getLabels(), equalTo(envoyLabels));
 
         verify(kafkaEgress).sendResourceEvent(resourceEventArg.capture());
@@ -362,7 +365,6 @@ public class ResourceManagementTest {
         expectedResourceLabels.put("nonAgentLabel", "someValue");
 
         assertThat(actualResource.isPresent(), equalTo(true));
-        //noinspection OptionalGetWithoutIsPresent
         assertThat(actualResource.get().getLabels(), equalTo(expectedResourceLabels));
 
         verify(kafkaEgress).sendResourceEvent(resourceEventArg.capture());
@@ -449,12 +451,19 @@ public class ResourceManagementTest {
         String tenantId = RandomStringUtils.randomAlphanumeric(10);
         resourceManagement.createResource(tenantId, create);
 
-        Resource resource = resourceManagement.getResource(tenantId, create.getResourceId());
-        assertThat(resource, notNullValue());
+        Optional<Resource> created = resourceManagement.getResource(tenantId, create.getResourceId());
+        assertTrue(created.isPresent());
+        assertThat(created.get(), notNullValue());
 
         resourceManagement.removeResource(tenantId, create.getResourceId());
-        resource = resourceManagement.getResource(tenantId, create.getResourceId());
-        assertThat(resource, nullValue());
+        Optional<Resource> deleted = resourceManagement.getResource(tenantId, create.getResourceId());
+        assertTrue(!deleted.isPresent());
+    }
+
+    @Test(expected = NotFoundException.class)
+    public void testRemoveNonExistentMonitor() {
+        String random = RandomStringUtils.randomAlphanumeric(10);
+        resourceManagement.removeResource(random, random);
     }
 
     @Test

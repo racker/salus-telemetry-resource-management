@@ -43,6 +43,7 @@ import com.rackspace.salus.telemetry.model.Resource;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.apache.commons.lang3.RandomStringUtils;
@@ -81,7 +82,7 @@ public class ResourceApiTest {
     public void testGetResource() throws Exception {
         Resource resource = podamFactory.manufacturePojo(Resource.class);
         when(resourceManagement.getResource(anyString(), anyString()))
-                .thenReturn(resource);
+                .thenReturn(Optional.of(resource));
 
         String tenantId = RandomStringUtils.randomAlphabetic( 8 );
         String resourceId = RandomStringUtils.randomAlphabetic( 8 );
@@ -97,7 +98,7 @@ public class ResourceApiTest {
     @Test
     public void testNoResourceFound() throws Exception {
         when(resourceManagement.getResource(anyString(), anyString()))
-                .thenReturn(null);
+                .thenReturn(Optional.empty());
 
         String tenantId = RandomStringUtils.randomAlphabetic( 8 );
         String resourceId = RandomStringUtils.randomAlphabetic( 8 );
