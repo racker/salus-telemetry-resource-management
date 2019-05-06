@@ -32,8 +32,6 @@ import java.util.Map.Entry;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-import javax.persistence.EntityManager;
-import javax.persistence.PersistenceContext;
 import javax.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -52,19 +50,14 @@ public class ResourceManagement {
     private final ResourceRepository resourceRepository;
     private final KafkaEgress kafkaEgress;
 
-    @PersistenceContext
-    private final EntityManager entityManager;
-
     JdbcTemplate jdbcTemplate;
 
     @Autowired
     public ResourceManagement(ResourceRepository resourceRepository,
                               KafkaEgress kafkaEgress,
-                              EntityManager entityManager,
                               JdbcTemplate jdbcTemplate) {
         this.resourceRepository = resourceRepository;
         this.kafkaEgress = kafkaEgress;
-        this.entityManager = entityManager;
         this.jdbcTemplate = jdbcTemplate;
 
     }
