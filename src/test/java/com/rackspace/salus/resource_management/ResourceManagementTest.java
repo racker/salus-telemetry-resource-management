@@ -53,7 +53,6 @@ import java.util.stream.IntStream;
 import java.util.stream.Stream;
 import javax.persistence.EntityManager;
 import javax.persistence.FlushModeType;
-
 import org.apache.commons.lang3.RandomStringUtils;
 import org.junit.After;
 import org.junit.Before;
@@ -656,7 +655,7 @@ public class ResourceManagementTest {
   @Test(expected = IllegalArgumentException.class)
   public void testUserLabelConflictsWithSystemNamespace() {
     final ResourceUpdate update = new ResourceUpdate()
-        .setLabels(Collections.singletonMap(LabelNamespaces.EVENT_ENGINE_TAGS +".account", "HackedAccount"));
+        .setLabels(Collections.singletonMap(LabelNamespaces.EVENT_ENGINE_TAGS + "_account", "HackedAccount"));
     resourceManagement.updateResource(TENANT, RESOURCE_ID, update);
   }
 }
