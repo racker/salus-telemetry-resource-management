@@ -298,9 +298,9 @@ public class ResourceManagementTest {
         entityManager.flush();
 
         final Map<String, String> envoyLabels = new HashMap<>();
-        envoyLabels.put(applyNamespace(AGENT, "discovered.hostname"), "h-1");
-        envoyLabels.put(applyNamespace(AGENT, "discovered.os"), "linux");
-        envoyLabels.put(applyNamespace(AGENT, "discovered.arch"), "amd64");
+        envoyLabels.put(applyNamespace(AGENT, "discovered_hostname"), "h-1");
+        envoyLabels.put(applyNamespace(AGENT, "discovered_os"), "linux");
+        envoyLabels.put(applyNamespace(AGENT, "discovered_arch"), "amd64");
 
         resourceManagement.handleEnvoyAttach(
             new AttachEvent()
@@ -327,7 +327,7 @@ public class ResourceManagementTest {
     @Test
     public void testEnvoyAttach_existingResourceWithChangedLabels() {
         final Map<String, String> resourceLabels = new HashMap<>();
-        resourceLabels.put(applyNamespace(AGENT, "discovered.hostname"), "old-h-1");
+        resourceLabels.put(applyNamespace(AGENT, "discovered_hostname"), "old-h-1");
         resourceLabels.put(applyNamespace(AGENT, "notInNew"), "old-agent-value");
         resourceLabels.put("nonAgentLabel", "someValue");
 
@@ -341,9 +341,9 @@ public class ResourceManagementTest {
         entityManager.flush();
 
         final Map<String, String> envoyLabels = new HashMap<>();
-        envoyLabels.put(applyNamespace(AGENT, "discovered.hostname"), "new-h-1");
-        envoyLabels.put(applyNamespace(AGENT, "discovered.os"), "linux");
-        envoyLabels.put(applyNamespace(AGENT, "discovered.arch"), "amd64");
+        envoyLabels.put(applyNamespace(AGENT, "discovered_hostname"), "new-h-1");
+        envoyLabels.put(applyNamespace(AGENT, "discovered_os"), "linux");
+        envoyLabels.put(applyNamespace(AGENT, "discovered_arch"), "amd64");
 
         resourceManagement.handleEnvoyAttach(
             new AttachEvent()
@@ -358,9 +358,9 @@ public class ResourceManagementTest {
         final Optional<Resource> actualResource = resourceRepository.findById(resource.getId());
 
         final Map<String, String> expectedResourceLabels = new HashMap<>();
-        expectedResourceLabels.put(applyNamespace(AGENT, "discovered.hostname"), "new-h-1");
-        expectedResourceLabels.put(applyNamespace(AGENT, "discovered.os"), "linux");
-        expectedResourceLabels.put(applyNamespace(AGENT, "discovered.arch"), "amd64");
+        expectedResourceLabels.put(applyNamespace(AGENT, "discovered_hostname"), "new-h-1");
+        expectedResourceLabels.put(applyNamespace(AGENT, "discovered_os"), "linux");
+        expectedResourceLabels.put(applyNamespace(AGENT, "discovered_arch"), "amd64");
         expectedResourceLabels.put("nonAgentLabel", "someValue");
 
         assertThat(actualResource.isPresent(), equalTo(true));
