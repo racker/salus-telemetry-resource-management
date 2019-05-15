@@ -213,6 +213,42 @@
         </configuration>
       </plugin>
 
+
+
+      <plugin>
+        <groupId>com.github.kongchen</groupId>
+        <artifactId>swagger-maven-plugin</artifactId>
+        <version>3.1.8</version>
+        <configuration>
+          <apiSources>
+            <apiSource>
+              <info>
+                <title>Salus Resource Management</title>
+                <version>0.1.0</version>
+              </info>
+              <outputPath>${project.build.directory}/generated/swagger/public/document.html</outputPath>
+              <swaggerDirectory>${project.build.directory}/generated/swagger/public</swaggerDirectory>
+              <outputFormats>json</outputFormats>
+            </apiSource>
+          </apiSources>
+        </configuration>
+        <executions>
+          <execution>
+            <phase>compile</phase>
+            <goals>
+              <goal>generate</goal>
+            </goals>
+          </execution>
+        </executions>
+        <dependencies>
+          <dependency>
+            <groupId>io.swagger</groupId>
+            <artifactId>swagger-hibernate-validations</artifactId>
+            <version>1.5.6</version>
+          </dependency>
+        </dependencies>
+      </plugin>
+
     </plugins>
   </build>
 
