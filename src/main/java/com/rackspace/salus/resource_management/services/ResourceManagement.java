@@ -266,7 +266,7 @@ public class ResourceManagement {
         Optional<Resource> existing = getResource(tenantId, resourceId);
 
         if (existing.isPresent()) {
-            log.debug("Found existing resource related to envoy: {}", existing.toString());
+            log.debug("Found existing resource related to envoy: {}", existing.get().toString());
             updateEnvoyLabels(existing.get(), labels);
         } else {
             log.debug("No resource found for new envoy attach");
