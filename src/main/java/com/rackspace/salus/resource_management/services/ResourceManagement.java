@@ -23,12 +23,19 @@ import com.rackspace.salus.resource_management.web.model.ResourceCreate;
 import com.rackspace.salus.resource_management.web.model.ResourceUpdate;
 import com.rackspace.salus.telemetry.errors.ResourceAlreadyExists;
 import com.rackspace.salus.telemetry.messaging.AttachEvent;
+import com.rackspace.salus.telemetry.messaging.ReattachedEnvoyResourceEvent;
 import com.rackspace.salus.telemetry.messaging.ResourceEvent;
 import com.rackspace.salus.telemetry.model.LabelNamespaces;
 import com.rackspace.salus.telemetry.model.NotFoundException;
 import com.rackspace.salus.telemetry.model.Resource;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -268,6 +275,14 @@ public class ResourceManagement {
         if (existing.isPresent()) {
             log.debug("Found existing resource related to envoy: {}", existing.toString());
             updateEnvoyLabels(existing.get(), labels);
+
+            kafkaEgress.sendResourceEvent(
+                new ReattachedEnvoyResourceEvent()
+                    .setEnvoyId(attachEvent.getEnvoyId())
+                    .setTenantId(tenantId)
+                    .setResourceId(resourceId)
+            );
+
         } else {
             log.debug("No resource found for new envoy attach");
             Resource newResource = new Resource()
