@@ -297,6 +297,7 @@ public class ResourceManagementTest {
                 .setLabels(Collections.emptyMap())
                 .setTenantId("t-1")
                 .setPresenceMonitoringEnabled(false)
+                .setAssociatedWithEnvoy(false)
         );
         entityManager.flush();
 
@@ -320,16 +321,13 @@ public class ResourceManagementTest {
         assertThat(actualResource.isPresent(), equalTo(true));
         assertThat(actualResource.get().getLabels(), equalTo(envoyLabels));
 
-        verify(kafkaEgress, times(2)).sendResourceEvent(resourceEventArg.capture());
+        verify(kafkaEgress).sendResourceEvent(resourceEventArg.capture());
+        assertThat(resourceEventArg.getAllValues().get(0), instanceOf(ResourceEvent.class));
         assertThat(resourceEventArg.getAllValues().get(0).getResourceId(), equalTo("r-1"));
         assertThat(resourceEventArg.getAllValues().get(0).getTenantId(), equalTo("t-1"));
 
-        assertThat(resourceEventArg.getAllValues().get(1), instanceOf(ReattachedEnvoyResourceEvent.class));
-        final ReattachedEnvoyResourceEvent reattachedEnvoyResourceEvent =
-            (ReattachedEnvoyResourceEvent) resourceEventArg.getAllValues().get(1);
-        assertThat(reattachedEnvoyResourceEvent.getTenantId(), equalTo("t-1"));
-        assertThat(reattachedEnvoyResourceEvent.getResourceId(), equalTo("r-1"));
-        assertThat(reattachedEnvoyResourceEvent.getEnvoyId(), equalTo("e-1"));
+        // Should NOT send a ReattachedEnvoyResourceEvent since the resource was previously
+        // created outside of Envoy attachment, such as the API
 
         verifyNoMoreInteractions(kafkaEgress);
     }
@@ -347,6 +345,7 @@ public class ResourceManagementTest {
                 .setLabels(resourceLabels)
                 .setTenantId("t-1")
                 .setPresenceMonitoringEnabled(false)
+                .setAssociatedWithEnvoy(true)
         );
         entityManager.flush();
 
@@ -402,6 +401,7 @@ public class ResourceManagementTest {
                 .setLabels(resourceLabels)
                 .setTenantId("t-1")
                 .setPresenceMonitoringEnabled(false)
+                .setAssociatedWithEnvoy(true)
         );
         entityManager.flush();
 

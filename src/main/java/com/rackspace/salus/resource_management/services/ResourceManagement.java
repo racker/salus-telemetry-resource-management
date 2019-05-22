@@ -274,14 +274,21 @@ public class ResourceManagement {
 
         if (existing.isPresent()) {
             log.debug("Found existing resource related to envoy: {}", existing.toString());
-            updateEnvoyLabels(existing.get(), labels);
 
-            kafkaEgress.sendResourceEvent(
-                new ReattachedEnvoyResourceEvent()
-                    .setEnvoyId(attachEvent.getEnvoyId())
-                    .setTenantId(tenantId)
-                    .setResourceId(resourceId)
-            );
+            final Resource existingResource = updateEnvoyLabels(existing.get(), labels);
+
+            if (existingResource.isAssociatedWithEnvoy()) {
+                kafkaEgress.sendResourceEvent(
+                    new ReattachedEnvoyResourceEvent()
+                        .setEnvoyId(attachEvent.getEnvoyId())
+                        .setTenantId(tenantId)
+                        .setResourceId(resourceId)
+                );
+            }
+            else {
+                existingResource.setAssociatedWithEnvoy(true);
+                resourceRepository.save(existingResource);
+            }
 
         } else {
             log.debug("No resource found for new envoy attach");
@@ -289,7 +296,8 @@ public class ResourceManagement {
                     .setTenantId(tenantId)
                     .setResourceId(resourceId)
                     .setLabels(labels)
-                    .setPresenceMonitoringEnabled(true);
+                    .setPresenceMonitoringEnabled(true)
+                    .setAssociatedWithEnvoy(true);
             saveAndPublishResource(newResource);
         }
     }
@@ -298,8 +306,9 @@ public class ResourceManagement {
      * When provided with a list of envoy labels determine which ones need to be modified and perform an update.
      * @param resource The resource to update.
      * @param envoyLabels The list of labels received from a newly connected envoy.
+     * @return the saved resource, if modified, or the given resource otherwise
      */
-    private void updateEnvoyLabels(Resource resource, Map<String, String> envoyLabels) {
+    private Resource updateEnvoyLabels(Resource resource, Map<String, String> envoyLabels) {
         final AtomicBoolean updated = new AtomicBoolean(false);
         final Map<String, String> oldResourceLabels = resource.getLabels();
         // Work with a new map to avoid mutating the labels in-place
@@ -336,8 +345,10 @@ public class ResourceManagement {
 
         if (updated.get()) {
             resource.setLabels(resourceLabels);
-            saveAndPublishResource(resource);
+            return saveAndPublishResource(resource);
         }
+
+        return resource;
     }
 
     /**
