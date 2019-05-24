@@ -19,7 +19,6 @@ package com.rackspace.salus.resource_management.services;
 import static org.mockito.Mockito.verify;
 
 import com.rackspace.salus.common.messaging.KafkaTopicProperties;
-import com.rackspace.salus.telemetry.messaging.ReattachedEnvoyResourceEvent;
 import com.rackspace.salus.telemetry.messaging.ResourceEvent;
 import org.junit.Before;
 import org.junit.Test;
@@ -45,18 +44,6 @@ public class KafkaEgressTest {
   @Test
   public void testSendResourceEvent() {
     final ResourceEvent event = new ResourceEvent()
-        .setTenantId("t-1")
-        .setResourceId("r-1");
-
-    kafkaEgress.sendResourceEvent(event);
-
-    verify(kafkaTemplate).send(topicProperties.getResources(), "t-1:r-1", event);
-  }
-
-  @Test
-  public void testSendReattachedResourceEvent() {
-    final ResourceEvent event = new ReattachedEnvoyResourceEvent()
-        .setEnvoyId("e-1")
         .setTenantId("t-1")
         .setResourceId("r-1");
 

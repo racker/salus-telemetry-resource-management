@@ -22,7 +22,6 @@ import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.hasEntry;
 import static org.hamcrest.Matchers.hasSize;
-import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.hamcrest.Matchers.nullValue;
 import static org.junit.Assert.assertEquals;
@@ -40,7 +39,6 @@ import com.rackspace.salus.resource_management.services.ResourceManagement;
 import com.rackspace.salus.resource_management.web.model.ResourceCreate;
 import com.rackspace.salus.resource_management.web.model.ResourceUpdate;
 import com.rackspace.salus.telemetry.messaging.AttachEvent;
-import com.rackspace.salus.telemetry.messaging.ReattachedEnvoyResourceEvent;
 import com.rackspace.salus.telemetry.messaging.ResourceEvent;
 import com.rackspace.salus.telemetry.model.LabelNamespaces;
 import com.rackspace.salus.telemetry.model.NotFoundException;
@@ -322,12 +320,13 @@ public class ResourceManagementTest {
         assertThat(actualResource.get().getLabels(), equalTo(envoyLabels));
 
         verify(kafkaEgress).sendResourceEvent(resourceEventArg.capture());
-        assertThat(resourceEventArg.getAllValues().get(0), instanceOf(ResourceEvent.class));
-        assertThat(resourceEventArg.getAllValues().get(0).getResourceId(), equalTo("r-1"));
-        assertThat(resourceEventArg.getAllValues().get(0).getTenantId(), equalTo("t-1"));
-
-        // Should NOT send a ReattachedEnvoyResourceEvent since the resource was previously
-        // created outside of Envoy attachment, such as the API
+        assertThat(resourceEventArg.getValue(), equalTo(
+            new ResourceEvent()
+                .setTenantId("t-1")
+                .setResourceId("r-1")
+                .setLabelsChanged(true)
+                .setReattachedEnvoyId(null) // should NOT indicate re-attachment
+        ));
 
         verifyNoMoreInteractions(kafkaEgress);
     }
@@ -354,6 +353,8 @@ public class ResourceManagementTest {
         envoyLabels.put(applyNamespace(AGENT, "discovered_os"), "linux");
         envoyLabels.put(applyNamespace(AGENT, "discovered_arch"), "amd64");
 
+        // EXECUTE
+
         resourceManagement.handleEnvoyAttach(
             new AttachEvent()
             .setEnvoyAddress("localhost:1234")
@@ -363,6 +364,8 @@ public class ResourceManagementTest {
             .setTenantId("t-1")
         );
         entityManager.flush();
+
+        // VERIFY
 
         final Optional<Resource> actualResource = resourceRepository.findById(resource.getId());
 
@@ -375,16 +378,14 @@ public class ResourceManagementTest {
         assertThat(actualResource.isPresent(), equalTo(true));
         assertThat(actualResource.get().getLabels(), equalTo(expectedResourceLabels));
 
-        verify(kafkaEgress, times(2)).sendResourceEvent(resourceEventArg.capture());
-        assertThat(resourceEventArg.getAllValues().get(0).getResourceId(), equalTo("r-1"));
-        assertThat(resourceEventArg.getAllValues().get(0).getTenantId(), equalTo("t-1"));
-
-        assertThat(resourceEventArg.getAllValues().get(1), instanceOf(ReattachedEnvoyResourceEvent.class));
-        final ReattachedEnvoyResourceEvent reattachedEnvoyResourceEvent =
-            (ReattachedEnvoyResourceEvent) resourceEventArg.getAllValues().get(1);
-        assertThat(reattachedEnvoyResourceEvent.getTenantId(), equalTo("t-1"));
-        assertThat(reattachedEnvoyResourceEvent.getResourceId(), equalTo("r-1"));
-        assertThat(reattachedEnvoyResourceEvent.getEnvoyId(), equalTo("e-1"));
+        verify(kafkaEgress).sendResourceEvent(resourceEventArg.capture());
+        assertThat(resourceEventArg.getValue(), equalTo(
+            new ResourceEvent()
+                .setTenantId("t-1")
+                .setResourceId("r-1")
+                .setLabelsChanged(true)
+                .setReattachedEnvoyId("e-1")
+        ));
 
         verifyNoMoreInteractions(kafkaEgress);
     }
@@ -429,14 +430,15 @@ public class ResourceManagementTest {
 
         // ONLY sends ReattachedEnvoyResourceEvent and NOT a resource change event
 
-        verify(kafkaEgress, times(1)).sendResourceEvent(resourceEventArg.capture());
+        verify(kafkaEgress).sendResourceEvent(resourceEventArg.capture());
 
-        assertThat(resourceEventArg.getAllValues().get(0), instanceOf(ReattachedEnvoyResourceEvent.class));
-        final ReattachedEnvoyResourceEvent reattachedEnvoyResourceEvent =
-            (ReattachedEnvoyResourceEvent) resourceEventArg.getAllValues().get(0);
-        assertThat(reattachedEnvoyResourceEvent.getTenantId(), equalTo("t-1"));
-        assertThat(reattachedEnvoyResourceEvent.getResourceId(), equalTo("r-1"));
-        assertThat(reattachedEnvoyResourceEvent.getEnvoyId(), equalTo("e-1"));
+        assertThat(resourceEventArg.getValue(), equalTo(
+            new ResourceEvent()
+                .setTenantId("t-1")
+                .setResourceId("r-1")
+                .setLabelsChanged(false)
+                .setReattachedEnvoyId("e-1")
+        ));
 
         verifyNoMoreInteractions(kafkaEgress);
     }
@@ -522,9 +524,32 @@ public class ResourceManagementTest {
         assertTrue(created.isPresent());
         assertThat(created.get(), notNullValue());
 
+        // EXECUTE
+
         resourceManagement.removeResource(tenantId, create.getResourceId());
+
+        // VERIFY
+
         Optional<Resource> deleted = resourceManagement.getResource(tenantId, create.getResourceId());
         assertTrue(!deleted.isPresent());
+
+        verify(kafkaEgress, times(2)).sendResourceEvent(resourceEventArg.capture());
+        // for the create, before the thing be testing
+        assertThat(resourceEventArg.getAllValues().get(0), equalTo(
+            new ResourceEvent()
+                .setTenantId(tenantId)
+                .setResourceId(create.getResourceId())
+                .setLabelsChanged(true)
+        ));
+        // for the remove, that is actually be tested
+        assertThat(resourceEventArg.getAllValues().get(1), equalTo(
+            new ResourceEvent()
+                .setTenantId(tenantId)
+                .setResourceId(create.getResourceId())
+                .setDeleted(true)
+        ));
+
+        verifyNoMoreInteractions(kafkaEgress);
     }
 
     @Test(expected = NotFoundException.class)
