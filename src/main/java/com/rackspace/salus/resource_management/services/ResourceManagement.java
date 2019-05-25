@@ -67,6 +67,10 @@ public class ResourceManagement {
 
     }
 
+    private void publishResourceEvent(ResourceEvent event) {
+        kafkaEgress.sendResourceEvent(event);
+    }
+
     /**
      * Creates or updates the resource depending on whether the ID already exists.
      * Also sends a resource event to kafka for consumption by other services.
@@ -80,7 +84,7 @@ public class ResourceManagement {
                                            String reattachedEnvoyId) {
         log.debug("Saving resource: {}", resource);
         resourceRepository.save(resource);
-        kafkaEgress.sendResourceEvent(
+        publishResourceEvent(
             new ResourceEvent()
                 .setTenantId(resource.getTenantId())
                 .setResourceId(resource.getResourceId())
@@ -262,7 +266,7 @@ public class ResourceManagement {
                 String.format("No resource found for %s on tenant %s", resourceId, tenantId)));
 
         resourceRepository.deleteById(resource.getId());
-        kafkaEgress.sendResourceEvent(
+        publishResourceEvent(
             new ResourceEvent()
                 .setTenantId(tenantId)
                 .setResourceId(resourceId)
@@ -365,7 +369,7 @@ public class ResourceManagement {
         if (labelsChanged || reattached) {
             // ...then send a resource changed event
 
-            kafkaEgress.sendResourceEvent(
+            publishResourceEvent(
                 new ResourceEvent()
                     .setTenantId(existingResource.getTenantId())
                     .setResourceId(existingResource.getResourceId())
