@@ -376,19 +376,6 @@ public class ResourceManagement {
     }
 
     /**
-     * Publish a resource event to kafka for consumption by other services.
-     * @param resource The updated resource the operation was performed on.
-     */
-    private void publishResourceEvent(Resource resource) {
-        ResourceEvent event = new ResourceEvent();
-        event.setResourceId(resource.getResourceId());
-        event.setTenantId(resource.getTenantId());
-
-        log.debug("Publishing resource event: {}", event);
-        kafkaEgress.sendResourceEvent(event);
-    }
-
-    /**
      * This can be used to force a presence monitoring change if it is currently running but should not be.
      *
      * If the resource no longer exists, we will still send an event in case presence monitoring is still active.
