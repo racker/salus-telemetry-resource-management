@@ -28,6 +28,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 
@@ -294,6 +295,7 @@ public class ResourceManagementTest {
                 .setLabels(Collections.emptyMap())
                 .setTenantId("t-1")
                 .setPresenceMonitoringEnabled(false)
+                .setAssociatedWithEnvoy(false)
         );
         entityManager.flush();
 
@@ -318,8 +320,13 @@ public class ResourceManagementTest {
         assertThat(actualResource.get().getLabels(), equalTo(envoyLabels));
 
         verify(kafkaEgress).sendResourceEvent(resourceEventArg.capture());
-        assertThat(resourceEventArg.getValue().getResourceId(), equalTo("r-1"));
-        assertThat(resourceEventArg.getValue().getTenantId(), equalTo("t-1"));
+        assertThat(resourceEventArg.getValue(), equalTo(
+            new ResourceEvent()
+                .setTenantId("t-1")
+                .setResourceId("r-1")
+                .setLabelsChanged(true)
+                .setReattachedEnvoyId(null) // should NOT indicate re-attachment
+        ));
 
         verifyNoMoreInteractions(kafkaEgress);
     }
@@ -337,6 +344,7 @@ public class ResourceManagementTest {
                 .setLabels(resourceLabels)
                 .setTenantId("t-1")
                 .setPresenceMonitoringEnabled(false)
+                .setAssociatedWithEnvoy(true)
         );
         entityManager.flush();
 
@@ -344,6 +352,62 @@ public class ResourceManagementTest {
         envoyLabels.put(applyNamespace(AGENT, "discovered_hostname"), "new-h-1");
         envoyLabels.put(applyNamespace(AGENT, "discovered_os"), "linux");
         envoyLabels.put(applyNamespace(AGENT, "discovered_arch"), "amd64");
+
+        // EXECUTE
+
+        resourceManagement.handleEnvoyAttach(
+            new AttachEvent()
+            .setEnvoyAddress("localhost:1234")
+            .setEnvoyId("e-1")
+            .setLabels(envoyLabels)
+            .setResourceId("r-1")
+            .setTenantId("t-1")
+        );
+        entityManager.flush();
+
+        // VERIFY
+
+        final Optional<Resource> actualResource = resourceRepository.findById(resource.getId());
+
+        final Map<String, String> expectedResourceLabels = new HashMap<>();
+        expectedResourceLabels.put(applyNamespace(AGENT, "discovered_hostname"), "new-h-1");
+        expectedResourceLabels.put(applyNamespace(AGENT, "discovered_os"), "linux");
+        expectedResourceLabels.put(applyNamespace(AGENT, "discovered_arch"), "amd64");
+        expectedResourceLabels.put("nonAgentLabel", "someValue");
+
+        assertThat(actualResource.isPresent(), equalTo(true));
+        assertThat(actualResource.get().getLabels(), equalTo(expectedResourceLabels));
+
+        verify(kafkaEgress).sendResourceEvent(resourceEventArg.capture());
+        assertThat(resourceEventArg.getValue(), equalTo(
+            new ResourceEvent()
+                .setTenantId("t-1")
+                .setResourceId("r-1")
+                .setLabelsChanged(true)
+                .setReattachedEnvoyId("e-1")
+        ));
+
+        verifyNoMoreInteractions(kafkaEgress);
+    }
+
+    @Test
+    public void testEnvoyAttach_existingResource_sameLabels() {
+        final Map<String, String> resourceLabels = new HashMap<>();
+        resourceLabels.put(applyNamespace(AGENT, "discovered_hostname"), "h-1");
+        resourceLabels.put("nonAgentLabel", "someValue");
+
+        final Resource resource = resourceRepository.save(
+            new Resource()
+                .setResourceId("r-1")
+                .setLabels(resourceLabels)
+                .setTenantId("t-1")
+                .setPresenceMonitoringEnabled(false)
+                .setAssociatedWithEnvoy(true)
+        );
+        entityManager.flush();
+
+        final Map<String, String> envoyLabels = new HashMap<>();
+        envoyLabels.put(applyNamespace(AGENT, "discovered_hostname"), "h-1");
 
         resourceManagement.handleEnvoyAttach(
             new AttachEvent()
@@ -358,17 +422,23 @@ public class ResourceManagementTest {
         final Optional<Resource> actualResource = resourceRepository.findById(resource.getId());
 
         final Map<String, String> expectedResourceLabels = new HashMap<>();
-        expectedResourceLabels.put(applyNamespace(AGENT, "discovered_hostname"), "new-h-1");
-        expectedResourceLabels.put(applyNamespace(AGENT, "discovered_os"), "linux");
-        expectedResourceLabels.put(applyNamespace(AGENT, "discovered_arch"), "amd64");
+        expectedResourceLabels.put(applyNamespace(AGENT, "discovered_hostname"), "h-1");
         expectedResourceLabels.put("nonAgentLabel", "someValue");
 
         assertThat(actualResource.isPresent(), equalTo(true));
         assertThat(actualResource.get().getLabels(), equalTo(expectedResourceLabels));
 
+        // ONLY sends ReattachedEnvoyResourceEvent and NOT a resource change event
+
         verify(kafkaEgress).sendResourceEvent(resourceEventArg.capture());
-        assertThat(resourceEventArg.getValue().getResourceId(), equalTo("r-1"));
-        assertThat(resourceEventArg.getValue().getTenantId(), equalTo("t-1"));
+
+        assertThat(resourceEventArg.getValue(), equalTo(
+            new ResourceEvent()
+                .setTenantId("t-1")
+                .setResourceId("r-1")
+                .setLabelsChanged(false)
+                .setReattachedEnvoyId("e-1")
+        ));
 
         verifyNoMoreInteractions(kafkaEgress);
     }
@@ -454,9 +524,32 @@ public class ResourceManagementTest {
         assertTrue(created.isPresent());
         assertThat(created.get(), notNullValue());
 
+        // EXECUTE
+
         resourceManagement.removeResource(tenantId, create.getResourceId());
+
+        // VERIFY
+
         Optional<Resource> deleted = resourceManagement.getResource(tenantId, create.getResourceId());
         assertTrue(!deleted.isPresent());
+
+        verify(kafkaEgress, times(2)).sendResourceEvent(resourceEventArg.capture());
+        // for the create, before the thing be testing
+        assertThat(resourceEventArg.getAllValues().get(0), equalTo(
+            new ResourceEvent()
+                .setTenantId(tenantId)
+                .setResourceId(create.getResourceId())
+                .setLabelsChanged(true)
+        ));
+        // for the remove, that is actually be tested
+        assertThat(resourceEventArg.getAllValues().get(1), equalTo(
+            new ResourceEvent()
+                .setTenantId(tenantId)
+                .setResourceId(create.getResourceId())
+                .setDeleted(true)
+        ));
+
+        verifyNoMoreInteractions(kafkaEgress);
     }
 
     @Test(expected = NotFoundException.class)

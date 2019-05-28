@@ -27,9 +27,14 @@ import com.rackspace.salus.telemetry.messaging.ResourceEvent;
 import com.rackspace.salus.telemetry.model.LabelNamespaces;
 import com.rackspace.salus.telemetry.model.NotFoundException;
 import com.rackspace.salus.telemetry.model.Resource;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
 import java.util.Map.Entry;
-import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import javax.validation.Valid;
@@ -62,17 +67,30 @@ public class ResourceManagement {
 
     }
 
+    private void publishResourceEvent(ResourceEvent event) {
+        kafkaEgress.sendResourceEvent(event);
+    }
+
     /**
      * Creates or updates the resource depending on whether the ID already exists.
      * Also sends a resource event to kafka for consumption by other services.
      *
      * @param resource The resource object to create/update in the database.
+     * @param labelsChanged
+     * @param reattachedEnvoyId
      * @return
      */
-    public Resource saveAndPublishResource(Resource resource) {
+    public Resource saveAndPublishResource(Resource resource, boolean labelsChanged,
+                                           String reattachedEnvoyId) {
         log.debug("Saving resource: {}", resource);
         resourceRepository.save(resource);
-        publishResourceEvent(resource);
+        publishResourceEvent(
+            new ResourceEvent()
+                .setTenantId(resource.getTenantId())
+                .setResourceId(resource.getResourceId())
+                .setLabelsChanged(labelsChanged)
+                .setReattachedEnvoyId(reattachedEnvoyId)
+        );
         return resource;
     }
 
@@ -177,7 +195,7 @@ public class ResourceManagement {
                 .setPresenceMonitoringEnabled(newResource.getPresenceMonitoringEnabled())
                 .setRegion(newResource.getRegion());
 
-        resource = saveAndPublishResource(resource);
+        resource = saveAndPublishResource(resource, true, null);
 
         return resource;
     }
@@ -220,7 +238,7 @@ public class ResourceManagement {
                 .whenNonNull()
                 .to(resource::setRegion);
 
-        saveAndPublishResource(resource);
+        saveAndPublishResource(resource, true, null);
 
         return resource;
     }
@@ -244,10 +262,16 @@ public class ResourceManagement {
      */
     public void removeResource(String tenantId, String resourceId) {
         Resource resource = getResource(tenantId, resourceId).orElseThrow(() ->
-                new NotFoundException(String.format("No resource found for %s on tenant %s", resourceId, tenantId)));
+            new NotFoundException(
+                String.format("No resource found for %s on tenant %s", resourceId, tenantId)));
 
         resourceRepository.deleteById(resource.getId());
-        publishResourceEvent(resource);
+        publishResourceEvent(
+            new ResourceEvent()
+                .setTenantId(tenantId)
+                .setResourceId(resourceId)
+                .setDeleted(true)
+        );
     }
 
     /**
@@ -267,26 +291,31 @@ public class ResourceManagement {
 
         if (existing.isPresent()) {
             log.debug("Found existing resource related to envoy: {}", existing.get());
-            updateEnvoyLabels(existing.get(), labels);
+
+            updateEnvoyLabels(existing.get(), labels, attachEvent.getEnvoyId());
+            log.debug("Found existing resource related to envoy: {}", existing.get());
         } else {
             log.debug("No resource found for new envoy attach");
             Resource newResource = new Resource()
                     .setTenantId(tenantId)
                     .setResourceId(resourceId)
                     .setLabels(labels)
-                    .setPresenceMonitoringEnabled(true);
-            saveAndPublishResource(newResource);
+                    .setPresenceMonitoringEnabled(true)
+                    .setAssociatedWithEnvoy(true);
+            saveAndPublishResource(newResource, true, null);
         }
     }
 
     /**
      * When provided with a list of envoy labels determine which ones need to be modified and perform an update.
-     * @param resource The resource to update.
+     * @param existingResource The resource to update.
      * @param envoyLabels The list of labels received from a newly connected envoy.
+     * @param envoyId
+     * @return the saved resource, if modified, or the given resource otherwise
      */
-    private void updateEnvoyLabels(Resource resource, Map<String, String> envoyLabels) {
-        final AtomicBoolean updated = new AtomicBoolean(false);
-        final Map<String, String> oldResourceLabels = resource.getLabels();
+    private void updateEnvoyLabels(Resource existingResource, Map<String, String> envoyLabels,
+                                       String envoyId) {
+        final Map<String, String> oldResourceLabels = existingResource.getLabels();
         // Work with a new map to avoid mutating the labels in-place
         final Map<String, String> resourceLabels = new HashMap<>(oldResourceLabels);
         final Set<String> newEnvoyLabelKeys = new HashSet<>(envoyLabels.keySet());
@@ -297,45 +326,57 @@ public class ResourceManagement {
         // 3. remove envoy labels not in the given envoy labels
         // 4. add any new envoy labels
 
-        oldResourceLabels.forEach((key, value) -> {
-            final String envoyLabelValue = envoyLabels.get(key);
+        boolean labelsChanged = false;
+        for (Entry<String, String> entry : oldResourceLabels.entrySet()) {
+            String k = entry.getKey();
+            String value = entry.getValue();
+            final String envoyLabelValue = envoyLabels.get(k);
             if (envoyLabelValue != null) {
                 if (!envoyLabelValue.equals(value)) {
                     // goal 2
-                    updated.set(true);
-                    resourceLabels.put(key, envoyLabelValue);
+                    labelsChanged = true;
+                    resourceLabels.put(k, envoyLabelValue);
                 }
-                newEnvoyLabelKeys.remove(key);
-            } else if (labelHasNamespace(key, LabelNamespaces.AGENT)) { // goal 1
+                newEnvoyLabelKeys.remove(k);
+            } else if (labelHasNamespace(k, LabelNamespaces.AGENT)) { // goal 1
                 // goal 3
-                updated.set(true);
-                resourceLabels.remove(key);
+                labelsChanged = true;
+                resourceLabels.remove(k);
             }
-        });
+        }
 
         if (!newEnvoyLabelKeys.isEmpty()) {
             // goal 4
             newEnvoyLabelKeys.forEach(key -> resourceLabels.put(key, envoyLabels.get(key)));
-            updated.set(true);
+            labelsChanged = true;
         }
 
-        if (updated.get()) {
-            resource.setLabels(resourceLabels);
-            saveAndPublishResource(resource);
+        // This is a re-attachment if the existing resource was already associated with an Envoy before
+        final boolean reattached = existingResource.isAssociatedWithEnvoy();
+
+        // If the labels changed above or this is first association with Envoy
+        if (labelsChanged || !reattached) {
+            // ...then save it
+
+            existingResource.setAssociatedWithEnvoy(true);
+            existingResource.setLabels(resourceLabels);
+
+            log.debug("Saving resource due to Envoy attachment: {}", existingResource);
+            resourceRepository.save(existingResource);
         }
-    }
 
-    /**
-     * Publish a resource event to kafka for consumption by other services.
-     * @param resource The updated resource the operation was performed on.
-     */
-    private void publishResourceEvent(Resource resource) {
-        ResourceEvent event = new ResourceEvent();
-        event.setResourceId(resource.getResourceId());
-        event.setTenantId(resource.getTenantId());
+        // If labels changed or this is a re-attachment
+        if (labelsChanged || reattached) {
+            // ...then send a resource changed event
 
-        log.debug("Publishing resource event: {}", event);
-        kafkaEgress.sendResourceEvent(event);
+            publishResourceEvent(
+                new ResourceEvent()
+                    .setTenantId(existingResource.getTenantId())
+                    .setResourceId(existingResource.getResourceId())
+                    .setLabelsChanged(labelsChanged)
+                    .setReattachedEnvoyId(reattached ? envoyId : null)
+            );
+        }
     }
 
     /**
@@ -352,7 +393,7 @@ public class ResourceManagement {
                 new Resource().setTenantId(tenantId).setResourceId(resourceId)
         );
         resource.setPresenceMonitoringEnabled(false);
-        saveAndPublishResource(resource);
+        saveAndPublishResource(resource, false, null);
     }
 
     /**

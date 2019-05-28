@@ -16,14 +16,17 @@
 
 package com.rackspace.salus.resource_management.services;
 
+import com.rackspace.salus.common.messaging.KafkaMessageKeyBuilder;
 import com.rackspace.salus.common.messaging.KafkaTopicProperties;
 import com.rackspace.salus.telemetry.messaging.KafkaMessageType;
 import com.rackspace.salus.telemetry.messaging.ResourceEvent;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 
 @Service
+@Slf4j
 public class KafkaEgress {
 
     private final KafkaTemplate<String,Object> kafkaTemplate;
@@ -41,7 +44,8 @@ public class KafkaEgress {
             throw new IllegalArgumentException(String.format("No topic configured for %s", KafkaMessageType.RESOURCE));
         }
 
-        String key = String.format("%s:%s", event.getTenantId(), event.getResourceId());
+        log.debug("Sending event={} on topic={}", event, topic);
+        final String key = KafkaMessageKeyBuilder.buildMessageKey(event);
         kafkaTemplate.send(topic, key, event);
     }
 }
