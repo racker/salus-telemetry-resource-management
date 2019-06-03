@@ -14,32 +14,54 @@
  * limitations under the License.
  */
 
-package com.rackspace.salus.resource_management.web.controller;
+package com.rackspace.salus.resource_management;
 
-import static org.mockito.ArgumentMatchers.any;
+import static com.rackspace.salus.resource_management.TestUtils.readContent;
+import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.hasSize;
+import static org.hamcrest.Matchers.nullValue;
+import static org.hamcrest.Matchers.stringContainsInOrder;
+import static org.junit.Assert.assertThat;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.rackspace.salus.resource_management.services.ResourceManagement;
-import com.rackspace.salus.telemetry.model.Resource;
+import com.rackspace.salus.resource_management.web.controller.ResourceApiController;
+import com.rackspace.salus.resource_management.web.model.ResourceCreate;
+import com.rackspace.salus.resource_management.web.model.ResourceUpdate;
+import com.rackspace.salus.resource_management.entities.Resource;
+import java.nio.charset.StandardCharsets;
+import java.time.Instant;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
+import java.util.stream.Stream;
+import org.apache.commons.lang3.RandomStringUtils;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.orm.jpa.AutoConfigureDataJpa;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
-import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.test.mock.mockito.MockBean;
-import org.springframework.context.annotation.Bean;
-import org.springframework.core.task.SyncTaskExecutor;
-import org.springframework.core.task.TaskExecutor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.junit4.SpringRunner;
 import org.springframework.test.web.servlet.MockMvc;
@@ -47,42 +69,273 @@ import uk.co.jemos.podam.api.PodamFactory;
 import uk.co.jemos.podam.api.PodamFactoryImpl;
 
 @RunWith(SpringRunner.class)
-@WebMvcTest(ResourceApiController.class)
+@WebMvcTest(controllers = ResourceApiController.class)
+@AutoConfigureDataJpa
 public class ResourceApiControllerTest {
 
-  @TestConfiguration
-  public static class ExtraTestConfig {
-    @Bean
-    TaskExecutor taskExecutor() {
-      return new SyncTaskExecutor();
-    }
-  }
+  // A timestamp to be used in tests that translates to "1970-01-02T03:46:40Z"
+  private static final Instant DEFAULT_TIMESTAMP = Instant.ofEpochSecond(100000);
+
+  PodamFactory podamFactory = new PodamFactoryImpl();
 
   @Autowired
-  private MockMvc mvc;
-
-  @Autowired
-  private ObjectMapper objectMapper;
+  MockMvc mockMvc;
 
   @MockBean
-  private ResourceManagement resourceManagement;
+  ResourceManagement resourceManagement;
 
-  private PodamFactory podamFactory = new PodamFactoryImpl();
+  @Autowired
+  ObjectMapper objectMapper;
 
   @Test
-  public void getByResourceId() throws Exception {
+  public void testGetByResourceId() throws Exception {
 
-    final Resource expectedResource = podamFactory.manufacturePojo(Resource.class);
+    final Resource expectedResource = new Resource()
+        .setLabels(Collections.singletonMap("env", "prod"))
+        .setMetadata(Collections.singletonMap("custom", "new"))
+        .setResourceId("r-1")
+        .setTenantId("t-1")
+        .setCreatedTimestamp(DEFAULT_TIMESTAMP)
+        .setUpdatedTimestamp(DEFAULT_TIMESTAMP)
+        .setId(1001L);
     when(resourceManagement.getResource(any(), any()))
         .thenReturn(Optional.of(expectedResource));
 
-    mvc.perform(get(
+    mockMvc.perform(get(
         "/api/tenant/{tenantId}/resources/{resourceId}",
         "t-1", "r-1"
     ).accept(MediaType.APPLICATION_JSON))
         .andExpect(status().isOk())
-        .andExpect(content().json(objectMapper.writeValueAsString(expectedResource)));
+        .andExpect(content().json(
+            // id field should not be returned
+            readContent("ResourceApiControllerTest/single_public_resource.json"), true));
 
+  }
+
+  @Test
+  public void testNoResourceFound() throws Exception {
+    when(resourceManagement.getResource(anyString(), anyString()))
+        .thenReturn(Optional.empty());
+
+    String tenantId = RandomStringUtils.randomAlphabetic( 8 );
+    String resourceId = RandomStringUtils.randomAlphabetic( 8 );
+    String url = String.format("/api/tenant/%s/resources/%s", tenantId, resourceId);
+    String errorMsg = String.format("No resource found for %s on tenant %s", resourceId, tenantId);
+
+    mockMvc.perform(get(url).contentType(MediaType.APPLICATION_JSON))
+        .andExpect(status().isNotFound())
+        .andExpect(content()
+            .contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+        .andExpect(jsonPath("$.message", is(errorMsg)));
+  }
+
+  @Test
+  public void testGetAllForTenant() throws Exception {
+    int numberOfResources = 20;
+    // Use the APIs default Pageable settings
+    int page = 0;
+    int pageSize = 100;
+    List<Resource> resources = new ArrayList<>();
+    for (int i=0; i<numberOfResources; i++) {
+      resources.add(podamFactory.manufacturePojo(Resource.class));
+    }
+
+    int start = page * pageSize;
+    int end = numberOfResources;
+    Page<Resource> pageOfResources = new PageImpl<>(resources.subList(start, end),
+        PageRequest.of(page, pageSize),
+        numberOfResources);
+
+    when(resourceManagement.getResources(anyString(), any()))
+        .thenReturn(pageOfResources);
+
+    String tenantId = RandomStringUtils.randomAlphabetic( 8 );
+    String url = String.format("/api/tenant/%s/resources", tenantId);
+
+    mockMvc.perform(get(url).contentType(MediaType.APPLICATION_JSON))
+        .andExpect(status().isOk())
+        .andExpect(content()
+            .contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+        .andExpect(jsonPath("$.content.*", hasSize(numberOfResources)))
+        .andExpect(jsonPath("$.totalPages", equalTo(1)))
+        .andExpect(jsonPath("$.totalElements", equalTo(numberOfResources)));
+  }
+
+  @Test
+  public void testGetAllForTenantPagination() throws Exception {
+    int numberOfResources = 99;
+    int pageSize = 4;
+    int page = 14;
+    List<Resource> resources = new ArrayList<>();
+    for (int i=0; i<numberOfResources; i++) {
+      resources.add(podamFactory.manufacturePojo(Resource.class));
+    }
+    int start = page * pageSize;
+    int end = start + pageSize;
+    Page<Resource> pageOfResources = new PageImpl<>(resources.subList(start, end),
+        PageRequest.of(page, pageSize),
+        numberOfResources);
+
+    assertThat(pageOfResources.getContent().size(), equalTo(pageSize));
+
+    when(resourceManagement.getResources(anyString(), any()))
+        .thenReturn(pageOfResources);
+
+    String tenantId = RandomStringUtils.randomAlphabetic( 8 );
+    String url = String.format("/api/tenant/%s/resources", tenantId);
+
+    mockMvc.perform(get(url).contentType(MediaType.APPLICATION_JSON)
+        .param("page", Integer.toString(page))
+        .param("size", Integer.toString(pageSize)))
+        .andExpect(status().isOk())
+        .andExpect(content()
+            .contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+        .andExpect(jsonPath("$.content.*", hasSize(pageSize)))
+        .andExpect(jsonPath("$.totalPages", equalTo((numberOfResources + pageSize - 1) / pageSize)))
+        .andExpect(jsonPath("$.totalElements", equalTo(numberOfResources)));
+  }
+
+  @Test
+  public void testCreateResource() throws Exception {
+    Resource resource = podamFactory.manufacturePojo(Resource.class);
+    when(resourceManagement.createResource(anyString(), any()))
+        .thenReturn(resource);
+
+    String tenantId = RandomStringUtils.randomAlphabetic( 8 );
+    String url = String.format("/api/tenant/%s/resources", tenantId);
+    ResourceCreate create = podamFactory.manufacturePojo(ResourceCreate.class);
+
+    mockMvc.perform(post(url)
+        .content(objectMapper.writeValueAsString(create))
+        .contentType(MediaType.APPLICATION_JSON)
+        .characterEncoding(StandardCharsets.UTF_8.name()))
+        .andExpect(status().isCreated())
+        .andExpect(content()
+            .contentTypeCompatibleWith(MediaType.APPLICATION_JSON));
+  }
+
+  @Test
+  public void testCreateResourceWithoutIdField() throws Exception {
+    String tenantId = RandomStringUtils.randomAlphabetic( 8 );
+    String url = String.format("/api/tenant/%s/resources", tenantId);
+
+    ResourceCreate create = podamFactory.manufacturePojo(ResourceCreate.class);
+    create.setResourceId(null);
+
+    String errorMsg = "\"resourceId\" may not be empty";
+
+    mockMvc.perform(post(url)
+        .content(objectMapper.writeValueAsString(create))
+        .contentType(MediaType.APPLICATION_JSON)
+        .characterEncoding(StandardCharsets.UTF_8.name()))
+        .andExpect(status().isBadRequest())
+        .andExpect(content()
+            .contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+        .andExpect(jsonPath("$.message", is(errorMsg)));
+  }
+
+  @Test
+  public void testCreateResourceWithoutPresenceMonitoringField() throws Exception {
+    String tenantId = RandomStringUtils.randomAlphabetic( 8 );
+    String url = String.format("/api/tenant/%s/resources", tenantId);
+
+    ResourceCreate create = podamFactory.manufacturePojo(ResourceCreate.class);
+    create.setPresenceMonitoringEnabled(null);
+
+    String errorMsg = "\"presenceMonitoringEnabled\" must not be null";
+
+    mockMvc.perform(post(url)
+        .content(objectMapper.writeValueAsString(create))
+        .contentType(MediaType.APPLICATION_JSON)
+        .characterEncoding(StandardCharsets.UTF_8.name()))
+        .andExpect(status().isBadRequest())
+        .andExpect(content()
+            .contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+        .andExpect(jsonPath("$.message", is(errorMsg)));
+  }
+
+  @Test
+  public void testUpdateResource() throws Exception {
+    Resource resource = podamFactory.manufacturePojo(Resource.class);
+    when(resourceManagement.updateResource(anyString(), anyString(), any()))
+        .thenReturn(resource);
+
+    String tenantId = resource.getTenantId();
+    String resourceId = resource.getResourceId();
+    String url = String.format("/api/tenant/%s/resources/%s", tenantId, resourceId);
+
+    ResourceUpdate update = podamFactory.manufacturePojo(ResourceUpdate.class);
+
+    mockMvc.perform(put(url)
+        .content(objectMapper.writeValueAsString(update))
+        .contentType(MediaType.APPLICATION_JSON)
+        .characterEncoding(StandardCharsets.UTF_8.name()))
+        .andExpect(status().isOk())
+        .andExpect(content()
+            .contentTypeCompatibleWith(MediaType.APPLICATION_JSON));
+  }
+
+  @Test
+  public void testGetAll() throws Exception {
+    int numberOfResources = 20;
+    // Use the APIs default Pageable settings
+    int page = 0;
+    int pageSize = 100;
+    List<Resource> resources = new ArrayList<>();
+    for (int i=0; i<numberOfResources; i++) {
+      resources.add(podamFactory.manufacturePojo(Resource.class));
+    }
+
+    int start = page * pageSize;
+    int end = numberOfResources;
+    Page<Resource> pageOfResources = new PageImpl<>(resources.subList(start, end),
+        PageRequest.of(page, pageSize),
+        numberOfResources);
+
+    when(resourceManagement.getAllResources(any()))
+        .thenReturn(pageOfResources);
+
+    String url = "/api/resources";
+
+    mockMvc.perform(get(url).contentType(MediaType.APPLICATION_JSON))
+        .andExpect(status().isOk())
+        .andExpect(content()
+            .contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+        .andExpect(jsonPath("$.content.*", hasSize(numberOfResources)))
+        .andExpect(jsonPath("$.totalPages", equalTo(1)))
+        .andExpect(jsonPath("$.totalElements", equalTo(numberOfResources)));
+  }
+
+  @Test
+  public void testGetStreamOfResources() throws Exception {
+    int numberOfResources = 20;
+    List<Resource> resources = new ArrayList<>();
+    for (int i=0; i<numberOfResources; i++) {
+      resources.add(podamFactory.manufacturePojo(Resource.class));
+    }
+
+    List<String> expectedData = resources.stream()
+        .map(r -> {
+          try {
+            return "data:" + objectMapper.writeValueAsString(r.toDTO());
+          } catch (JsonProcessingException e) {
+            assertThat(e, nullValue());
+            return null;
+          }
+        }).collect(Collectors.toList());
+    assertThat(expectedData.size(), equalTo(resources.size()));
+
+    String url = "/api/envoys";
+    Stream<Resource> resourceStream = resources.stream();
+
+    when(resourceManagement.getResources(true))
+        .thenReturn(resourceStream);
+
+    mockMvc.perform(get(url))
+        .andDo(print())
+        .andExpect(status().isOk())
+        .andExpect(content().contentTypeCompatibleWith("text/event-stream;charset=UTF-8"))
+        .andExpect(content().string(stringContainsInOrder(expectedData)));
   }
 
   @Test
@@ -95,12 +348,11 @@ public class ResourceApiControllerTest {
     when(resourceManagement.getResourcesFromLabels(any(), any()))
         .thenReturn(expectedResources);
 
-    mvc.perform(get(
+    mockMvc.perform(get(
         "/api/tenant/{tenantId}/resourceLabels?env=prod",
         "t-1"
     ).accept(MediaType.APPLICATION_JSON))
-        .andExpect(status().isOk())
-        .andExpect(content().json(objectMapper.writeValueAsString(expectedResources)));
+        .andExpect(status().isOk());
 
     verify(resourceManagement).getResourcesFromLabels(
         Collections.singletonMap("env", "prod"),

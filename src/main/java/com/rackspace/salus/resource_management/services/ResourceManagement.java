@@ -21,12 +21,12 @@ import static com.rackspace.salus.telemetry.model.LabelNamespaces.labelHasNamesp
 import com.rackspace.salus.resource_management.repositories.ResourceRepository;
 import com.rackspace.salus.resource_management.web.model.ResourceCreate;
 import com.rackspace.salus.resource_management.web.model.ResourceUpdate;
-import com.rackspace.salus.telemetry.errors.ResourceAlreadyExists;
+import com.rackspace.salus.resource_management.errors.ResourceAlreadyExists;
 import com.rackspace.salus.telemetry.messaging.AttachEvent;
 import com.rackspace.salus.telemetry.messaging.ResourceEvent;
 import com.rackspace.salus.telemetry.model.LabelNamespaces;
 import com.rackspace.salus.telemetry.model.NotFoundException;
-import com.rackspace.salus.telemetry.model.Resource;
+import com.rackspace.salus.resource_management.entities.Resource;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;

@@ -16,17 +16,22 @@
 
 package com.rackspace.salus.resource_management.web.controller;
 
+import com.fasterxml.jackson.annotation.JsonView;
 import com.rackspace.salus.resource_management.services.ResourceManagement;
 import com.rackspace.salus.resource_management.web.client.ResourceApi;
 import com.rackspace.salus.resource_management.web.model.ResourceCreate;
+import com.rackspace.salus.resource_management.web.model.ResourceDTO;
 import com.rackspace.salus.resource_management.web.model.ResourceUpdate;
-import com.rackspace.salus.telemetry.errors.ResourceAlreadyExists;
+import com.rackspace.salus.resource_management.errors.ResourceAlreadyExists;
 import com.rackspace.salus.telemetry.model.NotFoundException;
-import com.rackspace.salus.telemetry.model.Resource;
+import com.rackspace.salus.resource_management.entities.Resource;
+import com.rackspace.salus.telemetry.model.PagedContent;
+import com.rackspace.salus.telemetry.model.View;
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import javax.validation.Valid;
 
@@ -34,7 +39,6 @@ import javax.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.task.TaskExecutor;
-import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -73,22 +77,24 @@ public class ResourceApiController implements ResourceApi {
     }
 
     @GetMapping("/resources")
+    @JsonView(View.Admin.class)
     @ApiOperation(value = "Gets all Resources irrespective of Tenant")
-    public Page<Resource> getAll(@RequestParam(defaultValue = "100") int size,
+    public PagedContent<ResourceDTO> getAll(@RequestParam(defaultValue = "100") int size,
                                  @RequestParam(defaultValue = "0") int page) {
 
-        return resourceManagement.getAllResources(PageRequest.of(page, size));
-
+        return PagedContent.fromPage(resourceManagement.getAllResources(PageRequest.of(page, size))
+            .map(Resource::toDTO));
     }
 
     @GetMapping("/envoys")
+    @JsonView(View.Admin.class)
     public SseEmitter getAllWithPresenceMonitoringAsStream() {
         SseEmitter emitter = new SseEmitter();
         Stream<Resource> resourcesWithEnvoys = resourceManagement.getResources(true);
         taskExecutor.execute(() -> {
             resourcesWithEnvoys.forEach(r -> {
                 try {
-                    emitter.send(r);
+                    emitter.send(r.toDTO());
                 } catch (IOException e) {
                     emitter.completeWithError(e);
                 }
@@ -101,45 +107,51 @@ public class ResourceApiController implements ResourceApi {
     @Override
     @GetMapping("/tenant/{tenantId}/resources/{resourceId}")
     @ApiOperation(value = "Gets specific Resource for specific Tenant")
-    public Resource getByResourceId(@PathVariable String tenantId,
+    @JsonView(View.Public.class)
+    public ResourceDTO getByResourceId(@PathVariable String tenantId,
                                     @PathVariable String resourceId) throws NotFoundException {
 
         Optional<Resource> resource = resourceManagement.getResource(tenantId, resourceId);
-        return resource.orElseThrow(() -> new NotFoundException(String.format("No resource found for %s on tenant %s",
+        return resource.map(Resource::toDTO).orElseThrow(() -> new NotFoundException(String.format("No resource found for %s on tenant %s",
                     resourceId, tenantId)));
     }
 
     @GetMapping("/tenant/{tenantId}/resources")
     @ApiOperation(value = "Gets all Resources for authenticated tenant")
-    public Page<Resource>  getAllForTenant(@PathVariable String tenantId,
+    @JsonView(View.Public.class)
+    public PagedContent<ResourceDTO>  getAllForTenant(@PathVariable String tenantId,
                                    @RequestParam(defaultValue = "100") int size,
                                    @RequestParam(defaultValue = "0") int page) {
 
-        return resourceManagement.getResources(tenantId, PageRequest.of(page, size));
+        return PagedContent.fromPage(resourceManagement.getResources(tenantId, PageRequest.of(page, size))
+            .map(Resource::toDTO));
     }
 
     @PostMapping("/tenant/{tenantId}/resources")
     @ResponseStatus(HttpStatus.CREATED)
     @ApiOperation(value = "Create one Resource for Tenant")
     @ApiResponses(value = { @ApiResponse(code = 201, message = "Successfully Created Resource")})
-    public Resource create(@PathVariable String tenantId,
+    @JsonView(View.Public.class)
+    public ResourceDTO create(@PathVariable String tenantId,
                            @Valid @RequestBody final ResourceCreate input)
             throws IllegalArgumentException, ResourceAlreadyExists {
-        return resourceManagement.createResource(tenantId, input);
+        return resourceManagement.createResource(tenantId, input).toDTO();
     }
 
     @PutMapping("/tenant/{tenantId}/resources/{resourceId}")
     @ApiOperation(value = "Updates specific Resource for Tenant")
-    public Resource update(@PathVariable String tenantId,
+    @JsonView(View.Public.class)
+    public ResourceDTO update(@PathVariable String tenantId,
                            @PathVariable String resourceId,
                            @Valid @RequestBody final ResourceUpdate input) throws IllegalArgumentException {
-        return resourceManagement.updateResource(tenantId, resourceId, input);
+        return resourceManagement.updateResource(tenantId, resourceId, input).toDTO();
     }
 
     @DeleteMapping("/tenant/{tenantId}/resources/{resourceId}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     @ApiOperation(value = "Gets all Resources for authenticated tenant")
     @ApiResponses(value = { @ApiResponse(code = 204, message = "Resource Deleted")})
+    @JsonView(View.Public.class)
     public void delete(@PathVariable String tenantId,
                        @PathVariable String resourceId) {
         resourceManagement.removeResource(tenantId, resourceId);
@@ -147,9 +159,12 @@ public class ResourceApiController implements ResourceApi {
 
     @Override
     @GetMapping("/tenant/{tenantId}/resourceLabels")
-    public List<Resource> getResourcesWithLabels(@PathVariable String tenantId,
+    @JsonView(View.Public.class)
+    public List<ResourceDTO> getResourcesWithLabels(@PathVariable String tenantId,
                                                  @RequestParam Map<String, String> labels) {
-        return resourceManagement.getResourcesFromLabels(labels, tenantId);
+        return resourceManagement.getResourcesFromLabels(labels, tenantId).stream()
+            .map(Resource::toDTO)
+            .collect(Collectors.toList());
     }
 
     /**
@@ -161,7 +176,9 @@ public class ResourceApiController implements ResourceApi {
      * @return A list of resources.
      */
     @Override
-    public List<Resource> getExpectedEnvoys() {
-        return resourceManagement.getExpectedEnvoys();
+    public List<ResourceDTO> getExpectedEnvoys() {
+        return resourceManagement.getExpectedEnvoys().stream()
+            .map(Resource::toDTO)
+            .collect(Collectors.toList());
     }
 }

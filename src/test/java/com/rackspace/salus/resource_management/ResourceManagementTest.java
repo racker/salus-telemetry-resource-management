@@ -42,7 +42,7 @@ import com.rackspace.salus.telemetry.messaging.AttachEvent;
 import com.rackspace.salus.telemetry.messaging.ResourceEvent;
 import com.rackspace.salus.telemetry.model.LabelNamespaces;
 import com.rackspace.salus.telemetry.model.NotFoundException;
-import com.rackspace.salus.telemetry.model.Resource;
+import com.rackspace.salus.resource_management.entities.Resource;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -62,7 +62,6 @@ import org.junit.runner.RunWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Captor;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.autoconfigure.domain.EntityScan;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.Import;
@@ -76,7 +75,6 @@ import uk.co.jemos.podam.api.PodamFactoryImpl;
 @RunWith(SpringRunner.class)
 @DataJpaTest
 @Import({ResourceManagement.class})
-@EntityScan(basePackageClasses = Resource.class)
 public class ResourceManagementTest {
 
     public static final String TENANT = "abcde";

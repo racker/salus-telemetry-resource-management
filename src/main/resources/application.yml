@@ -13,6 +13,9 @@ spring:
               packages: com.rackspace.salus.telemetry.messaging
   http:
     log-request-details: true
+  jackson:
+    mapper:
+      default-view-inclusion: true
 logging:
   level:
     web: debug
