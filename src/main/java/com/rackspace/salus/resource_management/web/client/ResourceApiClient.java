@@ -17,7 +17,6 @@
 package com.rackspace.salus.resource_management.web.client;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.rackspace.salus.resource_management.entities.Resource;
 import com.rackspace.salus.resource_management.web.model.ResourceDTO;
 import java.io.BufferedReader;
 import java.io.IOException;

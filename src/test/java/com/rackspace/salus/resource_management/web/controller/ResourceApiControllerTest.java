@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.rackspace.salus.resource_management;
+package com.rackspace.salus.resource_management.web.controller;
 
 import static com.rackspace.salus.resource_management.TestUtils.readContent;
 import static org.hamcrest.CoreMatchers.is;
@@ -25,8 +25,8 @@ import static org.hamcrest.Matchers.stringContainsInOrder;
 import static org.junit.Assert.assertThat;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.any;
-import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -39,7 +39,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.rackspace.salus.resource_management.services.ResourceManagement;
-import com.rackspace.salus.resource_management.web.controller.ResourceApiController;
 import com.rackspace.salus.resource_management.web.model.ResourceCreate;
 import com.rackspace.salus.resource_management.web.model.ResourceUpdate;
 import com.rackspace.salus.resource_management.entities.Resource;
@@ -110,6 +109,8 @@ public class ResourceApiControllerTest {
             // id field should not be returned
             readContent("ResourceApiControllerTest/single_public_resource.json"), true));
 
+    verify(resourceManagement).getResource("t-1", "r-1");
+    verifyNoMoreInteractions(resourceManagement);
   }
 
   @Test
@@ -119,14 +120,17 @@ public class ResourceApiControllerTest {
 
     String tenantId = RandomStringUtils.randomAlphabetic( 8 );
     String resourceId = RandomStringUtils.randomAlphabetic( 8 );
-    String url = String.format("/api/tenant/%s/resources/%s", tenantId, resourceId);
     String errorMsg = String.format("No resource found for %s on tenant %s", resourceId, tenantId);
 
-    mockMvc.perform(get(url).contentType(MediaType.APPLICATION_JSON))
+    mockMvc.perform(get("/api/tenant/{tenantId}/resources/{resourceId}", tenantId, resourceId)
+        .contentType(MediaType.APPLICATION_JSON))
         .andExpect(status().isNotFound())
         .andExpect(content()
             .contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
         .andExpect(jsonPath("$.message", is(errorMsg)));
+
+    verify(resourceManagement).getResource(tenantId, resourceId);
+    verifyNoMoreInteractions(resourceManagement);
   }
 
   @Test
@@ -150,15 +154,18 @@ public class ResourceApiControllerTest {
         .thenReturn(pageOfResources);
 
     String tenantId = RandomStringUtils.randomAlphabetic( 8 );
-    String url = String.format("/api/tenant/%s/resources", tenantId);
 
-    mockMvc.perform(get(url).contentType(MediaType.APPLICATION_JSON))
+    mockMvc.perform(get("/api/tenant/{tenantId}/resources", tenantId)
+        .contentType(MediaType.APPLICATION_JSON))
         .andExpect(status().isOk())
         .andExpect(content()
             .contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
         .andExpect(jsonPath("$.content.*", hasSize(numberOfResources)))
         .andExpect(jsonPath("$.totalPages", equalTo(1)))
         .andExpect(jsonPath("$.totalElements", equalTo(numberOfResources)));
+
+    verify(resourceManagement).getResources(tenantId, PageRequest.of(0, 100));
+    verifyNoMoreInteractions(resourceManagement);
   }
 
   @Test
@@ -182,9 +189,9 @@ public class ResourceApiControllerTest {
         .thenReturn(pageOfResources);
 
     String tenantId = RandomStringUtils.randomAlphabetic( 8 );
-    String url = String.format("/api/tenant/%s/resources", tenantId);
 
-    mockMvc.perform(get(url).contentType(MediaType.APPLICATION_JSON)
+    mockMvc.perform(get("/api/tenant/{tenantId}/resources", tenantId)
+        .contentType(MediaType.APPLICATION_JSON)
         .param("page", Integer.toString(page))
         .param("size", Integer.toString(pageSize)))
         .andExpect(status().isOk())
@@ -193,6 +200,9 @@ public class ResourceApiControllerTest {
         .andExpect(jsonPath("$.content.*", hasSize(pageSize)))
         .andExpect(jsonPath("$.totalPages", equalTo((numberOfResources + pageSize - 1) / pageSize)))
         .andExpect(jsonPath("$.totalElements", equalTo(numberOfResources)));
+
+    verify(resourceManagement).getResources(tenantId, PageRequest.of(page, pageSize));
+    verifyNoMoreInteractions(resourceManagement);
   }
 
   @Test
@@ -202,29 +212,31 @@ public class ResourceApiControllerTest {
         .thenReturn(resource);
 
     String tenantId = RandomStringUtils.randomAlphabetic( 8 );
-    String url = String.format("/api/tenant/%s/resources", tenantId);
+
     ResourceCreate create = podamFactory.manufacturePojo(ResourceCreate.class);
 
-    mockMvc.perform(post(url)
+    mockMvc.perform(post("/api/tenant/{tenantId}/resources", tenantId)
         .content(objectMapper.writeValueAsString(create))
         .contentType(MediaType.APPLICATION_JSON)
         .characterEncoding(StandardCharsets.UTF_8.name()))
         .andExpect(status().isCreated())
         .andExpect(content()
             .contentTypeCompatibleWith(MediaType.APPLICATION_JSON));
+
+    verify(resourceManagement).createResource(tenantId, create);
+    verifyNoMoreInteractions(resourceManagement);
   }
 
   @Test
   public void testCreateResourceWithoutIdField() throws Exception {
     String tenantId = RandomStringUtils.randomAlphabetic( 8 );
-    String url = String.format("/api/tenant/%s/resources", tenantId);
 
     ResourceCreate create = podamFactory.manufacturePojo(ResourceCreate.class);
     create.setResourceId(null);
 
     String errorMsg = "\"resourceId\" may not be empty";
 
-    mockMvc.perform(post(url)
+    mockMvc.perform(post("/api/tenant/{tenantId}/resources", tenantId)
         .content(objectMapper.writeValueAsString(create))
         .contentType(MediaType.APPLICATION_JSON)
         .characterEncoding(StandardCharsets.UTF_8.name()))
@@ -232,19 +244,20 @@ public class ResourceApiControllerTest {
         .andExpect(content()
             .contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
         .andExpect(jsonPath("$.message", is(errorMsg)));
+
+    verifyNoMoreInteractions(resourceManagement);
   }
 
   @Test
   public void testCreateResourceWithoutPresenceMonitoringField() throws Exception {
     String tenantId = RandomStringUtils.randomAlphabetic( 8 );
-    String url = String.format("/api/tenant/%s/resources", tenantId);
 
     ResourceCreate create = podamFactory.manufacturePojo(ResourceCreate.class);
     create.setPresenceMonitoringEnabled(null);
 
     String errorMsg = "\"presenceMonitoringEnabled\" must not be null";
 
-    mockMvc.perform(post(url)
+    mockMvc.perform(post("/api/tenant/{tenantId}/resources", tenantId)
         .content(objectMapper.writeValueAsString(create))
         .contentType(MediaType.APPLICATION_JSON)
         .characterEncoding(StandardCharsets.UTF_8.name()))
@@ -252,6 +265,8 @@ public class ResourceApiControllerTest {
         .andExpect(content()
             .contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
         .andExpect(jsonPath("$.message", is(errorMsg)));
+
+    verifyNoMoreInteractions(resourceManagement);
   }
 
   @Test
@@ -262,17 +277,19 @@ public class ResourceApiControllerTest {
 
     String tenantId = resource.getTenantId();
     String resourceId = resource.getResourceId();
-    String url = String.format("/api/tenant/%s/resources/%s", tenantId, resourceId);
 
     ResourceUpdate update = podamFactory.manufacturePojo(ResourceUpdate.class);
 
-    mockMvc.perform(put(url)
+    mockMvc.perform(put("/api/tenant/{tenantId}/resources/{resourceId}", tenantId, resourceId)
         .content(objectMapper.writeValueAsString(update))
         .contentType(MediaType.APPLICATION_JSON)
         .characterEncoding(StandardCharsets.UTF_8.name()))
         .andExpect(status().isOk())
         .andExpect(content()
             .contentTypeCompatibleWith(MediaType.APPLICATION_JSON));
+
+    verify(resourceManagement).updateResource(tenantId, resourceId, update);
+    verifyNoMoreInteractions(resourceManagement);
   }
 
   @Test
@@ -295,15 +312,17 @@ public class ResourceApiControllerTest {
     when(resourceManagement.getAllResources(any()))
         .thenReturn(pageOfResources);
 
-    String url = "/api/resources";
-
-    mockMvc.perform(get(url).contentType(MediaType.APPLICATION_JSON))
+    mockMvc.perform(get("/api/resources")
+        .contentType(MediaType.APPLICATION_JSON))
         .andExpect(status().isOk())
         .andExpect(content()
             .contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
         .andExpect(jsonPath("$.content.*", hasSize(numberOfResources)))
         .andExpect(jsonPath("$.totalPages", equalTo(1)))
         .andExpect(jsonPath("$.totalElements", equalTo(numberOfResources)));
+
+    verify(resourceManagement).getAllResources(PageRequest.of(0, 100));
+    verifyNoMoreInteractions(resourceManagement);
   }
 
   @Test
@@ -325,17 +344,19 @@ public class ResourceApiControllerTest {
         }).collect(Collectors.toList());
     assertThat(expectedData.size(), equalTo(resources.size()));
 
-    String url = "/api/envoys";
     Stream<Resource> resourceStream = resources.stream();
 
     when(resourceManagement.getResources(true))
         .thenReturn(resourceStream);
 
-    mockMvc.perform(get(url))
+    mockMvc.perform(get("/api/envoys"))
         .andDo(print())
         .andExpect(status().isOk())
         .andExpect(content().contentTypeCompatibleWith("text/event-stream;charset=UTF-8"))
         .andExpect(content().string(stringContainsInOrder(expectedData)));
+
+    verify(resourceManagement).getResources(true);
+    verifyNoMoreInteractions(resourceManagement);
   }
 
   @Test
@@ -358,5 +379,7 @@ public class ResourceApiControllerTest {
         Collections.singletonMap("env", "prod"),
         "t-1"
     );
+
+    verifyNoMoreInteractions(resourceManagement);
   }
 }
