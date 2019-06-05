@@ -16,19 +16,18 @@
 
 package com.rackspace.salus.resource_management;
 
-import com.rackspace.salus.common.messaging.EnableSalusKafkaMessaging;
-import org.springframework.boot.SpringApplication;
-import org.springframework.boot.autoconfigure.SpringBootApplication;
-import org.springframework.boot.autoconfigure.security.servlet.SecurityAutoConfiguration;
-import org.springframework.scheduling.annotation.EnableScheduling;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import org.springframework.core.io.ClassPathResource;
+import org.springframework.util.FileCopyUtils;
 
-@SpringBootApplication(exclude = { SecurityAutoConfiguration.class })
-@EnableScheduling
-@EnableSalusKafkaMessaging
-public class TelemetryResourceManagementApplication {
+public class TestUtils {
 
-    public static void main(String[] args) {
-        SpringApplication.run(TelemetryResourceManagementApplication.class, args);
+  public static String readContent(String resource) throws IOException {
+    try (InputStream in = new ClassPathResource(resource).getInputStream()) {
+      return FileCopyUtils.copyToString(new InputStreamReader(in));
     }
-
+  }
 }
+

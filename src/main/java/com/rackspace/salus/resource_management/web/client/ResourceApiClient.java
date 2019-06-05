@@ -17,7 +17,7 @@
 package com.rackspace.salus.resource_management.web.client;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.rackspace.salus.telemetry.model.Resource;
+import com.rackspace.salus.resource_management.web.model.ResourceDTO;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -62,8 +62,8 @@ import org.springframework.web.util.UriComponentsBuilder;
 @Slf4j
 public class ResourceApiClient implements ResourceApi {
 
-  private static final ParameterizedTypeReference<List<Resource>> LIST_OF_RESOURCE =
-      new ParameterizedTypeReference<List<Resource>>() {};
+  private static final ParameterizedTypeReference<List<ResourceDTO>> LIST_OF_RESOURCE =
+      new ParameterizedTypeReference<List<ResourceDTO>>() {};
 
   private ObjectMapper objectMapper;
   private final RestTemplate restTemplate;
@@ -75,11 +75,11 @@ public class ResourceApiClient implements ResourceApi {
   }
 
   @Override
-  public Resource getByResourceId(String tenantId, String resourceId) {
+  public ResourceDTO getByResourceId(String tenantId, String resourceId) {
     try {
       return restTemplate.getForObject(
           "/api/tenant/{tenantId}/resources/{resourceId}",
-          Resource.class,
+          ResourceDTO.class,
           tenantId, resourceId
       );
     } catch (HttpClientErrorException e) {
@@ -93,14 +93,14 @@ public class ResourceApiClient implements ResourceApi {
   }
 
   @Override
-  public List<Resource> getResourcesWithLabels(String tenantId, Map<String, String> labels) {
+  public List<ResourceDTO> getResourcesWithLabels(String tenantId, Map<String, String> labels) {
     String endpoint = "/api/tenant/{tenantId}/resourceLabels";
     UriComponentsBuilder uriComponentsBuilder = UriComponentsBuilder.fromUriString(endpoint);
     for (Map.Entry<String, String> e : labels.entrySet()) {
       uriComponentsBuilder.queryParam(e.getKey(), e.getValue());
     }
     String uriString = uriComponentsBuilder.buildAndExpand(tenantId).toUriString();
-    ResponseEntity<List<Resource>> resp = restTemplate.exchange(
+    ResponseEntity<List<ResourceDTO>> resp = restTemplate.exchange(
         uriString,
         HttpMethod.GET,
         null,
@@ -111,9 +111,9 @@ public class ResourceApiClient implements ResourceApi {
   }
 
   @Override
-  public List<Resource> getExpectedEnvoys() {
+  public List<ResourceDTO> getExpectedEnvoys() {
     String endpoint = "/api/envoys";
-    List<Resource> resources = new ArrayList<>();
+    List<ResourceDTO> resources = new ArrayList<>();
 
     restTemplate.execute(endpoint, HttpMethod.GET, request -> {}, response -> {
       BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(response.getBody()));
@@ -121,9 +121,9 @@ public class ResourceApiClient implements ResourceApi {
       while ((line = bufferedReader.readLine()) != null) {
         if (line.length() > SSEHdr.length())
           try {
-            Resource resource;
+            ResourceDTO resource;
             // remove the "data:" hdr
-            resource = objectMapper.readValue(line.substring(SSEHdr.length()), Resource.class);
+            resource = objectMapper.readValue(line.substring(SSEHdr.length()), ResourceDTO.class);
             resources.add(resource);
           } catch (IOException e) {
             log.warn("Failed to parse Resource", e);

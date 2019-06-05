@@ -24,8 +24,7 @@ import static org.springframework.test.web.client.response.MockRestResponseCreat
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.rackspace.salus.telemetry.model.Resource;
-
+import com.rackspace.salus.resource_management.web.model.ResourceDTO;
 import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -72,13 +71,13 @@ public class ResourceApiClientTest {
   @Test
   public void getByResourceId() throws JsonProcessingException {
 
-    Resource expectedResource = podamFactory.manufacturePojo(Resource.class);
+    ResourceDTO expectedResource = podamFactory.manufacturePojo(ResourceDTO.class);
     mockServer.expect(requestTo("/api/tenant/t-1/resources/r-1"))
         .andRespond(withSuccess(
             objectMapper.writeValueAsString(expectedResource), MediaType.APPLICATION_JSON
         ));
 
-    final Resource resource = resourceApiClient.getByResourceId("t-1", "r-1");
+    final ResourceDTO resource = resourceApiClient.getByResourceId("t-1", "r-1");
 
     assertThat(resource, equalTo(expectedResource));
   }
@@ -88,15 +87,15 @@ public class ResourceApiClientTest {
     mockServer.expect(requestTo("/api/tenant/t-1/resources/r-not-here"))
         .andRespond(withStatus(HttpStatus.NOT_FOUND));
 
-    final Resource resource = resourceApiClient.getByResourceId("t-1", "r-not-here");
+    final ResourceDTO resource = resourceApiClient.getByResourceId("t-1", "r-not-here");
 
     assertThat(resource, nullValue());
   }
 
   @Test
   public void testGetResourcesWithLabels() throws JsonProcessingException {
-    final List<Resource> expectedResources = IntStream.range(0, 4)
-        .mapToObj(value -> podamFactory.manufacturePojo(Resource.class))
+    final List<ResourceDTO> expectedResources = IntStream.range(0, 4)
+        .mapToObj(value -> podamFactory.manufacturePojo(ResourceDTO.class))
         .collect(Collectors.toList());
 
     mockServer.expect(requestTo("/api/tenant/t-1/resourceLabels?env=prod"))
@@ -104,7 +103,7 @@ public class ResourceApiClientTest {
             objectMapper.writeValueAsString(expectedResources), MediaType.APPLICATION_JSON
         ));
 
-    final List<Resource> resources = resourceApiClient
+    final List<ResourceDTO> resources = resourceApiClient
         .getResourcesWithLabels("t-1", Collections.singletonMap("env", "prod"));
 
     assertThat(resources, equalTo(expectedResources));
@@ -112,12 +111,12 @@ public class ResourceApiClientTest {
 
   @Test
   public void testGetExpectedEnvoys() throws JsonProcessingException {
-    final List<Resource> expectedResources = IntStream.range(0, 4)
-            .mapToObj(value -> podamFactory.manufacturePojo(Resource.class))
+    final List<ResourceDTO> expectedResources = IntStream.range(0, 4)
+            .mapToObj(value -> podamFactory.manufacturePojo(ResourceDTO.class))
             .collect(Collectors.toList());
 
     StringBuilder responseStream = new StringBuilder();
-    for (Resource r : expectedResources) {
+    for (ResourceDTO r : expectedResources) {
       String line = String.format("%s%s\n", SSEHdr, objectMapper.writeValueAsString(r));
       responseStream.append(line);
     }
@@ -125,7 +124,7 @@ public class ResourceApiClientTest {
     mockServer.expect(requestTo("/api/envoys"))
             .andRespond(withSuccess(responseStream.toString(), MediaType.TEXT_EVENT_STREAM));
 
-    final List<Resource> resources = resourceApiClient.getExpectedEnvoys();
+    final List<ResourceDTO> resources = resourceApiClient.getExpectedEnvoys();
 
     assertThat(resources.size(), equalTo(expectedResources.size()));
     assertThat(resources, equalTo(expectedResources));

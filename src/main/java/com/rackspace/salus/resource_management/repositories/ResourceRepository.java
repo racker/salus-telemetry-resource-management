@@ -16,7 +16,7 @@
 
 package com.rackspace.salus.resource_management.repositories;
 
-import com.rackspace.salus.telemetry.model.Resource;
+import com.rackspace.salus.resource_management.entities.Resource;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.domain.Page;

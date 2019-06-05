@@ -16,7 +16,7 @@
 
 package com.rackspace.salus.resource_management.web.error;
 
-import com.rackspace.salus.telemetry.errors.ResourceAlreadyExists;
+import com.rackspace.salus.resource_management.errors.ResourceAlreadyExists;
 import com.rackspace.salus.telemetry.model.NotFoundException;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;

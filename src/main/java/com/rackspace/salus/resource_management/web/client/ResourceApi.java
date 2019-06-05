@@ -16,7 +16,8 @@
 
 package com.rackspace.salus.resource_management.web.client;
 
-import com.rackspace.salus.telemetry.model.Resource;
+import com.rackspace.salus.resource_management.entities.Resource;
+import com.rackspace.salus.resource_management.web.model.ResourceDTO;
 import java.util.List;
 import java.util.Map;
 
@@ -28,11 +29,11 @@ import java.util.Map;
  */
 public interface ResourceApi {
 
-  Resource getByResourceId(String tenantId,
+  ResourceDTO getByResourceId(String tenantId,
                            String resourceId);
 
-  List<Resource> getResourcesWithLabels(String tenantId,
+  List<ResourceDTO> getResourcesWithLabels(String tenantId,
                                         Map<String, String> labels);
 
-  List<Resource> getExpectedEnvoys();
+  List<ResourceDTO> getExpectedEnvoys();
 }
