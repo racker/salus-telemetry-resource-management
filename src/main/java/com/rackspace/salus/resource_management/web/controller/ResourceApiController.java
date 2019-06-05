@@ -22,7 +22,7 @@ import com.rackspace.salus.resource_management.web.client.ResourceApi;
 import com.rackspace.salus.resource_management.web.model.ResourceCreate;
 import com.rackspace.salus.resource_management.web.model.ResourceDTO;
 import com.rackspace.salus.resource_management.web.model.ResourceUpdate;
-import com.rackspace.salus.resource_management.errors.ResourceAlreadyExists;
+import com.rackspace.salus.telemetry.errors.AlreadyExistsException;
 import com.rackspace.salus.telemetry.model.NotFoundException;
 import com.rackspace.salus.resource_management.entities.Resource;
 import com.rackspace.salus.telemetry.model.PagedContent;
@@ -134,7 +134,7 @@ public class ResourceApiController implements ResourceApi {
     @JsonView(View.Public.class)
     public ResourceDTO create(@PathVariable String tenantId,
                            @Valid @RequestBody final ResourceCreate input)
-            throws IllegalArgumentException, ResourceAlreadyExists {
+            throws IllegalArgumentException, AlreadyExistsException {
         return resourceManagement.createResource(tenantId, input).toDTO();
     }
 

@@ -16,7 +16,7 @@
 
 package com.rackspace.salus.resource_management.web.error;
 
-import com.rackspace.salus.resource_management.errors.ResourceAlreadyExists;
+import com.rackspace.salus.telemetry.errors.AlreadyExistsException;
 import com.rackspace.salus.telemetry.model.NotFoundException;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -31,7 +31,7 @@ import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExcep
 public class RestExceptionHandler
         extends ResponseEntityExceptionHandler {
 
-    @ExceptionHandler(value = { IllegalArgumentException.class, IllegalStateException.class, ResourceAlreadyExists.class})
+    @ExceptionHandler(value = { IllegalArgumentException.class, IllegalStateException.class, AlreadyExistsException.class})
     protected ResponseEntity<Object> handleBadRequest(
             RuntimeException ex, WebRequest request) {
         GenericError error = new GenericError(ex.getMessage());
