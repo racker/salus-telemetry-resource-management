@@ -42,6 +42,7 @@ import com.rackspace.salus.resource_management.services.ResourceManagement;
 import com.rackspace.salus.resource_management.web.model.ResourceCreate;
 import com.rackspace.salus.resource_management.web.model.ResourceUpdate;
 import com.rackspace.salus.resource_management.entities.Resource;
+import com.rackspace.salus.telemetry.errors.AlreadyExistsException;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -222,6 +223,25 @@ public class ResourceApiControllerTest {
         .andExpect(status().isCreated())
         .andExpect(content()
             .contentTypeCompatibleWith(MediaType.APPLICATION_JSON));
+
+    verify(resourceManagement).createResource(tenantId, create);
+    verifyNoMoreInteractions(resourceManagement);
+  }
+
+  @Test
+  public void testCreateDuplicateResource() throws Exception {
+    String error = "Zone already exists with name z-1 on tenant t-1";
+    when(resourceManagement.createResource(anyString(), any()))
+        .thenThrow(new AlreadyExistsException(error));
+
+    String tenantId = RandomStringUtils.randomAlphabetic( 8 );
+    ResourceCreate create = podamFactory.manufacturePojo(ResourceCreate.class);
+
+    mockMvc.perform(post("/api/tenant/{tenantId}/resources", tenantId)
+        .content(objectMapper.writeValueAsString(create))
+        .contentType(MediaType.APPLICATION_JSON)
+        .characterEncoding(StandardCharsets.UTF_8.name()))
+        .andExpect(status().isUnprocessableEntity());
 
     verify(resourceManagement).createResource(tenantId, create);
     verifyNoMoreInteractions(resourceManagement);
