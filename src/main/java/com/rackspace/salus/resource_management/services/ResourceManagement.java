@@ -21,7 +21,7 @@ import static com.rackspace.salus.telemetry.model.LabelNamespaces.labelHasNamesp
 import com.rackspace.salus.resource_management.repositories.ResourceRepository;
 import com.rackspace.salus.resource_management.web.model.ResourceCreate;
 import com.rackspace.salus.resource_management.web.model.ResourceUpdate;
-import com.rackspace.salus.resource_management.errors.ResourceAlreadyExists;
+import com.rackspace.salus.telemetry.errors.AlreadyExistsException;
 import com.rackspace.salus.telemetry.messaging.AttachEvent;
 import com.rackspace.salus.telemetry.messaging.ResourceEvent;
 import com.rackspace.salus.telemetry.model.LabelNamespaces;
@@ -175,11 +175,11 @@ public class ResourceManagement {
      * @param newResource The resource parameters to store.
      * @return The newly created resource.
      * @throws IllegalArgumentException
-     * @throws ResourceAlreadyExists
+     * @throws AlreadyExistsException
      */
-    public Resource createResource(String tenantId, @Valid ResourceCreate newResource) throws IllegalArgumentException, ResourceAlreadyExists {
+    public Resource createResource(String tenantId, @Valid ResourceCreate newResource) throws IllegalArgumentException, AlreadyExistsException {
         if (exists(tenantId, newResource.getResourceId())) {
-            throw new ResourceAlreadyExists(String.format("Resource already exists with identifier %s on tenant %s",
+            throw new AlreadyExistsException(String.format("Resource already exists with identifier %s on tenant %s",
                     newResource.getResourceId(), tenantId));
         }
 
