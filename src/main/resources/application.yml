@@ -16,6 +16,8 @@ spring:
   jackson:
     mapper:
       default-view-inclusion: true
+  application:
+    name: salus-telemetry-resource-management
 logging:
   level:
     web: debug
