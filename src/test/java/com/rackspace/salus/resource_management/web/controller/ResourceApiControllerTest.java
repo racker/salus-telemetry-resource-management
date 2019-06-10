@@ -17,6 +17,7 @@
 package com.rackspace.salus.resource_management.web.controller;
 
 import static com.rackspace.salus.resource_management.TestUtils.readContent;
+import static com.rackspace.salus.test.WebTestUtils.validationError;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasSize;
@@ -38,10 +39,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.rackspace.salus.resource_management.entities.Resource;
 import com.rackspace.salus.resource_management.services.ResourceManagement;
 import com.rackspace.salus.resource_management.web.model.ResourceCreate;
 import com.rackspace.salus.resource_management.web.model.ResourceUpdate;
-import com.rackspace.salus.resource_management.entities.Resource;
 import com.rackspace.salus.telemetry.errors.AlreadyExistsException;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
@@ -254,16 +255,14 @@ public class ResourceApiControllerTest {
     ResourceCreate create = podamFactory.manufacturePojo(ResourceCreate.class);
     create.setResourceId(null);
 
-    String errorMsg = "\"resourceId\" may not be empty";
-
     mockMvc.perform(post("/api/tenant/{tenantId}/resources", tenantId)
         .content(objectMapper.writeValueAsString(create))
         .contentType(MediaType.APPLICATION_JSON)
         .characterEncoding(StandardCharsets.UTF_8.name()))
         .andExpect(status().isBadRequest())
-        .andExpect(content()
-            .contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
-        .andExpect(jsonPath("$.message", is(errorMsg)));
+        .andExpect(validationError(
+            "resourceId", "may not be empty"
+        ));
 
     verifyNoMoreInteractions(resourceManagement);
   }
@@ -275,16 +274,13 @@ public class ResourceApiControllerTest {
     ResourceCreate create = podamFactory.manufacturePojo(ResourceCreate.class);
     create.setPresenceMonitoringEnabled(null);
 
-    String errorMsg = "\"presenceMonitoringEnabled\" must not be null";
-
     mockMvc.perform(post("/api/tenant/{tenantId}/resources", tenantId)
         .content(objectMapper.writeValueAsString(create))
         .contentType(MediaType.APPLICATION_JSON)
         .characterEncoding(StandardCharsets.UTF_8.name()))
         .andExpect(status().isBadRequest())
-        .andExpect(content()
-            .contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
-        .andExpect(jsonPath("$.message", is(errorMsg)));
+        .andExpect(validationError(
+            "presenceMonitoringEnabled", "must not be null"));
 
     verifyNoMoreInteractions(resourceManagement);
   }
