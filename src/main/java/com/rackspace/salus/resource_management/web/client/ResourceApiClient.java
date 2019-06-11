@@ -18,12 +18,14 @@ package com.rackspace.salus.resource_management.web.client;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.rackspace.salus.resource_management.web.model.ResourceDTO;
+import com.rackspace.salus.telemetry.model.PagedContent;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpMethod;
@@ -62,8 +64,8 @@ import org.springframework.web.util.UriComponentsBuilder;
 @Slf4j
 public class ResourceApiClient implements ResourceApi {
 
-  private static final ParameterizedTypeReference<List<ResourceDTO>> LIST_OF_RESOURCE =
-      new ParameterizedTypeReference<List<ResourceDTO>>() {};
+  private static final ParameterizedTypeReference<PagedContent<ResourceDTO>> PAGE_OF_RESOURCE =
+      new ParameterizedTypeReference<PagedContent<ResourceDTO>>() {};
 
   private ObjectMapper objectMapper;
   private final RestTemplate restTemplate;
@@ -100,14 +102,14 @@ public class ResourceApiClient implements ResourceApi {
       uriComponentsBuilder.queryParam(e.getKey(), e.getValue());
     }
     String uriString = uriComponentsBuilder.buildAndExpand(tenantId).toUriString();
-    ResponseEntity<List<ResourceDTO>> resp = restTemplate.exchange(
+    ResponseEntity<PagedContent<ResourceDTO>> resp = restTemplate.exchange(
         uriString,
         HttpMethod.GET,
         null,
-        LIST_OF_RESOURCE
+        PAGE_OF_RESOURCE
     );
 
-    return resp.getBody();
+    return Objects.requireNonNull(resp.getBody()).getContent();
   }
 
   @Override

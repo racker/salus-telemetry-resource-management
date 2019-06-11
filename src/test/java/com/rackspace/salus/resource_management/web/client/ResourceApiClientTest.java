@@ -25,6 +25,7 @@ import static org.springframework.test.web.client.response.MockRestResponseCreat
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.rackspace.salus.resource_management.web.model.ResourceDTO;
+import com.rackspace.salus.telemetry.model.PagedContent;
 import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -37,6 +38,8 @@ import org.springframework.boot.test.autoconfigure.web.client.RestClientTest;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.web.client.RestTemplateBuilder;
 import org.springframework.context.annotation.Bean;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.junit4.SpringRunner;
@@ -98,9 +101,13 @@ public class ResourceApiClientTest {
         .mapToObj(value -> podamFactory.manufacturePojo(ResourceDTO.class))
         .collect(Collectors.toList());
 
+    final PagedContent<ResourceDTO> result = PagedContent.fromPage(
+        new PageImpl<>(expectedResources, Pageable.unpaged(), expectedResources.size())
+    );
+
     mockServer.expect(requestTo("/api/tenant/t-1/resourceLabels?env=prod"))
         .andRespond(withSuccess(
-            objectMapper.writeValueAsString(expectedResources), MediaType.APPLICATION_JSON
+            objectMapper.writeValueAsString(result), MediaType.APPLICATION_JSON
         ));
 
     final List<ResourceDTO> resources = resourceApiClient
