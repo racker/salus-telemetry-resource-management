@@ -21,7 +21,6 @@ import static com.rackspace.salus.telemetry.model.LabelNamespaces.applyNamespace
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.hasEntry;
-import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.hamcrest.Matchers.nullValue;
 import static org.junit.Assert.assertEquals;
@@ -72,6 +71,7 @@ import org.springframework.test.context.junit4.SpringRunner;
 import uk.co.jemos.podam.api.PodamFactory;
 import uk.co.jemos.podam.api.PodamFactoryImpl;
 
+@SuppressWarnings("OptionalGetWithoutIsPresent")
 @RunWith(SpringRunner.class)
 @DataJpaTest
 @Import({ResourceManagement.class})
@@ -250,11 +250,11 @@ public class ResourceManagementTest {
 
         final Map<String, String> labelsToQuery = new HashMap<>();
         labelsToQuery.put("os", "DARWIN");
-        final List<Resource> resourceIdsWithEnvoyLabels = resourceManagement
-            .getResourcesFromLabels(labelsToQuery, "tenant-1");
+        final Page<Resource> resourceIdsWithEnvoyLabels = resourceManagement
+            .getResourcesFromLabels(labelsToQuery, "tenant-1", Pageable.unpaged());
 
-        assertThat(resourceIdsWithEnvoyLabels, hasSize(1));
-        assertThat(resourceIdsWithEnvoyLabels.get(0).getResourceId(), equalTo("development:0"));
+        assertThat(resourceIdsWithEnvoyLabels.getTotalElements(), equalTo(1L));
+        assertThat(resourceIdsWithEnvoyLabels.getContent().get(0).getResourceId(), equalTo("development:0"));
     }
 
     @Test
@@ -278,10 +278,10 @@ public class ResourceManagementTest {
         labelsToQuery.put("os", "DARWIN");
         labelsToQuery.put("environment", "localdev");
         labelsToQuery.put("arch", "X86_64");
-        final List<Resource> resourceIdsWithEnvoyLabels = resourceManagement
-                .getResourcesFromLabels(labelsToQuery, "tenant-1");
+        final Page<Resource> resourceIdsWithEnvoyLabels = resourceManagement
+                .getResourcesFromLabels(labelsToQuery, "tenant-1", Pageable.unpaged());
 
-        assertEquals(0, resourceIdsWithEnvoyLabels.size());
+        assertEquals(0L, resourceIdsWithEnvoyLabels.getTotalElements());
 
     }
 
@@ -570,9 +570,9 @@ public class ResourceManagementTest {
         String tenantId = RandomStringUtils.randomAlphanumeric(10);
         resourceManagement.createResource(tenantId, create);
         entityManager.flush();
-        List<Resource> resources = resourceManagement.getResourcesFromLabels(labels, tenantId);
-        assertEquals(1, resources.size());
-        assertEquals(metadata, resources.get(0).getMetadata());
+        Page<Resource> resources = resourceManagement.getResourcesFromLabels(labels, tenantId, Pageable.unpaged());
+        assertEquals(1L, resources.getTotalElements());
+        assertEquals(metadata, resources.getContent().get(0).getMetadata());
         assertNotNull(resources);
     }
 
@@ -588,10 +588,10 @@ public class ResourceManagementTest {
         resourceManagement.createResource(tenantId, create);
         resourceManagement.createResource(tenantId2, create);
 
-        List<Resource> resources = resourceManagement.getResourcesFromLabels(labels, tenantId);
-        assertEquals(1, resources.size()); //make sure we only returned the one value
-        assertEquals(tenantId, resources.get(0).getTenantId());
-        assertEquals(create.getResourceId(), resources.get(0).getResourceId());
+        Page<Resource> resources = resourceManagement.getResourcesFromLabels(labels, tenantId, Pageable.unpaged());
+        assertEquals(1L, resources.getTotalElements()); //make sure we only returned the one value
+        assertEquals(tenantId, resources.getContent().get(0).getTenantId());
+        assertEquals(create.getResourceId(), resources.getContent().get(0).getResourceId());
     }
 
     @Test
@@ -606,11 +606,11 @@ public class ResourceManagementTest {
         resourceManagement.createResource(tenantId, create);
         entityManager.flush();
 
-        List<Resource> resources = resourceManagement.getResourcesFromLabels(labels, tenantId);
-        assertEquals(1, resources.size()); //make sure we only returned the one value
-        assertEquals(tenantId, resources.get(0).getTenantId());
-        assertEquals(create.getResourceId(), resources.get(0).getResourceId());
-        assertEquals(labels, resources.get(0).getLabels());
+        Page<Resource> resources = resourceManagement.getResourcesFromLabels(labels, tenantId, Pageable.unpaged());
+        assertEquals(1L, resources.getTotalElements()); //make sure we only returned the one value
+        assertEquals(tenantId, resources.getContent().get(0).getTenantId());
+        assertEquals(create.getResourceId(), resources.getContent().get(0).getResourceId());
+        assertEquals(labels, resources.getContent().get(0).getLabels());
     }
 
     @Test
@@ -629,8 +629,8 @@ public class ResourceManagementTest {
         resourceManagement.createResource(tenantId, create);
         entityManager.flush();
 
-        List<Resource> resources = resourceManagement.getResourcesFromLabels(labels, tenantId);
-        assertEquals(0, resources.size());
+        Page<Resource> resources = resourceManagement.getResourcesFromLabels(labels, tenantId, Pageable.unpaged());
+        assertEquals(0L, resources.getTotalElements());
     }
 
     @Test
@@ -650,11 +650,11 @@ public class ResourceManagementTest {
         resourceManagement.createResource(tenantId, create);
         entityManager.flush();
 
-        List<Resource> resources = resourceManagement.getResourcesFromLabels(labels, tenantId);
-        assertEquals(1, resources.size()); //make sure we only returned the one value
-        assertEquals(tenantId, resources.get(0).getTenantId());
-        assertEquals(create.getResourceId(), resources.get(0).getResourceId());
-        assertEquals(resourceLabels, resources.get(0).getLabels());
+        Page<Resource> resources = resourceManagement.getResourcesFromLabels(labels, tenantId, Pageable.unpaged());
+        assertEquals(1L, resources.getTotalElements()); //make sure we only returned the one value
+        assertEquals(tenantId, resources.getContent().get(0).getTenantId());
+        assertEquals(create.getResourceId(), resources.getContent().get(0).getResourceId());
+        assertEquals(resourceLabels, resources.getContent().get(0).getLabels());
     }
 
     @Test
@@ -674,8 +674,8 @@ public class ResourceManagementTest {
         resourceManagement.createResource(tenantId, create);
         entityManager.flush();
 
-        List<Resource> resources = resourceManagement.getResourcesFromLabels(labels, tenantId);
-        assertEquals(0, resources.size());
+        Page<Resource> resources = resourceManagement.getResourcesFromLabels(labels, tenantId, Pageable.unpaged());
+        assertEquals(0L, resources.getTotalElements());
     }
 
     @Test
@@ -696,8 +696,8 @@ public class ResourceManagementTest {
         resourceManagement.createResource(tenantId, create);
         entityManager.flush();
 
-        List<Resource> resources = resourceManagement.getResourcesFromLabels(labels, tenantId);
-        assertEquals(0, resources.size());
+        Page<Resource> resources = resourceManagement.getResourcesFromLabels(labels, tenantId, Pageable.unpaged());
+        assertEquals(0L, resources.getTotalElements());
     }
 
     @Test
@@ -712,10 +712,10 @@ public class ResourceManagementTest {
         resourceManagement.createResource(tenantId, create);
         entityManager.flush();
 
-        List<Resource> resources = resourceManagement.getResourcesFromLabels(Collections.emptyMap(), tenantId);
-        assertThat(resources, hasSize(1));
-        assertThat(resources.get(0).getTenantId(), equalTo(tenantId));
-        assertThat(resources.get(0).getResourceId(), equalTo(create.getResourceId()));
+        Page<Resource> resources = resourceManagement.getResourcesFromLabels(Collections.emptyMap(), tenantId, Pageable.unpaged());
+        assertThat(resources.getTotalElements(), equalTo(1L));
+        assertThat(resources.getContent().get(0).getTenantId(), equalTo(tenantId));
+        assertThat(resources.getContent().get(0).getResourceId(), equalTo(create.getResourceId()));
     }
 
     @Test
@@ -737,10 +737,12 @@ public class ResourceManagementTest {
         resourceRepository.saveAll(resourcesToSave);
         entityManager.flush();
 
-        List<Resource> resources = resourceManagement.getResourcesFromLabels(
-            Collections.singletonMap("os", "linux"), "testGetResourcesFromLabels_multipleMatches");
-        assertThat(resources, hasSize(10));
-        assertThat(resources.get(0).getTenantId(), equalTo("testGetResourcesFromLabels_multipleMatches"));
+        Page<Resource> resources = resourceManagement.getResourcesFromLabels(
+            Collections.singletonMap("os", "linux"),
+            "testGetResourcesFromLabels_multipleMatches",
+            Pageable.unpaged());
+        assertThat(resources.getTotalElements(), equalTo(10L));
+        assertThat(resources.getContent().get(0).getTenantId(), equalTo("testGetResourcesFromLabels_multipleMatches"));
     }
 
   @Test(expected = IllegalArgumentException.class)

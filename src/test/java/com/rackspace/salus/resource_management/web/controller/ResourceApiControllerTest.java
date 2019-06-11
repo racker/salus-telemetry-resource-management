@@ -62,6 +62,7 @@ import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.junit4.SpringRunner;
 import org.springframework.test.web.servlet.MockMvc;
@@ -139,7 +140,7 @@ public class ResourceApiControllerTest {
     int numberOfResources = 20;
     // Use the APIs default Pageable settings
     int page = 0;
-    int pageSize = 100;
+    int pageSize = 20;
     List<Resource> resources = new ArrayList<>();
     for (int i=0; i<numberOfResources; i++) {
       resources.add(podamFactory.manufacturePojo(Resource.class));
@@ -165,7 +166,7 @@ public class ResourceApiControllerTest {
         .andExpect(jsonPath("$.totalPages", equalTo(1)))
         .andExpect(jsonPath("$.totalElements", equalTo(numberOfResources)));
 
-    verify(resourceManagement).getResources(tenantId, PageRequest.of(0, 100));
+    verify(resourceManagement).getResources(tenantId, PageRequest.of(0, 20));
     verifyNoMoreInteractions(resourceManagement);
   }
 
@@ -314,10 +315,10 @@ public class ResourceApiControllerTest {
 
   @Test
   public void testGetAll() throws Exception {
-    int numberOfResources = 20;
+    int numberOfResources = 17;
     // Use the APIs default Pageable settings
     int page = 0;
-    int pageSize = 100;
+    int pageSize = 20;
     List<Resource> resources = new ArrayList<>();
     for (int i=0; i<numberOfResources; i++) {
       resources.add(podamFactory.manufacturePojo(Resource.class));
@@ -332,7 +333,7 @@ public class ResourceApiControllerTest {
     when(resourceManagement.getAllResources(any()))
         .thenReturn(pageOfResources);
 
-    mockMvc.perform(get("/api/resources")
+    mockMvc.perform(get("/api/admin/resources")
         .contentType(MediaType.APPLICATION_JSON))
         .andExpect(status().isOk())
         .andExpect(content()
@@ -341,7 +342,7 @@ public class ResourceApiControllerTest {
         .andExpect(jsonPath("$.totalPages", equalTo(1)))
         .andExpect(jsonPath("$.totalElements", equalTo(numberOfResources)));
 
-    verify(resourceManagement).getAllResources(PageRequest.of(0, 100));
+    verify(resourceManagement).getAllResources(PageRequest.of(0, 20));
     verifyNoMoreInteractions(resourceManagement);
   }
 
@@ -386,8 +387,8 @@ public class ResourceApiControllerTest {
         .mapToObj(value -> podamFactory.manufacturePojo(Resource.class))
         .collect(Collectors.toList());
 
-    when(resourceManagement.getResourcesFromLabels(any(), any()))
-        .thenReturn(expectedResources);
+    when(resourceManagement.getResourcesFromLabels(any(), any(), any()))
+        .thenReturn(new PageImpl<>(expectedResources, Pageable.unpaged(), expectedResources.size()));
 
     mockMvc.perform(get(
         "/api/tenant/{tenantId}/resourceLabels?env=prod",
@@ -397,7 +398,8 @@ public class ResourceApiControllerTest {
 
     verify(resourceManagement).getResourcesFromLabels(
         Collections.singletonMap("env", "prod"),
-        "t-1"
+        "t-1",
+        PageRequest.of(0, 20)
     );
 
     verifyNoMoreInteractions(resourceManagement);
