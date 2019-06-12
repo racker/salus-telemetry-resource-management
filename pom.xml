@@ -214,6 +214,7 @@
           <mainClass>com.rackspace.salus.salus_tools.converter.SwaggerJsonConverter</mainClass>
           <arguments>
             <argument>${project.build.directory}/generated/swagger</argument>
+            <argument>${basedir}/templates/strapdown.html.hbs</argument>
             <argument>/tenant/{tenantId}=</argument>
           </arguments>
         </configuration>
