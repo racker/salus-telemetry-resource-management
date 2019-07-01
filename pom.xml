@@ -120,6 +120,7 @@
       <groupId>com.rackspace.salus</groupId>
       <artifactId>salus-test</artifactId>
       <version>0.1.0-SNAPSHOT</version>
+      <scope>test</scope>
     </dependency>
   </dependencies>
 
