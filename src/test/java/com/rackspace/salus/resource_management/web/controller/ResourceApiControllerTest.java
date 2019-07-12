@@ -387,7 +387,7 @@ public class ResourceApiControllerTest {
         .thenReturn(new PageImpl<>(expectedResources, Pageable.unpaged(), expectedResources.size()));
 
     mockMvc.perform(get(
-        "/api/tenant/{tenantId}/resourceLabels?env=prod",
+        "/api/tenant/{tenantId}/resources-by-label?env=prod",
         "t-1"
     ).accept(MediaType.APPLICATION_JSON))
         .andExpect(status().isOk());

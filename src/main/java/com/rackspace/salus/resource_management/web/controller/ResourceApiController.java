@@ -150,7 +150,7 @@ public class ResourceApiController {
     resourceManagement.removeResource(tenantId, resourceId);
   }
 
-  @GetMapping("/tenant/{tenantId}/resourceLabels")
+  @GetMapping("/tenant/{tenantId}/resources-by-label")
   @JsonView(View.Public.class)
   public PagedContent<ResourceDTO> getResourcesWithLabels(@PathVariable String tenantId,
       @RequestParam Map<String, String> labels, Pageable pageable) {
