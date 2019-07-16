@@ -163,18 +163,21 @@ public class ResourceApiController {
   }
 
   @GetMapping("/tenant/{tenantId}/resource-labels")
+  @ApiOperation("Lists the label keys and the values for each that are currently in use on resources")
   @JsonView(View.Public.class)
   public MultiValueMap<String,String> getResourceLabels(@PathVariable String tenantId) {
     return resourceManagement.getTenantResourceLabels(tenantId);
   }
 
   @GetMapping("/tenant/{tenantId}/resource-metadata-keys")
+  @ApiOperation("Lists the metadata keys current in use on resources")
   @JsonView(View.Public.class)
   public List<String> getResourceMetadataKeys(@PathVariable String tenantId) {
     return resourceManagement.getTenantResourceMetadataKeys(tenantId);
   }
 
   @GetMapping("/tenant/{tenantId}/resource-label-namespaces")
+  @ApiOperation("Lists the label namespaces that are reserved for use by the system")
   public Collection<String> getLabelNamespaces(@PathVariable String tenantId) {
     return resourceManagement.getLabelNamespaces();
   }
