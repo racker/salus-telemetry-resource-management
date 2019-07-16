@@ -18,6 +18,7 @@ package com.rackspace.salus.resource_management.services;
 
 import static com.rackspace.salus.telemetry.model.LabelNamespaces.labelHasNamespace;
 
+import com.rackspace.salus.resource_management.config.ResourceManagementProperties;
 import com.rackspace.salus.resource_management.repositories.ResourceRepository;
 import com.rackspace.salus.resource_management.web.model.ResourceCreate;
 import com.rackspace.salus.resource_management.web.model.ResourceUpdate;
@@ -28,6 +29,7 @@ import com.rackspace.salus.telemetry.model.LabelNamespaces;
 import com.rackspace.salus.telemetry.model.NotFoundException;
 import com.rackspace.salus.resource_management.entities.Resource;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -38,6 +40,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import javax.persistence.EntityManager;
 import javax.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -49,6 +52,8 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.util.LinkedMultiValueMap;
+import org.springframework.util.MultiValueMap;
 
 @Slf4j
 @Service
@@ -57,15 +62,20 @@ public class ResourceManagement {
   private final KafkaEgress kafkaEgress;
 
   JdbcTemplate jdbcTemplate;
+  private final EntityManager entityManager;
+  private final ResourceManagementProperties resourceManagementProperties;
 
   @Autowired
   public ResourceManagement(ResourceRepository resourceRepository,
-      KafkaEgress kafkaEgress,
-      JdbcTemplate jdbcTemplate) {
+                            KafkaEgress kafkaEgress,
+                            JdbcTemplate jdbcTemplate,
+                            EntityManager entityManager,
+                            ResourceManagementProperties resourceManagementProperties) {
     this.resourceRepository = resourceRepository;
     this.kafkaEgress = kafkaEgress;
     this.jdbcTemplate = jdbcTemplate;
-
+    this.entityManager = entityManager;
+    this.resourceManagementProperties = resourceManagementProperties;
   }
 
   private void publishResourceEvent(ResourceEvent event) {
@@ -439,6 +449,40 @@ public class ResourceManagement {
     return getPagedResults(resources, page);
   }
 
+  public MultiValueMap<String, String> getTenantResourceLabels(String tenantId) {
+    final List<Map.Entry> distinctLabelTuples = entityManager.createNamedQuery(
+        "resourceGetDistinctLabels", Map.Entry.class)
+        .setParameter("tenantId", tenantId)
+        .getResultList();
+
+    final MultiValueMap<String,String> combined = new LinkedMultiValueMap<>();
+    for (Entry entry : distinctLabelTuples) {
+      combined.add((String)entry.getKey(), (String)entry.getValue());
+    }
+    return combined;
+  }
+
+  public List<String> getTenantResourceMetadataKeys(String tenantId) {
+    /*
+    NOTE: since metadata is stored as a json text column there's not really an efficient way
+    to pull out just the metadata keys. As a result, the following iterates over just the
+    metadata of the tenant's resources and picks out the distinct keys.
+     */
+    @SuppressWarnings("unchecked")
+    final Stream<Map<String,String>> resultStream = entityManager
+        .createNamedQuery("resourceGetMetadata")
+        .setParameter("tenantId", tenantId)
+        .setHint("org.hibernate.fetchSize", resourceManagementProperties.getResourceMetadataFetchSize())
+        .getResultStream();
+
+    return resultStream
+        .flatMap(map -> map.keySet().stream()
+            .map(k -> (String) k)
+        )
+        .distinct()
+        .collect(Collectors.toList());
+  }
+
   /**
    * Converts a list of resources into a Page containing only the requested elements.
    * @param resources The full list of resources found.
@@ -465,4 +509,7 @@ public class ResourceManagement {
     }
   }
 
+  public Collection<String> getLabelNamespaces() {
+    return LabelNamespaces.getNamespaces();
+  }
 }
