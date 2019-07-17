@@ -32,6 +32,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 
 import com.google.common.collect.Maps;
+import com.rackspace.salus.resource_management.config.ResourceManagementProperties;
 import com.rackspace.salus.resource_management.repositories.ResourceRepository;
 import com.rackspace.salus.resource_management.services.KafkaEgress;
 import com.rackspace.salus.resource_management.services.ResourceManagement;
@@ -42,6 +43,7 @@ import com.rackspace.salus.telemetry.messaging.ResourceEvent;
 import com.rackspace.salus.telemetry.model.LabelNamespaces;
 import com.rackspace.salus.telemetry.model.NotFoundException;
 import com.rackspace.salus.resource_management.entities.Resource;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -68,13 +70,15 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.test.context.junit4.SpringRunner;
+import org.springframework.util.LinkedMultiValueMap;
+import org.springframework.util.MultiValueMap;
 import uk.co.jemos.podam.api.PodamFactory;
 import uk.co.jemos.podam.api.PodamFactoryImpl;
 
 @SuppressWarnings("OptionalGetWithoutIsPresent")
 @RunWith(SpringRunner.class)
 @DataJpaTest
-@Import({ResourceManagement.class})
+@Import({ResourceManagement.class, ResourceManagementProperties.class})
 public class ResourceManagementTest {
 
     public static final String TENANT = "abcde";
@@ -751,4 +755,76 @@ public class ResourceManagementTest {
         .setLabels(Collections.singletonMap(LabelNamespaces.EVENT_ENGINE_TAGS + "_account", "HackedAccount"));
     resourceManagement.updateResource(TENANT, RESOURCE_ID, update);
   }
+
+    @Test
+    public void testGetTenantResourceLabels() {
+        Map<String, String> labels1 = new HashMap<>();
+        labels1.put("key1", "value-1-1");
+        labels1.put("key2", "value-2-1");
+        labels1.put("key3", "value-3-1");
+        persistResource("t-1", "r-1", labels1, Collections.emptyMap());
+        Map<String, String> labels2 = new HashMap<>();
+        labels2.put("key1", "value-1-1");
+        labels2.put("key2", "value-2-2");
+        labels2.put("key3", "value-3-2");
+        persistResource("t-1", "r-2", labels2, Collections.emptyMap());
+        Map<String, String> labels3 = new HashMap<>();
+        labels3.put("key1", "value-1-2");
+        labels3.put("key2", "value-2-2");
+        labels3.put("key3", "value-3-2");
+        persistResource("t-1", "r-3", labels3, Collections.emptyMap());
+        Map<String, String> labels4 = new HashMap<>();
+        labels4.put("key1", "value-1-x");
+        labels4.put("key2", "value-2-x");
+        labels4.put("key3", "value-3-x");
+        persistResource("t-2", "r-4", labels4, Collections.emptyMap());
+
+        entityManager.flush();
+
+        final MultiValueMap<String, String> results = resourceManagement
+            .getTenantResourceLabels("t-1");
+
+        final MultiValueMap<String, String> expected = new LinkedMultiValueMap<>();
+        expected.put("key1", Arrays.asList("value-1-1", "value-1-2"));
+        expected.put("key2", Arrays.asList("value-2-1", "value-2-2"));
+        expected.put("key3", Arrays.asList("value-3-1", "value-3-2"));
+        assertThat(results, equalTo(expected));
+    }
+
+    @Test
+    public void testGetTenantResourceMetadataKeys() {
+        Map<String, String> metadata1 = new HashMap<>();
+        metadata1.put("key1", "value-1-1");
+        persistResource("t-1", "r-1", Collections.emptyMap(), metadata1);
+        Map<String, String> metadata2 = new HashMap<>();
+        metadata2.put("key2", "value-2-2");
+        persistResource("t-1", "r-2", Collections.emptyMap(), metadata2);
+        Map<String, String> metadata3 = new HashMap<>();
+        metadata3.put("key2", "value-2-2");
+        metadata3.put("key3", "value-3-2");
+        persistResource("t-1", "r-3", Collections.emptyMap(), metadata3);
+        Map<String, String> metadata4 = new HashMap<>();
+        metadata4.put("key1", "value-1-x");
+        metadata4.put("key2", "value-2-x");
+        persistResource("t-2", "r-4", Collections.emptyMap(), metadata4);
+
+        entityManager.flush();
+
+        final List<String> results = resourceManagement
+            .getTenantResourceMetadataKeys("t-1");
+
+        assertThat(results, equalTo(Arrays.asList("key1", "key2", "key3")));
+    }
+
+    private void persistResource(String tenantId, String resourceId, Map<String, String> labels,
+                                 Map<String, String> metadata) {
+        entityManager.persist(
+            new Resource()
+                .setTenantId(tenantId)
+                .setResourceId(resourceId)
+                .setLabels(labels)
+                .setMetadata(metadata)
+                .setPresenceMonitoringEnabled(true)
+        );
+    }
 }

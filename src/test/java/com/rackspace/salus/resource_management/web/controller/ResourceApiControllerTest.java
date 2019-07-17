@@ -47,6 +47,7 @@ import com.rackspace.salus.telemetry.errors.AlreadyExistsException;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
@@ -67,6 +68,8 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.junit4.SpringRunner;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.util.LinkedMultiValueMap;
+import org.springframework.util.MultiValueMap;
 import uk.co.jemos.podam.api.PodamFactory;
 import uk.co.jemos.podam.api.PodamFactoryImpl;
 
@@ -397,6 +400,69 @@ public class ResourceApiControllerTest {
         "t-1",
         PageRequest.of(0, 20)
     );
+
+    verifyNoMoreInteractions(resourceManagement);
+  }
+
+  @Test
+  public void testGetResourceLabels() throws Exception {
+    final MultiValueMap<String, String> expected = new LinkedMultiValueMap<>();
+    expected.put("agent_discovered_os", Arrays.asList("linux", "darwin", "windows"));
+    expected.put("agent_discovered_arch", Arrays.asList("amd64", "386"));
+    expected.put("cluster", Arrays.asList("dev", "prod"));
+
+    when(resourceManagement.getTenantResourceLabels(any()))
+        .thenReturn(expected);
+
+    mockMvc.perform(get(
+        "/api/tenant/{tenantId}/resource-labels",
+        "t-1"
+    ).accept(MediaType.APPLICATION_JSON))
+        .andExpect(status().isOk())
+        .andExpect(
+            content().json(readContent("/ResourceApiControllerTest/resource_labels.json"), true));
+
+    verify(resourceManagement).getTenantResourceLabels("t-1");
+
+    verifyNoMoreInteractions(resourceManagement);
+  }
+
+  @Test
+  public void testGetResourceMetadataKeys() throws Exception {
+    final List<String> expected = Arrays.asList("key1", "key2", "key3");
+
+    when(resourceManagement.getTenantResourceMetadataKeys(any()))
+        .thenReturn(expected);
+
+    mockMvc.perform(get(
+        "/api/tenant/{tenantId}/resource-metadata-keys",
+        "t-1"
+    ).accept(MediaType.APPLICATION_JSON))
+        .andExpect(status().isOk())
+        .andExpect(
+            content().json(readContent("/ResourceApiControllerTest/resource_metadata_keys.json"), true));
+
+    verify(resourceManagement).getTenantResourceMetadataKeys("t-1");
+
+    verifyNoMoreInteractions(resourceManagement);
+  }
+
+  @Test
+  public void testGetLabelNamespaces() throws Exception {
+    final List<String> expected = Arrays.asList("agent", "system");
+
+    when(resourceManagement.getLabelNamespaces())
+        .thenReturn(expected);
+
+    mockMvc.perform(get(
+        "/api/tenant/{tenantId}/resource-label-namespaces",
+        "t-1"
+    ).accept(MediaType.APPLICATION_JSON))
+        .andExpect(status().isOk())
+        .andExpect(
+            content().json(readContent("/ResourceApiControllerTest/label_namespaces.json"), true));
+
+    verify(resourceManagement).getLabelNamespaces();
 
     verifyNoMoreInteractions(resourceManagement);
   }

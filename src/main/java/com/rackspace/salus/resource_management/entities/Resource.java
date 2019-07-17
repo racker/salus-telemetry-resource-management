@@ -32,6 +32,8 @@ import javax.persistence.GeneratedValue;
 import javax.persistence.Id;
 import javax.persistence.Index;
 import javax.persistence.JoinColumn;
+import javax.persistence.NamedQueries;
+import javax.persistence.NamedQuery;
 import javax.persistence.Table;
 import javax.persistence.UniqueConstraint;
 import javax.validation.constraints.NotNull;
@@ -52,6 +54,12 @@ import org.hibernate.validator.constraints.NotBlank;
         // also enables indexed query by tenant ID
         @UniqueConstraint(columnNames = {"tenant_id", "resource_id"})
     })
+@NamedQueries({
+    @NamedQuery(name = "Resource.getDistinctLabels",
+    query = "select distinct entry(r.labels) from Resource r where r.tenantId = :tenantId"),
+    @NamedQuery(name = "Resource.getMetadata",
+    query = "select r.metadata from Resource r where r.tenantId = :tenantId")
+})
 @TypeDef(name = "json", typeClass = JsonStringType.class)
 @Data
 public class Resource implements Serializable {

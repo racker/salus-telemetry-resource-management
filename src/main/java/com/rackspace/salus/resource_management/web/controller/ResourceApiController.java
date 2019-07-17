@@ -22,11 +22,14 @@ import com.rackspace.salus.resource_management.web.model.ResourceCreate;
 import com.rackspace.salus.resource_management.web.model.ResourceDTO;
 import com.rackspace.salus.resource_management.web.model.ResourceUpdate;
 import com.rackspace.salus.telemetry.errors.AlreadyExistsException;
+import com.rackspace.salus.telemetry.model.LabelNamespaces;
 import com.rackspace.salus.telemetry.model.NotFoundException;
 import com.rackspace.salus.resource_management.entities.Resource;
 import com.rackspace.salus.telemetry.model.PagedContent;
 import com.rackspace.salus.telemetry.model.View;
 import java.io.IOException;
+import java.util.Collection;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Stream;
@@ -38,6 +41,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.task.TaskExecutor;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
+import org.springframework.util.MultiValueMap;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -156,5 +160,25 @@ public class ResourceApiController {
       @RequestParam Map<String, String> labels, Pageable pageable) {
     return PagedContent.fromPage(resourceManagement.getResourcesFromLabels(labels, tenantId, pageable)
         .map(Resource::toDTO));
+  }
+
+  @GetMapping("/tenant/{tenantId}/resource-labels")
+  @ApiOperation("Lists the label keys and the values for each that are currently in use on resources")
+  @JsonView(View.Public.class)
+  public MultiValueMap<String,String> getResourceLabels(@PathVariable String tenantId) {
+    return resourceManagement.getTenantResourceLabels(tenantId);
+  }
+
+  @GetMapping("/tenant/{tenantId}/resource-metadata-keys")
+  @ApiOperation("Lists the metadata keys current in use on resources")
+  @JsonView(View.Public.class)
+  public List<String> getResourceMetadataKeys(@PathVariable String tenantId) {
+    return resourceManagement.getTenantResourceMetadataKeys(tenantId);
+  }
+
+  @GetMapping("/tenant/{tenantId}/resource-label-namespaces")
+  @ApiOperation("Lists the label namespaces that are reserved for use by the system")
+  public Collection<String> getLabelNamespaces(@PathVariable String tenantId) {
+    return resourceManagement.getLabelNamespaces();
   }
 }

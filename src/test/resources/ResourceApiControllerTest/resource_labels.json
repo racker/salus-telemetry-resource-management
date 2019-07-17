@@ -1,0 +1,15 @@
+{
+  "agent_discovered_os": [
+    "linux",
+    "darwin",
+    "windows"
+  ],
+  "agent_discovered_arch": [
+    "amd64",
+    "386"
+  ],
+  "cluster": [
+    "dev",
+    "prod"
+  ]
+}
