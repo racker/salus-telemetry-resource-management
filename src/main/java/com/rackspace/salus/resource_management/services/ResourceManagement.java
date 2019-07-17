@@ -19,6 +19,7 @@ package com.rackspace.salus.resource_management.services;
 import static com.rackspace.salus.telemetry.model.LabelNamespaces.labelHasNamespace;
 
 import com.rackspace.salus.resource_management.config.ResourceManagementProperties;
+import com.rackspace.salus.resource_management.entities.Resource;
 import com.rackspace.salus.resource_management.repositories.ResourceRepository;
 import com.rackspace.salus.resource_management.web.model.ResourceCreate;
 import com.rackspace.salus.resource_management.web.model.ResourceUpdate;
@@ -27,7 +28,6 @@ import com.rackspace.salus.telemetry.messaging.AttachEvent;
 import com.rackspace.salus.telemetry.messaging.ResourceEvent;
 import com.rackspace.salus.telemetry.model.LabelNamespaces;
 import com.rackspace.salus.telemetry.model.NotFoundException;
-import com.rackspace.salus.resource_management.entities.Resource;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -451,7 +451,7 @@ public class ResourceManagement {
 
   public MultiValueMap<String, String> getTenantResourceLabels(String tenantId) {
     final List<Map.Entry> distinctLabelTuples = entityManager.createNamedQuery(
-        "resourceGetDistinctLabels", Map.Entry.class)
+        "Resource.getDistinctLabels", Map.Entry.class)
         .setParameter("tenantId", tenantId)
         .getResultList();
 
@@ -470,7 +470,7 @@ public class ResourceManagement {
      */
     @SuppressWarnings("unchecked")
     final Stream<Map<String,String>> resultStream = entityManager
-        .createNamedQuery("resourceGetMetadata")
+        .createNamedQuery("Resource.getMetadata")
         .setParameter("tenantId", tenantId)
         .setHint("org.hibernate.fetchSize", resourceManagementProperties.getResourceMetadataFetchSize())
         .getResultStream();

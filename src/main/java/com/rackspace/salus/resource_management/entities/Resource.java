@@ -55,9 +55,9 @@ import org.hibernate.validator.constraints.NotBlank;
         @UniqueConstraint(columnNames = {"tenant_id", "resource_id"})
     })
 @NamedQueries({
-    @NamedQuery(name = "resourceGetDistinctLabels",
+    @NamedQuery(name = "Resource.getDistinctLabels",
     query = "select distinct entry(r.labels) from Resource r where r.tenantId = :tenantId"),
-    @NamedQuery(name = "resourceGetMetadata",
+    @NamedQuery(name = "Resource.getMetadata",
     query = "select r.metadata from Resource r where r.tenantId = :tenantId")
 })
 @TypeDef(name = "json", typeClass = JsonStringType.class)
