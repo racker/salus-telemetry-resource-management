@@ -1,14 +1,15 @@
 {
-  "key1": [
-    "value-1-1",
-    "value-1-2"
+  "agent_discovered_os": [
+    "linux",
+    "darwin",
+    "windows"
   ],
-  "key2": [
-    "value-2-1",
-    "value-2-2"
+  "agent_discovered_arch": [
+    "amd64",
+    "386"
   ],
-  "key3": [
-    "value-3-1",
-    "value-3-2"
+  "cluster": [
+    "dev",
+    "prod"
   ]
 }

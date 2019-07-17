@@ -44,7 +44,6 @@ import com.rackspace.salus.resource_management.services.ResourceManagement;
 import com.rackspace.salus.resource_management.web.model.ResourceCreate;
 import com.rackspace.salus.resource_management.web.model.ResourceUpdate;
 import com.rackspace.salus.telemetry.errors.AlreadyExistsException;
-import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -69,7 +68,6 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.junit4.SpringRunner;
 import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.test.web.servlet.result.MockMvcResultMatchers;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import uk.co.jemos.podam.api.PodamFactory;
@@ -409,9 +407,9 @@ public class ResourceApiControllerTest {
   @Test
   public void testGetResourceLabels() throws Exception {
     final MultiValueMap<String, String> expected = new LinkedMultiValueMap<>();
-    expected.put("key1", Arrays.asList("value-1-1", "value-1-2"));
-    expected.put("key2", Arrays.asList("value-2-1", "value-2-2"));
-    expected.put("key3", Arrays.asList("value-3-1", "value-3-2"));
+    expected.put("agent_discovered_os", Arrays.asList("linux", "darwin", "windows"));
+    expected.put("agent_discovered_arch", Arrays.asList("amd64", "386"));
+    expected.put("cluster", Arrays.asList("dev", "prod"));
 
     when(resourceManagement.getTenantResourceLabels(any()))
         .thenReturn(expected);
