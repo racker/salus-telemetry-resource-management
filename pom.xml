@@ -31,10 +31,6 @@
   <name>salus-telemetry-resource-management</name>
   <description>Service for handling Resource CRUD events</description>
 
-  <properties>
-    <java.version>1.8</java.version>
-  </properties>
-
   <dependencies>
     <dependency>
       <groupId>org.springframework.kafka</groupId>
