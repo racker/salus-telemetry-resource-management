@@ -1,9 +1,11 @@
+salus:
+  environment: local
 spring:
   kafka:
     producer:
       value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
     consumer:
-      group-id: resource-managers
+      group-id: ${spring.application.name}-${salus.environment}
       auto-offset-reset: latest
       value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
       properties:
