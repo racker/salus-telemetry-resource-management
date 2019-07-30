@@ -26,6 +26,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.rackspace.salus.resource_management.web.model.ResourceDTO;
 import com.rackspace.salus.telemetry.model.PagedContent;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -135,5 +136,20 @@ public class ResourceApiClientTest {
 
     assertThat(resources.size(), equalTo(expectedResources.size()));
     assertThat(resources, equalTo(expectedResources));
+  }
+
+  @Test
+  public void testGetAllDistinctTenants() throws JsonProcessingException {
+    final List<String> tenantIds = podamFactory.manufacturePojo(ArrayList.class, String.class);
+
+    mockServer.expect(requestTo("/api/admin/tenants"))
+        .andRespond(withSuccess(
+            objectMapper.writeValueAsString(tenantIds), MediaType.APPLICATION_JSON
+        ));
+
+    final List<String> result = resourceApiClient
+        .getAllDistinctTenantIds();
+
+    assertThat(result, equalTo(tenantIds));
   }
 }

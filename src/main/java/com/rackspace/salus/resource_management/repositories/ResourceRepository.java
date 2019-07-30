@@ -21,6 +21,7 @@ import java.util.List;
 import java.util.Optional;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.PagingAndSortingRepository;
 
 
@@ -37,4 +38,7 @@ public interface ResourceRepository extends PagingAndSortingRepository<Resource,
   Optional<Resource> findByTenantIdAndResourceId(String tenantId, String resourceId);
 
   List<Resource> findAllByTenantIdAndPresenceMonitoringEnabled(String tenantId, boolean presenceMonitoringEnabled);
+
+  @Query("select distinct r.tenantId from Resource r")
+  List<String> findAllDistinctTenants();
 }
