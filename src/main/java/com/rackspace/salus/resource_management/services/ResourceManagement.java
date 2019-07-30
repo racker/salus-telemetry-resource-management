@@ -518,6 +518,8 @@ public class ResourceManagement {
    * @return A list of tenant ids.
    */
   public List<String> getAllDistinctTenantIds() {
-    return resourceRepository.findAllDistinctTenants();
+    return entityManager
+        .createNamedQuery("Resource.getAllDistinctTenants", String.class)
+        .getResultList();
   }
 }

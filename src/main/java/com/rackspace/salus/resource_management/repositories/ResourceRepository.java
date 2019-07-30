@@ -38,7 +38,4 @@ public interface ResourceRepository extends PagingAndSortingRepository<Resource,
   Optional<Resource> findByTenantIdAndResourceId(String tenantId, String resourceId);
 
   List<Resource> findAllByTenantIdAndPresenceMonitoringEnabled(String tenantId, boolean presenceMonitoringEnabled);
-
-  @Query("select distinct r.tenantId from Resource r")
-  List<String> findAllDistinctTenants();
 }
