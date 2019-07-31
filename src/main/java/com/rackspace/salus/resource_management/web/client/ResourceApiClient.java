@@ -67,6 +67,9 @@ public class ResourceApiClient implements ResourceApi {
   private static final ParameterizedTypeReference<PagedContent<ResourceDTO>> PAGE_OF_RESOURCE =
       new ParameterizedTypeReference<PagedContent<ResourceDTO>>() {};
 
+  private static final ParameterizedTypeReference<List<String>> LIST_OF_STRING =
+      new ParameterizedTypeReference<List<String>>() {};
+
   private ObjectMapper objectMapper;
   private final RestTemplate restTemplate;
   private static final String SSEHdr = "data:";
@@ -134,5 +137,22 @@ public class ResourceApiClient implements ResourceApi {
       return response;
     });
     return resources;
+  }
+
+  @Override
+  public List<String> getAllDistinctTenantIds() {
+    String uriString = UriComponentsBuilder
+        .fromUriString("/api/admin/tenants")
+        .build()
+        .toUriString();
+
+    ResponseEntity<List<String>> resp = restTemplate.exchange(
+        uriString,
+        HttpMethod.GET,
+        null,
+        LIST_OF_STRING
+    );
+
+    return resp.getBody();
   }
 }

@@ -36,4 +36,6 @@ public interface ResourceApi {
                                         Map<String, String> labels);
 
   List<ResourceDTO> getExpectedEnvoys();
+
+  List<String> getAllDistinctTenantIds();
 }

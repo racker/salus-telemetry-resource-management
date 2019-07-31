@@ -18,9 +18,11 @@ package com.rackspace.salus.resource_management;
 
 import static com.rackspace.salus.telemetry.model.LabelNamespaces.AGENT;
 import static com.rackspace.salus.telemetry.model.LabelNamespaces.applyNamespace;
+import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.hasEntry;
+import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.hamcrest.Matchers.nullValue;
 import static org.junit.Assert.assertEquals;
@@ -43,6 +45,7 @@ import com.rackspace.salus.telemetry.messaging.ResourceEvent;
 import com.rackspace.salus.telemetry.model.LabelNamespaces;
 import com.rackspace.salus.telemetry.model.NotFoundException;
 import com.rackspace.salus.resource_management.entities.Resource;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
@@ -826,5 +829,20 @@ public class ResourceManagementTest {
                 .setMetadata(metadata)
                 .setPresenceMonitoringEnabled(true)
         );
+    }
+
+    @Test
+    public void testGetAllDistinctTenants() {
+        final List<Resource> resources = podamFactory.manufacturePojo(ArrayList.class, Resource.class);
+        resourceRepository.saveAll(resources);
+
+        List<String> expectedIds = resources.stream().map(Resource::getTenantId).collect(Collectors.toList());
+        expectedIds.add(TENANT); // include the default resource's tenant
+
+        List<String> tenantIds = resourceManagement.getAllDistinctTenantIds();
+
+        assertThat(tenantIds, notNullValue());
+        assertThat(tenantIds, hasSize(expectedIds.size()));
+        assertThat(tenantIds, containsInAnyOrder(expectedIds.toArray()));
     }
 }

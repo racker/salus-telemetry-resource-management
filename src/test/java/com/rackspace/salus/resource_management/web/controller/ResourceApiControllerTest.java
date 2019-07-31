@@ -466,4 +466,21 @@ public class ResourceApiControllerTest {
 
     verifyNoMoreInteractions(resourceManagement);
   }
+
+  @Test
+  public void testGetAllDistinctTenants() throws Exception {
+    final List<String> tenantIds = podamFactory.manufacturePojo(ArrayList.class, String.class);
+    when(resourceManagement.getAllDistinctTenantIds())
+        .thenReturn(tenantIds);
+
+    mockMvc.perform(get("/api/admin/tenants")
+        .accept(MediaType.APPLICATION_JSON))
+        .andDo(print())
+        .andExpect(status().isOk())
+        .andExpect(
+            content().json(objectMapper.writeValueAsString(tenantIds)));
+
+    verify(resourceManagement).getAllDistinctTenantIds();
+    verifyNoMoreInteractions(resourceManagement);
+  }
 }
