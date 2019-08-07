@@ -19,8 +19,8 @@ package com.rackspace.salus.resource_management.services;
 import static com.rackspace.salus.telemetry.model.LabelNamespaces.labelHasNamespace;
 
 import com.rackspace.salus.resource_management.config.ResourceManagementProperties;
-import com.rackspace.salus.resource_management.entities.Resource;
-import com.rackspace.salus.resource_management.repositories.ResourceRepository;
+import com.rackspace.salus.telemetry.entities.Resource;
+import com.rackspace.salus.telemetry.repositories.ResourceRepository;
 import com.rackspace.salus.resource_management.web.model.ResourceCreate;
 import com.rackspace.salus.resource_management.web.model.ResourceUpdate;
 import com.rackspace.salus.telemetry.errors.AlreadyExistsException;

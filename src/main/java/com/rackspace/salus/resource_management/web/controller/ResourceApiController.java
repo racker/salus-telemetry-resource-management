@@ -22,9 +22,8 @@ import com.rackspace.salus.resource_management.web.model.ResourceCreate;
 import com.rackspace.salus.resource_management.web.model.ResourceDTO;
 import com.rackspace.salus.resource_management.web.model.ResourceUpdate;
 import com.rackspace.salus.telemetry.errors.AlreadyExistsException;
-import com.rackspace.salus.telemetry.model.LabelNamespaces;
 import com.rackspace.salus.telemetry.model.NotFoundException;
-import com.rackspace.salus.resource_management.entities.Resource;
+import com.rackspace.salus.telemetry.entities.Resource;
 import com.rackspace.salus.telemetry.model.PagedContent;
 import com.rackspace.salus.telemetry.model.View;
 import java.io.IOException;
@@ -34,8 +33,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Stream;
 import javax.validation.Valid;
-
-
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.task.TaskExecutor;
@@ -83,7 +80,7 @@ public class ResourceApiController {
   public PagedContent<ResourceDTO> getAll(Pageable pageable) {
 
     return PagedContent.fromPage(resourceManagement.getAllResources(pageable)
-        .map(Resource::toDTO));
+        .map(ResourceDTO::new));
   }
 
   @GetMapping("/envoys")
@@ -94,7 +91,7 @@ public class ResourceApiController {
     taskExecutor.execute(() -> {
       resourcesWithEnvoys.forEach(r -> {
         try {
-          emitter.send(r.toDTO());
+          emitter.send(new ResourceDTO(r));
         } catch (IOException e) {
           emitter.completeWithError(e);
         }
@@ -111,7 +108,7 @@ public class ResourceApiController {
       @PathVariable String resourceId) throws NotFoundException {
 
     Optional<Resource> resource = resourceManagement.getResource(tenantId, resourceId);
-    return resource.map(Resource::toDTO).orElseThrow(() -> new NotFoundException(String.format("No resource found for %s on tenant %s",
+    return resource.map(ResourceDTO::new).orElseThrow(() -> new NotFoundException(String.format("No resource found for %s on tenant %s",
         resourceId, tenantId)));
   }
 
@@ -121,7 +118,7 @@ public class ResourceApiController {
   public PagedContent<ResourceDTO>  getAllForTenant(@PathVariable String tenantId, Pageable pageable) {
 
     return PagedContent.fromPage(resourceManagement.getResources(tenantId, pageable)
-        .map(Resource::toDTO));
+        .map(ResourceDTO::new));
   }
 
   @PostMapping("/tenant/{tenantId}/resources")
@@ -132,7 +129,7 @@ public class ResourceApiController {
   public ResourceDTO create(@PathVariable String tenantId,
       @Valid @RequestBody final ResourceCreate input)
       throws IllegalArgumentException, AlreadyExistsException {
-    return resourceManagement.createResource(tenantId, input).toDTO();
+    return new ResourceDTO(resourceManagement.createResource(tenantId, input));
   }
 
   @PutMapping("/tenant/{tenantId}/resources/{resourceId}")
@@ -141,7 +138,7 @@ public class ResourceApiController {
   public ResourceDTO update(@PathVariable String tenantId,
       @PathVariable String resourceId,
       @Valid @RequestBody final ResourceUpdate input) throws IllegalArgumentException {
-    return resourceManagement.updateResource(tenantId, resourceId, input).toDTO();
+    return new ResourceDTO(resourceManagement.updateResource(tenantId, resourceId, input));
   }
 
   @DeleteMapping("/tenant/{tenantId}/resources/{resourceId}")
@@ -159,7 +156,7 @@ public class ResourceApiController {
   public PagedContent<ResourceDTO> getResourcesWithLabels(@PathVariable String tenantId,
       @RequestParam Map<String, String> labels, Pageable pageable) {
     return PagedContent.fromPage(resourceManagement.getResourcesFromLabels(labels, tenantId, pageable)
-        .map(Resource::toDTO));
+        .map(ResourceDTO::new));
   }
 
   @GetMapping("/tenant/{tenantId}/resource-labels")

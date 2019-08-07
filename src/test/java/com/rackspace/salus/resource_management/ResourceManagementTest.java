@@ -34,8 +34,9 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 
 import com.google.common.collect.Maps;
+import com.rackspace.salus.resource_management.config.DatabaseConfig;
 import com.rackspace.salus.resource_management.config.ResourceManagementProperties;
-import com.rackspace.salus.resource_management.repositories.ResourceRepository;
+import com.rackspace.salus.telemetry.repositories.ResourceRepository;
 import com.rackspace.salus.resource_management.services.KafkaEgress;
 import com.rackspace.salus.resource_management.services.ResourceManagement;
 import com.rackspace.salus.resource_management.web.model.ResourceCreate;
@@ -44,7 +45,7 @@ import com.rackspace.salus.telemetry.messaging.AttachEvent;
 import com.rackspace.salus.telemetry.messaging.ResourceEvent;
 import com.rackspace.salus.telemetry.model.LabelNamespaces;
 import com.rackspace.salus.telemetry.model.NotFoundException;
-import com.rackspace.salus.resource_management.entities.Resource;
+import com.rackspace.salus.telemetry.entities.Resource;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -81,7 +82,7 @@ import uk.co.jemos.podam.api.PodamFactoryImpl;
 @SuppressWarnings("OptionalGetWithoutIsPresent")
 @RunWith(SpringRunner.class)
 @DataJpaTest
-@Import({ResourceManagement.class, ResourceManagementProperties.class})
+@Import({ResourceManagement.class, ResourceManagementProperties.class, DatabaseConfig.class})
 public class ResourceManagementTest {
 
     public static final String TENANT = "abcde";

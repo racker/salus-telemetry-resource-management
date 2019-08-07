@@ -39,9 +39,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.rackspace.salus.resource_management.entities.Resource;
+import com.rackspace.salus.telemetry.entities.Resource;
 import com.rackspace.salus.resource_management.services.ResourceManagement;
 import com.rackspace.salus.resource_management.web.model.ResourceCreate;
+import com.rackspace.salus.resource_management.web.model.ResourceDTO;
 import com.rackspace.salus.resource_management.web.model.ResourceUpdate;
 import com.rackspace.salus.telemetry.errors.AlreadyExistsException;
 import java.nio.charset.StandardCharsets;
@@ -75,7 +76,6 @@ import uk.co.jemos.podam.api.PodamFactoryImpl;
 
 @RunWith(SpringRunner.class)
 @WebMvcTest(controllers = ResourceApiController.class)
-@AutoConfigureDataJpa
 public class ResourceApiControllerTest {
 
   // A timestamp to be used in tests that translates to "1970-01-02T03:46:40Z"
@@ -356,7 +356,7 @@ public class ResourceApiControllerTest {
     List<String> expectedData = resources.stream()
         .map(r -> {
           try {
-            return "data:" + objectMapper.writeValueAsString(r.toDTO());
+            return "data:" + objectMapper.writeValueAsString(new ResourceDTO(r));
           } catch (JsonProcessingException e) {
             assertThat(e, nullValue());
             return null;
