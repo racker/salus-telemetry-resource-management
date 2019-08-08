@@ -16,7 +16,6 @@
 
 package com.rackspace.salus.resource_management.web.client;
 
-import com.rackspace.salus.resource_management.entities.Resource;
 import com.rackspace.salus.resource_management.web.model.ResourceDTO;
 import java.util.List;
 import java.util.Map;

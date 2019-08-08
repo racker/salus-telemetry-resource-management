@@ -18,19 +18,16 @@ package com.rackspace.salus.resource_management;
 
 import com.rackspace.salus.common.messaging.EnableSalusKafkaMessaging;
 import com.rackspace.salus.common.util.DumpConfigProperties;
-import com.rackspace.salus.common.web.ExtendedErrorAttributesConfig;
+import com.rackspace.salus.common.web.EnableExtendedErrorAttributes;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.autoconfigure.security.servlet.SecurityAutoConfiguration;
-import org.springframework.context.annotation.Import;
 import org.springframework.scheduling.annotation.EnableScheduling;
 
 @SpringBootApplication(exclude = {SecurityAutoConfiguration.class})
 @EnableScheduling
 @EnableSalusKafkaMessaging
-@Import({
-    ExtendedErrorAttributesConfig.class
-})
+@EnableExtendedErrorAttributes
 public class TelemetryResourceManagementApplication {
 
   public static void main(String[] args) {
