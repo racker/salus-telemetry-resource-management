@@ -178,11 +178,4 @@ public class ResourceApiController {
   public Collection<String> getLabelNamespaces(@PathVariable String tenantId) {
     return resourceManagement.getLabelNamespaces();
   }
-
-  @GetMapping("/admin/tenants")
-  @ApiOperation("Gets a list of all tenant ids")
-  @JsonView(View.Admin.class)
-  public List<String> getAllDistinctTenantIds() {
-    return resourceManagement.getAllDistinctTenantIds();
-  }
 }

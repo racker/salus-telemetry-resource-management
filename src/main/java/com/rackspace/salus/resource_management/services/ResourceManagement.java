@@ -512,14 +512,4 @@ public class ResourceManagement {
   public Collection<String> getLabelNamespaces() {
     return LabelNamespaces.getNamespaces();
   }
-
-  /**
-   * Gets a list of all tenants that have at least one resource.
-   * @return A list of tenant ids.
-   */
-  public List<String> getAllDistinctTenantIds() {
-    return entityManager
-        .createNamedQuery("Resource.getAllDistinctTenants", String.class)
-        .getResultList();
-  }
 }
