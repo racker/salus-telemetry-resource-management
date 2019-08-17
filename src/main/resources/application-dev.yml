@@ -18,3 +18,4 @@ spring:
 logging:
   level:
     com.rackspace.salus: debug
+salus.metrics.influx.uri: http://localhost:8086

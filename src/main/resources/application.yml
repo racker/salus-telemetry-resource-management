@@ -23,5 +23,10 @@ spring:
 logging:
   level:
     web: debug
-
+management:
+  metrics:
+    export:
+      influx:
+        uri: ${salus.metrics.influx.uri}
+        db: salus
 
