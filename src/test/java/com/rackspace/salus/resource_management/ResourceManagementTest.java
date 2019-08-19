@@ -831,19 +831,4 @@ public class ResourceManagementTest {
                 .setPresenceMonitoringEnabled(true)
         );
     }
-
-    @Test
-    public void testGetAllDistinctTenants() {
-        final List<Resource> resources = podamFactory.manufacturePojo(ArrayList.class, Resource.class);
-        resourceRepository.saveAll(resources);
-
-        List<String> expectedIds = resources.stream().map(Resource::getTenantId).collect(Collectors.toList());
-        expectedIds.add(TENANT); // include the default resource's tenant
-
-        List<String> tenantIds = resourceManagement.getAllDistinctTenantIds();
-
-        assertThat(tenantIds, notNullValue());
-        assertThat(tenantIds, hasSize(expectedIds.size()));
-        assertThat(tenantIds, containsInAnyOrder(expectedIds.toArray()));
-    }
 }

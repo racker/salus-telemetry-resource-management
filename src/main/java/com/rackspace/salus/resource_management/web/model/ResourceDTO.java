@@ -13,7 +13,8 @@ import lombok.NoArgsConstructor;
 public class ResourceDTO {
   @JsonView(View.Admin.class)
   Long id;
-  @JsonView(View.Public.class) // This will be changed to Internal or Admin when we switch to role based views.
+  //@JsonView(View.Public.class) // This will be changed to Internal or Admin when we switch to role based views.
+  // Disabling this until we have a way for our internal requests to bypass that view (this might need new endpoints)
   String tenantId;
   String resourceId;
   Map<String,String> labels;
