@@ -30,7 +30,7 @@
   </appender>
 
   <root level="INFO">
-    <springProfile name="dev">
+    <springProfile name="production">
       <appender-ref ref="FLUENCY" />
     </springProfile>
     <springProfile name="!production">
