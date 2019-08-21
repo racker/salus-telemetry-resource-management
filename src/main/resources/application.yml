@@ -23,5 +23,10 @@ spring:
 logging:
   level:
     web: debug
-
-
+management:
+  metrics:
+    export:
+      influx:
+        uri: ${salus.metrics.influx.uri:http://localhost:8086}
+        db: salus
+        enabled: ${salus.metrics.influx.enabled:false}
