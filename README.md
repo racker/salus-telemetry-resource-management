@@ -69,4 +69,4 @@ http DELETE localhost:8085/api/tenant/aaaaa/resources/host1
 ```
 
 ## Special Labels
-The label "rackspace_deployment_zone" is a pre-defined label that should be populated on resources by automation.  It will match the "rackspace_deployment_zone" label on monitors.  There, it also used to specify the default monitoring zone for that monitor, should an explicit monitoring zone not be defined.
+The label "rackspace_deployment_zone" is a pre-defined label that should be populated on resources by automation.  It will match the "rackspace_deployment_zone" label on monitors.  There, it is also used to specify the default monitoring zone for that monitor, should an explicit monitoring zone not be defined.
