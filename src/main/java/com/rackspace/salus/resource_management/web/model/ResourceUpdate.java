@@ -27,6 +27,4 @@ public class ResourceUpdate implements Serializable {
     Map<String,String> metadata;
 
     Boolean presenceMonitoringEnabled;
-
-    String region;
 }
