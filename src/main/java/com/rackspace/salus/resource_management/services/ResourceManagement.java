@@ -62,6 +62,7 @@ import org.springframework.util.MultiValueMap;
 public class ResourceManagement {
   private final ResourceRepository resourceRepository;
   private final KafkaEgress kafkaEgress;
+  private final String labelMatchQuery;
 
   JdbcTemplate jdbcTemplate;
   private final EntityManager entityManager;
@@ -72,12 +73,13 @@ public class ResourceManagement {
                             KafkaEgress kafkaEgress,
                             JdbcTemplate jdbcTemplate,
                             EntityManager entityManager,
-                            ResourceManagementProperties resourceManagementProperties) {
+                            ResourceManagementProperties resourceManagementProperties) throws IOException {
     this.resourceRepository = resourceRepository;
     this.kafkaEgress = kafkaEgress;
     this.jdbcTemplate = jdbcTemplate;
     this.entityManager = entityManager;
     this.resourceManagementProperties = resourceManagementProperties;
+    labelMatchQuery = ResourceUtils.readContent("sql-queries/resource_label_matching_query.sql");
   }
 
   private void publishResourceEvent(ResourceEvent event) {
@@ -411,12 +413,6 @@ public class ResourceManagement {
     if(labels == null || labels.isEmpty()) {
       return getPagedResults(getAllTenantResources(tenantId), page);
     }
-    String query = "";
-    try {
-       query = ResourceUtils.readContent("sql-queries/resource_label_matching_query.sql");
-    } catch(IOException e) {
-      // not sure exactly what I am doing here... this really shouldn't happen
-    }
 
     MapSqlParameterSource paramSource = new MapSqlParameterSource();
     paramSource.addValue("tenantId", tenantId);//AS r JOIN resource_labels AS rl
@@ -436,7 +432,7 @@ public class ResourceManagement {
     paramSource.addValue("i", i);
 
     NamedParameterJdbcTemplate namedParameterTemplate = new NamedParameterJdbcTemplate(jdbcTemplate.getDataSource());
-    final List<Long> resourceIds = namedParameterTemplate.query(String.format(query, builder.toString()), paramSource,
+    final List<Long> resourceIds = namedParameterTemplate.query(String.format(labelMatchQuery, builder.toString()), paramSource,
         (resultSet, rowIndex) -> resultSet.getLong(1)
     );
 
