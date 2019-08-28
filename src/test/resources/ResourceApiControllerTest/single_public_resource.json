@@ -4,7 +4,6 @@
   "labels":{"env": "prod"},
   "metadata":{"custom": "new"},
   "presenceMonitoringEnabled":null,
-  "region":null,
   "associatedWithEnvoy":false,
   "createdTimestamp": "1970-01-02T03:46:40Z",
   "updatedTimestamp": "1970-01-02T03:46:40Z"

@@ -647,7 +647,6 @@ public class ResourceManagementTest {
         resourceLabels.put("os", "DARWIN");
         resourceLabels.put("env", "test");
         resourceLabels.put("architecture", "x86");
-        resourceLabels.put("region", "DFW");
         final Map<String, String> labels = new HashMap<>();
         labels.put("os", "DARWIN");
         labels.put("env", "test");
@@ -671,7 +670,6 @@ public class ResourceManagementTest {
         resourceLabels.put("os", "DARWIN");
         resourceLabels.put("env", "test");
         resourceLabels.put("architecture", "x86");
-        resourceLabels.put("region", "DFW");
         final Map<String, String> labels = new HashMap<>();
         labels.put("os", "DARWIN");
         labels.put("env", "prod");
@@ -695,7 +693,6 @@ public class ResourceManagementTest {
         labels.put("os", "DARWIN");
         labels.put("env", "test");
         labels.put("architecture", "x86");
-        labels.put("region", "LON");
 
 
         ResourceCreate create = podamFactory.manufacturePojo(ResourceCreate.class);
