@@ -16,7 +16,6 @@
 
 package com.rackspace.salus.resource_management.web.controller;
 
-import static com.rackspace.salus.resource_management.TestUtils.readContent;
 import static com.rackspace.salus.test.WebTestUtils.validationError;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.Matchers.equalTo;
@@ -39,6 +38,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.rackspace.salus.common.util.SpringResourceUtils;
 import com.rackspace.salus.telemetry.entities.Resource;
 import com.rackspace.salus.resource_management.services.ResourceManagement;
 import com.rackspace.salus.resource_management.web.model.ResourceCreate;
@@ -59,7 +59,6 @@ import org.apache.commons.lang3.RandomStringUtils;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.orm.jpa.AutoConfigureDataJpa;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.data.domain.Page;
@@ -113,7 +112,7 @@ public class ResourceApiControllerTest {
         .andExpect(status().isOk())
         .andExpect(content().json(
             // id field should not be returned
-            readContent("ResourceApiControllerTest/single_public_resource.json"), true));
+            SpringResourceUtils.readContent("ResourceApiControllerTest/single_public_resource.json"), true));
 
     verify(resourceManagement).getResource("t-1", "r-1");
     verifyNoMoreInteractions(resourceManagement);
@@ -420,7 +419,7 @@ public class ResourceApiControllerTest {
     ).accept(MediaType.APPLICATION_JSON))
         .andExpect(status().isOk())
         .andExpect(
-            content().json(readContent("/ResourceApiControllerTest/resource_labels.json"), true));
+            content().json(SpringResourceUtils.readContent("/ResourceApiControllerTest/resource_labels.json"), true));
 
     verify(resourceManagement).getTenantResourceLabels("t-1");
 
@@ -440,7 +439,7 @@ public class ResourceApiControllerTest {
     ).accept(MediaType.APPLICATION_JSON))
         .andExpect(status().isOk())
         .andExpect(
-            content().json(readContent("/ResourceApiControllerTest/resource_metadata_keys.json"), true));
+            content().json(SpringResourceUtils.readContent("/ResourceApiControllerTest/resource_metadata_keys.json"), true));
 
     verify(resourceManagement).getTenantResourceMetadataKeys("t-1");
 
@@ -460,7 +459,7 @@ public class ResourceApiControllerTest {
     ).accept(MediaType.APPLICATION_JSON))
         .andExpect(status().isOk())
         .andExpect(
-            content().json(readContent("/ResourceApiControllerTest/label_namespaces.json"), true));
+            content().json(SpringResourceUtils.readContent("/ResourceApiControllerTest/label_namespaces.json"), true));
 
     verify(resourceManagement).getLabelNamespaces();
 
