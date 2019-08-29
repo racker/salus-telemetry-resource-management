@@ -18,6 +18,7 @@ package com.rackspace.salus.resource_management.services;
 
 import static com.rackspace.salus.telemetry.model.LabelNamespaces.labelHasNamespace;
 
+import com.rackspace.salus.common.util.SpringResourceUtils;
 import com.rackspace.salus.resource_management.config.ResourceManagementProperties;
 import com.rackspace.salus.telemetry.entities.Resource;
 import com.rackspace.salus.telemetry.repositories.ResourceRepository;
@@ -28,6 +29,7 @@ import com.rackspace.salus.telemetry.messaging.AttachEvent;
 import com.rackspace.salus.telemetry.messaging.ResourceEvent;
 import com.rackspace.salus.telemetry.model.LabelNamespaces;
 import com.rackspace.salus.telemetry.model.NotFoundException;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -60,6 +62,7 @@ import org.springframework.util.MultiValueMap;
 public class ResourceManagement {
   private final ResourceRepository resourceRepository;
   private final KafkaEgress kafkaEgress;
+  private final String labelMatchQuery;
 
   JdbcTemplate jdbcTemplate;
   private final EntityManager entityManager;
@@ -70,12 +73,13 @@ public class ResourceManagement {
                             KafkaEgress kafkaEgress,
                             JdbcTemplate jdbcTemplate,
                             EntityManager entityManager,
-                            ResourceManagementProperties resourceManagementProperties) {
+                            ResourceManagementProperties resourceManagementProperties) throws IOException {
     this.resourceRepository = resourceRepository;
     this.kafkaEgress = kafkaEgress;
     this.jdbcTemplate = jdbcTemplate;
     this.entityManager = entityManager;
     this.resourceManagementProperties = resourceManagementProperties;
+    labelMatchQuery = SpringResourceUtils.readContent("sql-queries/resource_label_matching_query.sql");
   }
 
   private void publishResourceEvent(ResourceEvent event) {
@@ -401,21 +405,13 @@ public class ResourceManagement {
    * given
    */
   public Page<Resource> getResourcesFromLabels(Map<String, String> labels, String tenantId, Pageable page) {
-        /*
-        SELECT * FROM resources where id IN (SELECT id from resource_labels WHERE id IN (select id from resources)
-        AND ((labels = "windows" AND labels_key = "os") OR (labels = "prod" AND labels_key="env")) GROUP BY id
-        HAVING COUNT(id) = 2) AND tenant_id = "aaaad";
-        */
-
     if(labels == null || labels.isEmpty()) {
       return getPagedResults(getAllTenantResources(tenantId), page);
     }
 
     MapSqlParameterSource paramSource = new MapSqlParameterSource();
     paramSource.addValue("tenantId", tenantId);//AS r JOIN resource_labels AS rl
-    StringBuilder builder = new StringBuilder("SELECT resources.id as id FROM resources JOIN resource_labels AS rl WHERE resources.id = rl.id AND resources.id IN ");
-    builder.append("(SELECT id from resource_labels WHERE id IN ( SELECT id FROM resources WHERE tenant_id = :tenantId) AND resources.id IN ");
-    builder.append(" (SELECT id FROM resource_labels WHERE ");
+    StringBuilder builder = new StringBuilder();
     int i = 0;
     for(Map.Entry<String, String> entry : labels.entrySet()) {
       if(i > 0) {
@@ -428,11 +424,10 @@ public class ResourceManagement {
       paramSource.addValue("labelKey"+i, entry.getKey());
       i++;
     }
-    builder.append(" GROUP BY id HAVING COUNT(*) = :i)) ORDER BY resources.id");
     paramSource.addValue("i", i);
 
     NamedParameterJdbcTemplate namedParameterTemplate = new NamedParameterJdbcTemplate(jdbcTemplate.getDataSource());
-    final List<Long> resourceIds = namedParameterTemplate.query(builder.toString(), paramSource,
+    final List<Long> resourceIds = namedParameterTemplate.query(String.format(labelMatchQuery, builder.toString()), paramSource,
         (resultSet, rowIndex) -> resultSet.getLong(1)
     );
 
