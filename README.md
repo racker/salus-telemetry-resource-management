@@ -67,3 +67,6 @@ curl localhost:8085/api/envoys
 ```
 http DELETE localhost:8085/api/tenant/aaaaa/resources/host1
 ```
+
+## Special Labels
+The label "standard_deployment_location" is a pre-defined label that should be populated on resources by automation.  It will match the "standard_deployment_location" label on monitors.  There, it is also used to derive the default monitoring zone(s) for that monitor, should explicit monitoring zones not be defined.

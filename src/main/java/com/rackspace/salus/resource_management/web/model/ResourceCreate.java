@@ -36,5 +36,4 @@ public class ResourceCreate implements Serializable {
     @NotNull
     Boolean presenceMonitoringEnabled;
 
-    String region;
 }

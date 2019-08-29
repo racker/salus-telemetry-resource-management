@@ -20,7 +20,6 @@ public class ResourceDTO {
   Map<String,String> labels;
   Map<String,String> metadata;
   Boolean presenceMonitoringEnabled;
-  String region;
   boolean associatedWithEnvoy;
   String createdTimestamp;
   String updatedTimestamp;
@@ -32,7 +31,6 @@ public class ResourceDTO {
     this.labels = resource.getLabels();
     this.metadata = resource.getMetadata();
     this.presenceMonitoringEnabled = resource.getPresenceMonitoringEnabled();
-    this.region = resource.getRegion();
     this.associatedWithEnvoy = resource.isAssociatedWithEnvoy();
     this.createdTimestamp = DateTimeFormatter.ISO_INSTANT.format(resource.getCreatedTimestamp());
     this.updatedTimestamp = DateTimeFormatter.ISO_INSTANT.format(resource.getUpdatedTimestamp());

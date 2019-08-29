@@ -198,8 +198,7 @@ public class ResourceManagement {
         .setResourceId(newResource.getResourceId())
         .setLabels(newResource.getLabels())
         .setMetadata(newResource.getMetadata())
-        .setPresenceMonitoringEnabled(newResource.getPresenceMonitoringEnabled())
-        .setRegion(newResource.getRegion());
+        .setPresenceMonitoringEnabled(newResource.getPresenceMonitoringEnabled());
 
     resource = saveAndPublishResource(resource, true, null);
 
@@ -240,10 +239,6 @@ public class ResourceManagement {
     map.from(updatedValues.getPresenceMonitoringEnabled())
         .whenNonNull()
         .to(resource::setPresenceMonitoringEnabled);
-    map.from(updatedValues.getRegion())
-        .whenNonNull()
-        .to(resource::setRegion);
-
     saveAndPublishResource(resource, true, null);
 
     return resource;
