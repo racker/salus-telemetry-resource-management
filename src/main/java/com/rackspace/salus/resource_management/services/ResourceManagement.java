@@ -18,7 +18,7 @@ package com.rackspace.salus.resource_management.services;
 
 import static com.rackspace.salus.telemetry.model.LabelNamespaces.labelHasNamespace;
 
-import com.rackspace.salus.common.util.ResourceUtils;
+import com.rackspace.salus.common.util.SpringResourceUtils;
 import com.rackspace.salus.resource_management.config.ResourceManagementProperties;
 import com.rackspace.salus.telemetry.entities.Resource;
 import com.rackspace.salus.telemetry.repositories.ResourceRepository;
@@ -79,7 +79,7 @@ public class ResourceManagement {
     this.jdbcTemplate = jdbcTemplate;
     this.entityManager = entityManager;
     this.resourceManagementProperties = resourceManagementProperties;
-    labelMatchQuery = ResourceUtils.readContent("sql-queries/resource_label_matching_query.sql");
+    labelMatchQuery = SpringResourceUtils.readContent("sql-queries/resource_label_matching_query.sql");
   }
 
   private void publishResourceEvent(ResourceEvent event) {
