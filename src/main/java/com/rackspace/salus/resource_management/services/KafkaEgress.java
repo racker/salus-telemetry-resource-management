@@ -16,10 +16,12 @@
 
 package com.rackspace.salus.resource_management.services;
 
+import com.rackspace.salus.common.errors.RuntimeKafkaException;
 import com.rackspace.salus.common.messaging.KafkaMessageKeyBuilder;
 import com.rackspace.salus.common.messaging.KafkaTopicProperties;
 import com.rackspace.salus.telemetry.messaging.KafkaMessageType;
 import com.rackspace.salus.telemetry.messaging.ResourceEvent;
+import java.util.concurrent.ExecutionException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.kafka.core.KafkaTemplate;
@@ -46,6 +48,13 @@ public class KafkaEgress {
 
         log.debug("Sending event={} on topic={}", event, topic);
         final String key = KafkaMessageKeyBuilder.buildMessageKey(event);
-        kafkaTemplate.send(topic, key, event);
+
+        try {
+            kafkaTemplate.send(topic, key, event).get();
+        } catch (InterruptedException e) {
+            throw new RuntimeKafkaException(e);
+        } catch (ExecutionException e) {
+            throw new RuntimeKafkaException(e);
+        }
     }
 }
