@@ -60,12 +60,12 @@ public class RestExceptionHandler extends AbstractRestExceptionHandler {
     @ExceptionHandler({JDBCException.class})
     public ResponseEntity<?> handleJDBCException(
         HttpServletRequest request) {
-        return respondWith(request, HttpStatus.INTERNAL_SERVER_ERROR, ResponseMessages.jdbcExceptionMessage);
+        return respondWith(request, HttpStatus.SERVICE_UNAVAILABLE, ResponseMessages.jdbcExceptionMessage);
     }
 
     @ExceptionHandler({RuntimeKafkaException.class})
     public ResponseEntity<?> handleKafkaExceptions(
         HttpServletRequest request) {
-        return respondWith(request, HttpStatus.INTERNAL_SERVER_ERROR, ResponseMessages.kafkaExceptionMessage);
+        return respondWith(request, HttpStatus.SERVICE_UNAVAILABLE, ResponseMessages.kafkaExceptionMessage);
     }
 }
