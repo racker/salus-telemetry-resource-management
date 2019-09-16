@@ -16,10 +16,14 @@
 
 package com.rackspace.salus.resource_management.web.controller;
 
+import com.rackspace.salus.common.errors.ResponseMessages;
+import com.rackspace.salus.common.errors.RuntimeKafkaException;
 import com.rackspace.salus.common.web.AbstractRestExceptionHandler;
 import com.rackspace.salus.telemetry.errors.AlreadyExistsException;
 import com.rackspace.salus.telemetry.model.NotFoundException;
+import java.util.concurrent.ExecutionException;
 import javax.servlet.http.HttpServletRequest;
+import org.hibernate.JDBCException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.web.servlet.error.ErrorAttributes;
 import org.springframework.http.HttpStatus;
@@ -51,5 +55,17 @@ public class RestExceptionHandler extends AbstractRestExceptionHandler {
     public ResponseEntity<?> handleAlreadyExists(
         HttpServletRequest request) {
         return respondWith(request, HttpStatus.UNPROCESSABLE_ENTITY);
+    }
+
+    @ExceptionHandler({JDBCException.class})
+    public ResponseEntity<?> handleJDBCException(
+        HttpServletRequest request) {
+        return respondWith(request, HttpStatus.SERVICE_UNAVAILABLE, ResponseMessages.jdbcExceptionMessage);
+    }
+
+    @ExceptionHandler({RuntimeKafkaException.class})
+    public ResponseEntity<?> handleKafkaExceptions(
+        HttpServletRequest request) {
+        return respondWith(request, HttpStatus.SERVICE_UNAVAILABLE, ResponseMessages.kafkaExceptionMessage);
     }
 }
