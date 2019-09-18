@@ -16,7 +16,10 @@
 
 package com.rackspace.salus.resource_management.services;
 
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 import com.rackspace.salus.common.messaging.KafkaTopicProperties;
 import com.rackspace.salus.telemetry.messaging.ResourceEvent;
@@ -26,6 +29,8 @@ import org.junit.runner.RunWith;
 import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnitRunner;
 import org.springframework.kafka.core.KafkaTemplate;
+import org.springframework.kafka.support.SendResult;
+import org.springframework.util.concurrent.SettableListenableFuture;
 
 @RunWith(MockitoJUnitRunner.class)
 public class KafkaEgressTest {
@@ -43,6 +48,10 @@ public class KafkaEgressTest {
 
   @Test
   public void testSendResourceEvent() {
+    SettableListenableFuture<SendResult<String, Object>> future = new SettableListenableFuture();
+    future.set(null);
+    when(kafkaTemplate.send(anyString(), anyString(), any())).thenReturn(future);
+
     final ResourceEvent event = new ResourceEvent()
         .setTenantId("t-1")
         .setResourceId("r-1");
