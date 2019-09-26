@@ -106,7 +106,7 @@ public class ResourceApiClientTest {
         new PageImpl<>(expectedResources, Pageable.unpaged(), expectedResources.size())
     );
 
-    mockServer.expect(requestTo("/api/tenant/t-1/resources-by-label?env=prod"))
+    mockServer.expect(requestTo("/api/tenant/t-1/resources-by-label/AND?env=prod"))
         .andRespond(withSuccess(
             objectMapper.writeValueAsString(result), MediaType.APPLICATION_JSON
         ));

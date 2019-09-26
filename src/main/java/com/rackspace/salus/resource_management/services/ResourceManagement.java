@@ -21,6 +21,7 @@ import static com.rackspace.salus.telemetry.model.LabelNamespaces.labelHasNamesp
 import com.rackspace.salus.common.util.SpringResourceUtils;
 import com.rackspace.salus.resource_management.config.ResourceManagementProperties;
 import com.rackspace.salus.telemetry.entities.Resource;
+import com.rackspace.salus.telemetry.model.LabelSelectorMethod;
 import com.rackspace.salus.telemetry.repositories.ResourceRepository;
 import com.rackspace.salus.resource_management.web.model.ResourceCreate;
 import com.rackspace.salus.resource_management.web.model.ResourceUpdate;
@@ -63,6 +64,7 @@ public class ResourceManagement {
   private final ResourceRepository resourceRepository;
   private final KafkaEgress kafkaEgress;
   private final String labelMatchQuery;
+  private final String labelMatchOrQuery;
 
   JdbcTemplate jdbcTemplate;
   private final EntityManager entityManager;
@@ -80,6 +82,7 @@ public class ResourceManagement {
     this.entityManager = entityManager;
     this.resourceManagementProperties = resourceManagementProperties;
     labelMatchQuery = SpringResourceUtils.readContent("sql-queries/resource_label_matching_query.sql");
+    labelMatchOrQuery = SpringResourceUtils.readContent("sql-queries/resource_label_matching_OR_query.sql");
   }
 
   private void publishResourceEvent(ResourceEvent event) {
@@ -404,7 +407,7 @@ public class ResourceManagement {
    * @return the list of Resource's that match the labels or all tenant resources if no labels
    * given
    */
-  public Page<Resource> getResourcesFromLabels(Map<String, String> labels, String tenantId, Pageable page) {
+  public Page<Resource> getResourcesFromLabels(Map<String, String> labels, String tenantId, LabelSelectorMethod logicalOperation, Pageable page) {
     if(labels == null || labels.isEmpty()) {
       return getPagedResults(getAllTenantResources(tenantId), page);
     }
@@ -424,10 +427,17 @@ public class ResourceManagement {
       paramSource.addValue("labelKey"+i, entry.getKey());
       i++;
     }
-    paramSource.addValue("i", i);
-
     NamedParameterJdbcTemplate namedParameterTemplate = new NamedParameterJdbcTemplate(jdbcTemplate.getDataSource());
-    final List<Long> resourceIds = namedParameterTemplate.query(String.format(labelMatchQuery, builder.toString()), paramSource,
+
+    String ourQuery;
+    if(logicalOperation.equals(LabelSelectorMethod.AND)) {
+      paramSource.addValue("i", i);
+      ourQuery = labelMatchQuery;
+    }else {
+      ourQuery = labelMatchOrQuery;
+    }
+
+    final List<Long> resourceIds = namedParameterTemplate.query(String.format(ourQuery, builder.toString()), paramSource,
         (resultSet, rowIndex) -> resultSet.getLong(1)
     );
 
@@ -438,6 +448,7 @@ public class ResourceManagement {
 
     return getPagedResults(resources, page);
   }
+
 
   public MultiValueMap<String, String> getTenantResourceLabels(String tenantId) {
     final List<Map.Entry> distinctLabelTuples = entityManager.createNamedQuery(

@@ -21,7 +21,7 @@ WHERE
             FROM resource_labels
             WHERE %s
             GROUP BY id
-            HAVING COUNT(*) = :i
+            HAVING COUNT(*) >= 1
          )
    )
 GROUP BY resources.id

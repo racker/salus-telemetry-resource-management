@@ -22,6 +22,7 @@ import com.rackspace.salus.resource_management.web.model.ResourceCreate;
 import com.rackspace.salus.resource_management.web.model.ResourceDTO;
 import com.rackspace.salus.resource_management.web.model.ResourceUpdate;
 import com.rackspace.salus.telemetry.errors.AlreadyExistsException;
+import com.rackspace.salus.telemetry.model.LabelSelectorMethod;
 import com.rackspace.salus.telemetry.model.NotFoundException;
 import com.rackspace.salus.telemetry.entities.Resource;
 import com.rackspace.salus.telemetry.model.PagedContent;
@@ -151,11 +152,11 @@ public class ResourceApiController {
     resourceManagement.removeResource(tenantId, resourceId);
   }
 
-  @GetMapping("/tenant/{tenantId}/resources-by-label")
+  @GetMapping("/tenant/{tenantId}/resources-by-label/{logicalOperation}")
   @JsonView(View.Public.class)
   public PagedContent<ResourceDTO> getResourcesWithLabels(@PathVariable String tenantId,
-      @RequestParam Map<String, String> labels, Pageable pageable) {
-    return PagedContent.fromPage(resourceManagement.getResourcesFromLabels(labels, tenantId, pageable)
+      @RequestParam Map<String, String> labels, @PathVariable String logicalOperation, Pageable pageable) {
+    return PagedContent.fromPage(resourceManagement.getResourcesFromLabels(labels, tenantId, LabelSelectorMethod.valueOf(logicalOperation), pageable)
         .map(ResourceDTO::new));
   }
 

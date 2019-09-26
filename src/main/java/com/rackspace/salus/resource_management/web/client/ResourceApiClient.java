@@ -99,7 +99,7 @@ public class ResourceApiClient implements ResourceApi {
 
   @Override
   public List<ResourceDTO> getResourcesWithLabels(String tenantId, Map<String, String> labels) {
-    String endpoint = "/api/tenant/{tenantId}/resources-by-label";
+    String endpoint = "/api/tenant/{tenantId}/resources-by-label/AND";
     UriComponentsBuilder uriComponentsBuilder = UriComponentsBuilder.fromUriString(endpoint);
     for (Map.Entry<String, String> e : labels.entrySet()) {
       uriComponentsBuilder.queryParam(e.getKey(), e.getValue());
