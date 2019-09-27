@@ -152,11 +152,11 @@ public class ResourceApiController {
     resourceManagement.removeResource(tenantId, resourceId);
   }
 
-  @GetMapping("/tenant/{tenantId}/resources-by-label/{logicalOperation}")
+  @GetMapping("/tenant/{tenantId}/resources-by-label/{logicalOperator}")
   @JsonView(View.Public.class)
   public PagedContent<ResourceDTO> getResourcesWithLabels(@PathVariable String tenantId,
-      @RequestParam Map<String, String> labels, @PathVariable String logicalOperation, Pageable pageable) {
-    return PagedContent.fromPage(resourceManagement.getResourcesFromLabels(labels, tenantId, LabelSelectorMethod.valueOf(logicalOperation), pageable)
+      @RequestParam Map<String, String> labels, @PathVariable String logicalOperator, Pageable pageable) {
+    return PagedContent.fromPage(resourceManagement.getResourcesFromLabels(labels, tenantId, LabelSelectorMethod.valueOf(logicalOperator), pageable)
         .map(ResourceDTO::new));
   }
 

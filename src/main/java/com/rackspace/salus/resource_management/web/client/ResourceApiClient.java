@@ -18,6 +18,7 @@ package com.rackspace.salus.resource_management.web.client;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.rackspace.salus.resource_management.web.model.ResourceDTO;
+import com.rackspace.salus.telemetry.model.LabelSelectorMethod;
 import com.rackspace.salus.telemetry.model.PagedContent;
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -98,13 +99,16 @@ public class ResourceApiClient implements ResourceApi {
   }
 
   @Override
-  public List<ResourceDTO> getResourcesWithLabels(String tenantId, Map<String, String> labels) {
-    String endpoint = "/api/tenant/{tenantId}/resources-by-label/AND";
+  public List<ResourceDTO> getResourcesWithLabels(String tenantId, Map<String, String> labels, LabelSelectorMethod labelSelector) {
+    String endpoint = "/api/tenant/{tenantId}/resources-by-label/{logicalOperator}";
     UriComponentsBuilder uriComponentsBuilder = UriComponentsBuilder.fromUriString(endpoint);
     for (Map.Entry<String, String> e : labels.entrySet()) {
       uriComponentsBuilder.queryParam(e.getKey(), e.getValue());
     }
-    String uriString = uriComponentsBuilder.buildAndExpand(tenantId).toUriString();
+    //String uriString = uriComponentsBuilder.buildAndExpand(tenantId).toUriString();
+    Object[] items = {tenantId, labelSelector};
+
+    String uriString = uriComponentsBuilder.buildAndExpand(items).toUriString();
     ResponseEntity<PagedContent<ResourceDTO>> resp = restTemplate.exchange(
         uriString,
         HttpMethod.GET,

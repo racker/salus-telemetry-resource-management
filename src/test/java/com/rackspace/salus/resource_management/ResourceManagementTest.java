@@ -623,6 +623,28 @@ public class ResourceManagementTest {
     }
 
     @Test
+    public void testMatchResourceWithSingleOrLabel() {
+        final Map<String, String> labels = new HashMap<>();
+        labels.put("os", "DARWIN");
+        labels.put("env", "test");
+
+        final Map<String, String> matchLabels = new HashMap<>();
+        labels.put("os", "DARWIN");
+
+        ResourceCreate create = podamFactory.manufacturePojo(ResourceCreate.class);
+        create.setLabels(labels);
+        String tenantId = RandomStringUtils.randomAlphanumeric(10);
+        resourceManagement.createResource(tenantId, create);
+        entityManager.flush();
+
+        Page<Resource> resources = resourceManagement.getResourcesFromLabels(matchLabels, tenantId, LabelSelectorMethod.OR, Pageable.unpaged());
+        assertEquals(1L, resources.getTotalElements()); //make sure we only returned the one value
+        assertEquals(tenantId, resources.getContent().get(0).getTenantId());
+        assertEquals(create.getResourceId(), resources.getContent().get(0).getResourceId());
+        assertEquals(labels, resources.getContent().get(0).getLabels());
+    }
+
+    @Test
     public void testFailedMatchResourceWithMultipleLabels() {
         final Map<String, String> resourceLabels = new HashMap<>();
         resourceLabels.put("os", "DARWIN");
@@ -659,6 +681,29 @@ public class ResourceManagementTest {
         entityManager.flush();
 
         Page<Resource> resources = resourceManagement.getResourcesFromLabels(labels, tenantId, LabelSelectorMethod.AND, Pageable.unpaged());
+        assertEquals(1L, resources.getTotalElements()); //make sure we only returned the one value
+        assertEquals(tenantId, resources.getContent().get(0).getTenantId());
+        assertEquals(create.getResourceId(), resources.getContent().get(0).getResourceId());
+        assertEquals(resourceLabels, resources.getContent().get(0).getLabels());
+    }
+
+    @Test
+    public void testMatchResourceWithSupersetOfLabelsDoingOr() {
+        final Map<String, String> resourceLabels = new HashMap<>();
+        resourceLabels.put("os", "DARWIN");
+        resourceLabels.put("env", "test");
+        resourceLabels.put("architecture", "x86");
+        final Map<String, String> labels = new HashMap<>();
+        labels.put("os", "DARWIN");
+        labels.put("env", "test");
+
+        ResourceCreate create = podamFactory.manufacturePojo(ResourceCreate.class);
+        create.setLabels(resourceLabels);
+        String tenantId = RandomStringUtils.randomAlphanumeric(10);
+        resourceManagement.createResource(tenantId, create);
+        entityManager.flush();
+
+        Page<Resource> resources = resourceManagement.getResourcesFromLabels(labels, tenantId, LabelSelectorMethod.OR, Pageable.unpaged());
         assertEquals(1L, resources.getTotalElements()); //make sure we only returned the one value
         assertEquals(tenantId, resources.getContent().get(0).getTenantId());
         assertEquals(create.getResourceId(), resources.getContent().get(0).getResourceId());
