@@ -155,8 +155,8 @@ public class ResourceApiController {
   @GetMapping("/tenant/{tenantId}/resources-by-label/{logicalOperator}")
   @JsonView(View.Public.class)
   public PagedContent<ResourceDTO> getResourcesWithLabels(@PathVariable String tenantId,
-      @RequestParam Map<String, String> labels, @PathVariable String logicalOperator, Pageable pageable) {
-    return PagedContent.fromPage(resourceManagement.getResourcesFromLabels(labels, tenantId, LabelSelectorMethod.valueOf(logicalOperator), pageable)
+      @RequestParam Map<String, String> labels, @PathVariable LabelSelectorMethod logicalOperator, Pageable pageable) {
+    return PagedContent.fromPage(resourceManagement.getResourcesFromLabels(labels, tenantId, logicalOperator, pageable)
         .map(ResourceDTO::new));
   }
 

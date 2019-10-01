@@ -695,7 +695,7 @@ public class ResourceManagementTest {
         resourceLabels.put("architecture", "x86");
         final Map<String, String> labels = new HashMap<>();
         labels.put("os", "DARWIN");
-        labels.put("env", "test");
+        labels.put("env", "prod");
 
         ResourceCreate create = podamFactory.manufacturePojo(ResourceCreate.class);
         create.setLabels(resourceLabels);
