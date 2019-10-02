@@ -105,10 +105,8 @@ public class ResourceApiClient implements ResourceApi {
     for (Map.Entry<String, String> e : labels.entrySet()) {
       uriComponentsBuilder.queryParam(e.getKey(), e.getValue());
     }
-    //String uriString = uriComponentsBuilder.buildAndExpand(tenantId).toUriString();
-    Object[] items = {tenantId, labelSelector};
 
-    String uriString = uriComponentsBuilder.buildAndExpand(items).toUriString();
+    String uriString = uriComponentsBuilder.buildAndExpand(tenantId, labelSelector).toUriString();
     ResponseEntity<PagedContent<ResourceDTO>> resp = restTemplate.exchange(
         uriString,
         HttpMethod.GET,
