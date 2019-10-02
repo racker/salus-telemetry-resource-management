@@ -39,19 +39,22 @@ public class RestExceptionHandler extends AbstractRestExceptionHandler {
 
     @ExceptionHandler({NotFoundException.class})
     public ResponseEntity<?> handleNotFound(
-        HttpServletRequest request) {
+        HttpServletRequest request, Exception e) {
+        logRequestFailure(request, e);
         return respondWith(request, HttpStatus.NOT_FOUND);
     }
 
     @ExceptionHandler({AlreadyExistsException.class})
     public ResponseEntity<?> handleAlreadyExists(
-        HttpServletRequest request) {
+        HttpServletRequest request, Exception e) {
+        logRequestFailure(request, e);
         return respondWith(request, HttpStatus.UNPROCESSABLE_ENTITY);
     }
 
     @ExceptionHandler({JDBCException.class})
     public ResponseEntity<?> handleJDBCException(
-        HttpServletRequest request) {
+        HttpServletRequest request, Exception e) {
+        logRequestFailure(request, e);
         return respondWith(request, HttpStatus.SERVICE_UNAVAILABLE, ResponseMessages.jdbcExceptionMessage);
     }
 }
