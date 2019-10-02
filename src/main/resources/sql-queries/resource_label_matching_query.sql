@@ -6,21 +6,21 @@ WHERE
    resources.id = rl.id
    AND resources.id IN
    (
-      SELECT id
-      FROM resource_labels
+      SELECT inner_rl.id
+      FROM resource_labels AS inner_rl
       WHERE
-         id IN
+         inner_rl.id IN
          (
-            SELECT id
-            FROM resources
-            WHERE tenant_id = :tenantId
+            SELECT inner_resources.id
+            FROM resources AS inner_resources
+            WHERE inner_resources.tenant_id = :tenantId
          )
          AND resources.id IN
          (
-            SELECT id
-            FROM resource_labels
+            SELECT most_inner_rl.id
+            FROM resource_labels AS most_inner_rl
             WHERE %s
-            GROUP BY id
+            GROUP BY most_inner_rl.id
             HAVING COUNT(*) = :i
          )
    )
