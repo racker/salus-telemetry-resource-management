@@ -604,6 +604,24 @@ public class ResourceManagementTest {
     }
 
     @Test
+    public void testResourcesWithSameLabelsAndDifferentTenantsUsingOr() {
+        final Map<String, String> labels = new HashMap<>();
+        labels.put("key", "value");
+
+        ResourceCreate create = podamFactory.manufacturePojo(ResourceCreate.class);
+        create.setLabels(labels);
+        String tenantId = RandomStringUtils.randomAlphanumeric(10);
+        String tenantId2 = RandomStringUtils.randomAlphanumeric(10);
+        resourceManagement.createResource(tenantId, create);
+        resourceManagement.createResource(tenantId2, create);
+
+        Page<Resource> resources = resourceManagement.getResourcesFromLabels(labels, tenantId, LabelSelectorMethod.OR, Pageable.unpaged());
+        assertEquals(1L, resources.getTotalElements()); //make sure we only returned the one value
+        assertEquals(tenantId, resources.getContent().get(0).getTenantId());
+        assertEquals(create.getResourceId(), resources.getContent().get(0).getResourceId());
+    }
+
+    @Test
     public void testMatchResourceWithMultipleLabels() {
         final Map<String, String> labels = new HashMap<>();
         labels.put("os", "DARWIN");
@@ -661,6 +679,26 @@ public class ResourceManagementTest {
         entityManager.flush();
 
         Page<Resource> resources = resourceManagement.getResourcesFromLabels(labels, tenantId, LabelSelectorMethod.AND, Pageable.unpaged());
+        assertEquals(0L, resources.getTotalElements());
+    }
+
+    @Test
+    public void testFailedMatchResourceWithMultipleLabelsUsingOr() {
+        final Map<String, String> resourceLabels = new HashMap<>();
+        resourceLabels.put("os", "DARWIN");
+        resourceLabels.put("env", "test");
+
+        final Map<String, String> labels = new HashMap<>();
+        labels.put("os", "Windows");
+        labels.put("env", "prod");
+
+        ResourceCreate create = podamFactory.manufacturePojo(ResourceCreate.class);
+        create.setLabels(resourceLabels);
+        String tenantId = RandomStringUtils.randomAlphanumeric(10);
+        resourceManagement.createResource(tenantId, create);
+        entityManager.flush();
+
+        Page<Resource> resources = resourceManagement.getResourcesFromLabels(labels, tenantId, LabelSelectorMethod.OR, Pageable.unpaged());
         assertEquals(0L, resources.getTotalElements());
     }
 
