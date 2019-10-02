@@ -9,7 +9,7 @@ WHERE
       SELECT inner_rl.id
       FROM resource_labels AS inner_rl
       WHERE
-         id IN
+         inner_rl.id IN
          (
             SELECT inner_resources.id
             FROM resources AS inner_resources
