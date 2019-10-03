@@ -27,28 +27,29 @@ steps:
     - name: user.home
       path: /root
 
-  - id: DEPLOY
+  - id: VERIFY
     name: 'gcr.io/cloud-builders/mvn'
-    args: ['-B', 'deploy', '-s', '.mvn/settings.xml']
+    args: ['-B', 'verify', '-s', '.mvn/settings.xml']
     volumes:
-    - name: user.home
-      path: /root
+      - name: user.home
+        path: /root
 
   # Saves the files to the GCS cache.
   - id: PUSH_UP_CACHE
     waitFor:
-    - DEPLOY
+      - VERIFY
     name: gcr.io/cloud-builders/gsutil
     dir: /root
     entrypoint: bash
     # Caches the local Maven repository.
     args:
-    - -c
-    - |
-      set -ex
-      tar -czf /tmp/m2-cache.tar.gz .m2 &&
-      gsutil cp /tmp/m2-cache.tar.gz gs://${_GCS_CACHE_BUCKET}/${_SALUS_PROJECT}-m2-cache.tar.gz
+      - -c
+      - |
+        set -ex
+        tar -czf /tmp/m2-cache.tar.gz .m2 &&
+        gsutil cp /tmp/m2-cache.tar.gz gs://${_GCS_CACHE_BUCKET}/${_SALUS_PROJECT}-m2-cache.tar.gz
     volumes:
-    - name: user.home
-      path: /root
+      - name: user.home
+        path: /root
+
 

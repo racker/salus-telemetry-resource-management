@@ -17,11 +17,9 @@
 package com.rackspace.salus.resource_management.web.controller;
 
 import com.rackspace.salus.common.errors.ResponseMessages;
-import com.rackspace.salus.common.errors.RuntimeKafkaException;
 import com.rackspace.salus.common.web.AbstractRestExceptionHandler;
 import com.rackspace.salus.telemetry.errors.AlreadyExistsException;
 import com.rackspace.salus.telemetry.model.NotFoundException;
-import java.util.concurrent.ExecutionException;
 import javax.servlet.http.HttpServletRequest;
 import org.hibernate.JDBCException;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -39,33 +37,24 @@ public class RestExceptionHandler extends AbstractRestExceptionHandler {
         super(errorAttributes);
     }
 
-    @ExceptionHandler({IllegalArgumentException.class})
-    public ResponseEntity<?> handleBadRequest(
-        HttpServletRequest request) {
-        return respondWith(request, HttpStatus.BAD_REQUEST);
-    }
-
     @ExceptionHandler({NotFoundException.class})
     public ResponseEntity<?> handleNotFound(
-        HttpServletRequest request) {
+        HttpServletRequest request, Exception e) {
+        logRequestFailure(request, e);
         return respondWith(request, HttpStatus.NOT_FOUND);
     }
 
     @ExceptionHandler({AlreadyExistsException.class})
     public ResponseEntity<?> handleAlreadyExists(
-        HttpServletRequest request) {
+        HttpServletRequest request, Exception e) {
+        logRequestFailure(request, e);
         return respondWith(request, HttpStatus.UNPROCESSABLE_ENTITY);
     }
 
     @ExceptionHandler({JDBCException.class})
     public ResponseEntity<?> handleJDBCException(
-        HttpServletRequest request) {
+        HttpServletRequest request, Exception e) {
+        logRequestFailure(request, e);
         return respondWith(request, HttpStatus.SERVICE_UNAVAILABLE, ResponseMessages.jdbcExceptionMessage);
-    }
-
-    @ExceptionHandler({RuntimeKafkaException.class})
-    public ResponseEntity<?> handleKafkaExceptions(
-        HttpServletRequest request) {
-        return respondWith(request, HttpStatus.SERVICE_UNAVAILABLE, ResponseMessages.kafkaExceptionMessage);
     }
 }
