@@ -45,6 +45,7 @@ import com.rackspace.salus.resource_management.web.model.ResourceCreate;
 import com.rackspace.salus.resource_management.web.model.ResourceDTO;
 import com.rackspace.salus.resource_management.web.model.ResourceUpdate;
 import com.rackspace.salus.telemetry.errors.AlreadyExistsException;
+import com.rackspace.salus.telemetry.model.LabelSelectorMethod;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -385,11 +386,11 @@ public class ResourceApiControllerTest {
         .mapToObj(value -> podamFactory.manufacturePojo(Resource.class))
         .collect(Collectors.toList());
 
-    when(resourceManagement.getResourcesFromLabels(any(), any(), any()))
+    when(resourceManagement.getResourcesFromLabels(any(), any(), any(), any()))
         .thenReturn(new PageImpl<>(expectedResources, Pageable.unpaged(), expectedResources.size()));
 
     mockMvc.perform(get(
-        "/api/tenant/{tenantId}/resources-by-label?env=prod",
+        "/api/tenant/{tenantId}/resources-by-label/AND?env=prod",
         "t-1"
     ).accept(MediaType.APPLICATION_JSON))
         .andExpect(status().isOk());
@@ -397,6 +398,7 @@ public class ResourceApiControllerTest {
     verify(resourceManagement).getResourcesFromLabels(
         Collections.singletonMap("env", "prod"),
         "t-1",
+        LabelSelectorMethod.AND,
         PageRequest.of(0, 20)
     );
 

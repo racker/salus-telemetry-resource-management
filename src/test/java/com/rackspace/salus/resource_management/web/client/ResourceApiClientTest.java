@@ -25,6 +25,7 @@ import static org.springframework.test.web.client.response.MockRestResponseCreat
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.rackspace.salus.resource_management.web.model.ResourceDTO;
+import com.rackspace.salus.telemetry.model.LabelSelectorMethod;
 import com.rackspace.salus.telemetry.model.PagedContent;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -106,13 +107,13 @@ public class ResourceApiClientTest {
         new PageImpl<>(expectedResources, Pageable.unpaged(), expectedResources.size())
     );
 
-    mockServer.expect(requestTo("/api/tenant/t-1/resources-by-label?env=prod"))
+    mockServer.expect(requestTo("/api/tenant/t-1/resources-by-label/AND?env=prod"))
         .andRespond(withSuccess(
             objectMapper.writeValueAsString(result), MediaType.APPLICATION_JSON
         ));
 
     final List<ResourceDTO> resources = resourceApiClient
-        .getResourcesWithLabels("t-1", Collections.singletonMap("env", "prod"));
+        .getResourcesWithLabels("t-1", Collections.singletonMap("env", "prod"), LabelSelectorMethod.AND);
 
     assertThat(resources, equalTo(expectedResources));
   }

@@ -21,7 +21,7 @@ WHERE
             FROM resource_labels AS most_inner_rl
             WHERE %s
             GROUP BY most_inner_rl.id
-            HAVING COUNT(*) = :i
+            HAVING COUNT(*) >= 1
          )
    )
 GROUP BY resources.id

@@ -17,6 +17,7 @@
 package com.rackspace.salus.resource_management.web.client;
 
 import com.rackspace.salus.resource_management.web.model.ResourceDTO;
+import com.rackspace.salus.telemetry.model.LabelSelectorMethod;
 import java.util.List;
 import java.util.Map;
 
@@ -32,7 +33,8 @@ public interface ResourceApi {
                            String resourceId);
 
   List<ResourceDTO> getResourcesWithLabels(String tenantId,
-                                        Map<String, String> labels);
+                                        Map<String, String> labels,
+                                        LabelSelectorMethod labelSelector);
 
   List<ResourceDTO> getExpectedEnvoys();
 
