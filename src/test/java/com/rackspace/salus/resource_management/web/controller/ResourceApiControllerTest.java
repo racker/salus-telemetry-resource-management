@@ -60,6 +60,7 @@ import org.apache.commons.lang3.RandomStringUtils;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.autoconfigure.data.web.SpringDataWebProperties;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.data.domain.Page;
@@ -85,6 +86,9 @@ public class ResourceApiControllerTest {
 
   @Autowired
   MockMvc mockMvc;
+
+  @Autowired
+  SpringDataWebProperties springDataWebProperties;
 
   @MockBean
   ResourceManagement resourceManagement;
@@ -432,6 +436,42 @@ public class ResourceApiControllerTest {
         "t-1",
         LabelSelectorMethod.AND,
         PageRequest.of(2, 101)
+    );
+
+    verifyNoMoreInteractions(resourceManagement);
+  }
+
+  @Test
+  public void testGetResourcesWithLabels_tooLargePageSize() throws Exception {
+
+    // grab the value that Spring Boot will configure
+    final int maxPageSize = springDataWebProperties.getPageable().getMaxPageSize();
+
+    final List<Resource> expectedResources = IntStream.range(0, 4)
+        .mapToObj(value -> podamFactory.manufacturePojo(Resource.class))
+        .collect(Collectors.toList());
+
+    when(resourceManagement.getResourcesFromLabels(any(), any(), any(), any()))
+        .thenReturn(new PageImpl<>(expectedResources, PageRequest.of(0, maxPageSize), expectedResources.size()));
+
+    mockMvc.perform(
+        get(
+            "/api/tenant/{tenantId}/resources-by-label/AND",
+            "t-1"
+        )
+            .param("env", "prod")
+            // give it a very large page size to confirm capped value
+            .param("size", String.valueOf(Integer.MAX_VALUE))
+            .accept(MediaType.APPLICATION_JSON)
+    )
+        .andExpect(status().isOk());
+
+    verify(resourceManagement).getResourcesFromLabels(
+        Collections.singletonMap("env", "prod"),
+        "t-1",
+        LabelSelectorMethod.AND,
+        // Confirm the request page size was capped at the maxPageSize configured by Spring Boot
+        PageRequest.of(0, maxPageSize)
     );
 
     verifyNoMoreInteractions(resourceManagement);
