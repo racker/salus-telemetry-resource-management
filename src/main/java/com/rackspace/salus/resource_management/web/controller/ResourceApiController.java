@@ -185,11 +185,6 @@ public class ResourceApiController {
     resourceLabels.remove(springDataWebProperties.getPageable().getSizeParameter());
     resourceLabels.remove(springDataWebProperties.getPageable().getPageParameter());
 
-    // and convert to unpaged when "one big page is requested" since the query logic handles this more directly
-    if (pageable.getPageNumber() == 0 && pageable.getPageSize() == Integer.MAX_VALUE) {
-      pageable = Pageable.unpaged();
-    }
-
     return PagedContent.fromPage(
         resourceManagement
             .getResourcesFromLabels(resourceLabels, tenantId, logicalOperator, pageable)
