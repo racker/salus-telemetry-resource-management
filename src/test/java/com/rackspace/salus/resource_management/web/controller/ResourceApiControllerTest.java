@@ -39,11 +39,11 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.rackspace.salus.common.util.SpringResourceUtils;
-import com.rackspace.salus.telemetry.entities.Resource;
 import com.rackspace.salus.resource_management.services.ResourceManagement;
 import com.rackspace.salus.resource_management.web.model.ResourceCreate;
 import com.rackspace.salus.resource_management.web.model.ResourceDTO;
 import com.rackspace.salus.resource_management.web.model.ResourceUpdate;
+import com.rackspace.salus.telemetry.entities.Resource;
 import com.rackspace.salus.telemetry.errors.AlreadyExistsException;
 import com.rackspace.salus.telemetry.model.LabelSelectorMethod;
 import java.nio.charset.StandardCharsets;
@@ -400,6 +400,68 @@ public class ResourceApiControllerTest {
         "t-1",
         LabelSelectorMethod.AND,
         PageRequest.of(0, 20)
+    );
+
+    verifyNoMoreInteractions(resourceManagement);
+  }
+
+  @Test
+  public void testGetResourcesWithLabels_largerPageSize() throws Exception {
+
+    final List<Resource> expectedResources = IntStream.range(0, 4)
+        .mapToObj(value -> podamFactory.manufacturePojo(Resource.class))
+        .collect(Collectors.toList());
+
+    when(resourceManagement.getResourcesFromLabels(any(), any(), any(), any()))
+        .thenReturn(new PageImpl<>(expectedResources, Pageable.unpaged(), expectedResources.size()));
+
+    mockMvc.perform(
+        get(
+            "/api/tenant/{tenantId}/resources-by-label/AND",
+            "t-1"
+        )
+            .param("env", "prod")
+            .param("page", "2")
+            .param("size", "101")
+            .accept(MediaType.APPLICATION_JSON)
+    )
+        .andExpect(status().isOk());
+
+    verify(resourceManagement).getResourcesFromLabels(
+        Collections.singletonMap("env", "prod"),
+        "t-1",
+        LabelSelectorMethod.AND,
+        PageRequest.of(2, 101)
+    );
+
+    verifyNoMoreInteractions(resourceManagement);
+  }
+
+  @Test
+  public void testGetAllTenantResourcesWithLabels() throws Exception {
+
+    final List<Resource> expectedResources = IntStream.range(0, 4)
+        .mapToObj(value -> podamFactory.manufacturePojo(Resource.class))
+        .collect(Collectors.toList());
+
+    when(resourceManagement.getResourcesFromLabels(any(), any(), any(), any()))
+        .thenReturn(new PageImpl<>(expectedResources, Pageable.unpaged(), expectedResources.size()));
+
+    mockMvc.perform(
+        get(
+            "/api/admin/resources-by-label/{tenantId}/{logicalOperator}",
+            "t-1", "AND"
+        )
+            .param("env", "prod")
+            .accept(MediaType.APPLICATION_JSON)
+    )
+        .andExpect(status().isOk());
+
+    verify(resourceManagement).getResourcesFromLabels(
+        Collections.singletonMap("env", "prod"),
+        "t-1",
+        LabelSelectorMethod.AND,
+        Pageable.unpaged()
     );
 
     verifyNoMoreInteractions(resourceManagement);

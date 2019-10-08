@@ -19,7 +19,6 @@ package com.rackspace.salus.resource_management.web.client;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.rackspace.salus.resource_management.web.model.ResourceDTO;
 import com.rackspace.salus.telemetry.model.LabelSelectorMethod;
-import com.rackspace.salus.telemetry.model.PagedContent;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -65,11 +64,11 @@ import org.springframework.web.util.UriComponentsBuilder;
 @Slf4j
 public class ResourceApiClient implements ResourceApi {
 
-  private static final ParameterizedTypeReference<PagedContent<ResourceDTO>> PAGE_OF_RESOURCE =
-      new ParameterizedTypeReference<PagedContent<ResourceDTO>>() {};
+  private static final ParameterizedTypeReference<List<ResourceDTO>> LIST_OF_RESOURCE =
+      new ParameterizedTypeReference<>() {};
 
   private static final ParameterizedTypeReference<List<String>> LIST_OF_STRING =
-      new ParameterizedTypeReference<List<String>>() {};
+      new ParameterizedTypeReference<>() {};
 
   private ObjectMapper objectMapper;
   private final RestTemplate restTemplate;
@@ -99,22 +98,23 @@ public class ResourceApiClient implements ResourceApi {
   }
 
   @Override
-  public List<ResourceDTO> getResourcesWithLabels(String tenantId, Map<String, String> labels, LabelSelectorMethod labelSelector) {
-    String endpoint = "/api/tenant/{tenantId}/resources-by-label/{logicalOperator}";
+  public List<ResourceDTO> getResourcesWithLabels(String tenantId, Map<String, String> labels,
+                                                  LabelSelectorMethod labelSelector) {
+    String endpoint = "/api/admin/resources-by-label/{tenantId}/{logicalOperator}";
     UriComponentsBuilder uriComponentsBuilder = UriComponentsBuilder.fromUriString(endpoint);
     for (Map.Entry<String, String> e : labels.entrySet()) {
       uriComponentsBuilder.queryParam(e.getKey(), e.getValue());
     }
 
     String uriString = uriComponentsBuilder.buildAndExpand(tenantId, labelSelector).toUriString();
-    ResponseEntity<PagedContent<ResourceDTO>> resp = restTemplate.exchange(
+    ResponseEntity<List<ResourceDTO>> resp = restTemplate.exchange(
         uriString,
         HttpMethod.GET,
         null,
-        PAGE_OF_RESOURCE
+        LIST_OF_RESOURCE
     );
 
-    return Objects.requireNonNull(resp.getBody()).getContent();
+    return Objects.requireNonNull(resp.getBody());
   }
 
   @Override

@@ -16,7 +16,8 @@
 
 package com.rackspace.salus.resource_management.web.client;
 
-import static org.hamcrest.Matchers.*;
+import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.nullValue;
 import static org.junit.Assert.assertThat;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withStatus;
@@ -26,13 +27,11 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.rackspace.salus.resource_management.web.model.ResourceDTO;
 import com.rackspace.salus.telemetry.model.LabelSelectorMethod;
-import com.rackspace.salus.telemetry.model.PagedContent;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
-
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -40,8 +39,6 @@ import org.springframework.boot.test.autoconfigure.web.client.RestClientTest;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.web.client.RestTemplateBuilder;
 import org.springframework.context.annotation.Bean;
-import org.springframework.data.domain.PageImpl;
-import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.junit4.SpringRunner;
@@ -103,13 +100,9 @@ public class ResourceApiClientTest {
         .mapToObj(value -> podamFactory.manufacturePojo(ResourceDTO.class))
         .collect(Collectors.toList());
 
-    final PagedContent<ResourceDTO> result = PagedContent.fromPage(
-        new PageImpl<>(expectedResources, Pageable.unpaged(), expectedResources.size())
-    );
-
-    mockServer.expect(requestTo("/api/tenant/t-1/resources-by-label/AND?env=prod"))
+    mockServer.expect(requestTo("/api/admin/resources-by-label/t-1/AND?env=prod"))
         .andRespond(withSuccess(
-            objectMapper.writeValueAsString(result), MediaType.APPLICATION_JSON
+            objectMapper.writeValueAsString(expectedResources), MediaType.APPLICATION_JSON
         ));
 
     final List<ResourceDTO> resources = resourceApiClient
