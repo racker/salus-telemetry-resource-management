@@ -21,14 +21,21 @@ import com.rackspace.salus.resource_management.services.ResourceManagement;
 import com.rackspace.salus.resource_management.web.model.ResourceCreate;
 import com.rackspace.salus.resource_management.web.model.ResourceDTO;
 import com.rackspace.salus.resource_management.web.model.ResourceUpdate;
+import com.rackspace.salus.telemetry.entities.Resource;
 import com.rackspace.salus.telemetry.errors.AlreadyExistsException;
 import com.rackspace.salus.telemetry.model.LabelSelectorMethod;
 import com.rackspace.salus.telemetry.model.NotFoundException;
-import com.rackspace.salus.telemetry.entities.Resource;
 import com.rackspace.salus.telemetry.model.PagedContent;
 import com.rackspace.salus.telemetry.model.View;
+import io.swagger.annotations.Api;
+import io.swagger.annotations.ApiOperation;
+import io.swagger.annotations.ApiResponse;
+import io.swagger.annotations.ApiResponses;
+import io.swagger.annotations.Authorization;
+import io.swagger.annotations.AuthorizationScope;
 import java.io.IOException;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -36,6 +43,7 @@ import java.util.stream.Stream;
 import javax.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.autoconfigure.data.web.SpringDataWebProperties;
 import org.springframework.core.task.TaskExecutor;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
@@ -51,7 +59,6 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
-import io.swagger.annotations.*;
 
 
 @Slf4j
@@ -68,11 +75,14 @@ import io.swagger.annotations.*;
 public class ResourceApiController {
   private ResourceManagement resourceManagement;
   private TaskExecutor taskExecutor;
+  private final SpringDataWebProperties springDataWebProperties;
 
   @Autowired
-  public ResourceApiController(ResourceManagement resourceManagement, TaskExecutor taskExecutor) {
+  public ResourceApiController(ResourceManagement resourceManagement, TaskExecutor taskExecutor,
+                               SpringDataWebProperties springDataWebProperties) {
     this.resourceManagement = resourceManagement;
     this.taskExecutor = taskExecutor;
+    this.springDataWebProperties = springDataWebProperties;
   }
 
   @GetMapping("/admin/resources")
@@ -152,12 +162,33 @@ public class ResourceApiController {
     resourceManagement.removeResource(tenantId, resourceId);
   }
 
+  @GetMapping("/admin/resources-by-label/{tenantId}/{logicalOperator}")
+  @JsonView(View.Admin.class)
+  public List<ResourceDTO> getAllTenantResourcesWithLabels(@PathVariable String tenantId,
+                                                           @RequestParam Map<String, String> labels,
+                                                           @PathVariable LabelSelectorMethod logicalOperator) {
+
+    return resourceManagement
+        .getResourcesFromLabels(labels, tenantId, logicalOperator, Pageable.unpaged())
+        .map(ResourceDTO::new)
+        .getContent();
+  }
+
   @GetMapping("/tenant/{tenantId}/resources-by-label/{logicalOperator}")
   @JsonView(View.Public.class)
-  public PagedContent<ResourceDTO> getResourcesWithLabels(@PathVariable String tenantId,
-      @RequestParam Map<String, String> labels, @PathVariable LabelSelectorMethod logicalOperator, Pageable pageable) {
-    return PagedContent.fromPage(resourceManagement.getResourcesFromLabels(labels, tenantId, logicalOperator, pageable)
-        .map(ResourceDTO::new));
+  public PagedContent<ResourceDTO> getPagedResourcesWithLabels(@PathVariable String tenantId,
+      @RequestParam Map<String, String> labels, @PathVariable LabelSelectorMethod logicalOperator,
+                                                          Pageable pageable) {
+
+    // labels is a catch-all for request/query parameters, so need to strip out the pageable parameters
+    final Map<String, String> resourceLabels = new HashMap<>(labels);
+    resourceLabels.remove(springDataWebProperties.getPageable().getSizeParameter());
+    resourceLabels.remove(springDataWebProperties.getPageable().getPageParameter());
+
+    return PagedContent.fromPage(
+        resourceManagement
+            .getResourcesFromLabels(resourceLabels, tenantId, logicalOperator, pageable)
+            .map(ResourceDTO::new));
   }
 
   @GetMapping("/tenant/{tenantId}/resource-labels")
