@@ -24,19 +24,12 @@
     <include resource="logback-fluency.xml" />
   </springProfile>
 
-  
-  <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
-    <encoder>
-      <pattern><![CDATA[%date{HH:mm:ss.SSS} [%thread] %-5level %logger{15}#%line %msg%n]]></pattern>
-    </encoder>
-  </appender>
-
   <root level="INFO">
     <springProfile name="production">
       <appender-ref ref="FLUENCY" />
     </springProfile>
     <springProfile name="!production">
-      <appender-ref ref="STDOUT"/>
+      <appender-ref ref="CONSOLE"/>
     </springProfile>
   </root>
 

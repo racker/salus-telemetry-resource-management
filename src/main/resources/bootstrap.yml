@@ -1,0 +1,3 @@
+spring:
+  application:
+    name: salus-telemetry-resource-management
