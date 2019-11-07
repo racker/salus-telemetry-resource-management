@@ -24,7 +24,7 @@ import lombok.Data;
 public class ResourceUpdate implements Serializable {
     Map<String,String> labels;
 
-    Map<String,String> metadata;
+    Map<String,Object> metadata;
 
     Boolean presenceMonitoringEnabled;
 }

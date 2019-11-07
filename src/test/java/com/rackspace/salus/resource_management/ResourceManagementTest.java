@@ -18,11 +18,9 @@ package com.rackspace.salus.resource_management;
 
 import static com.rackspace.salus.telemetry.model.LabelNamespaces.AGENT;
 import static com.rackspace.salus.telemetry.model.LabelNamespaces.applyNamespace;
-import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.hasEntry;
-import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.hamcrest.Matchers.nullValue;
 import static org.junit.Assert.assertEquals;
@@ -36,18 +34,17 @@ import static org.mockito.Mockito.verifyNoMoreInteractions;
 import com.google.common.collect.Maps;
 import com.rackspace.salus.resource_management.config.DatabaseConfig;
 import com.rackspace.salus.resource_management.config.ResourceManagementProperties;
-import com.rackspace.salus.telemetry.model.LabelSelectorMethod;
-import com.rackspace.salus.telemetry.repositories.ResourceRepository;
 import com.rackspace.salus.resource_management.services.KafkaEgress;
 import com.rackspace.salus.resource_management.services.ResourceManagement;
 import com.rackspace.salus.resource_management.web.model.ResourceCreate;
 import com.rackspace.salus.resource_management.web.model.ResourceUpdate;
+import com.rackspace.salus.telemetry.entities.Resource;
 import com.rackspace.salus.telemetry.messaging.AttachEvent;
 import com.rackspace.salus.telemetry.messaging.ResourceEvent;
 import com.rackspace.salus.telemetry.model.LabelNamespaces;
+import com.rackspace.salus.telemetry.model.LabelSelectorMethod;
 import com.rackspace.salus.telemetry.model.NotFoundException;
-import com.rackspace.salus.telemetry.entities.Resource;
-import java.util.ArrayList;
+import com.rackspace.salus.telemetry.repositories.ResourceRepository;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
@@ -495,7 +492,7 @@ public class ResourceManagementTest {
         Map<String, String> newLabels = new HashMap<>();
         newLabels.put("newLabel", "newValue");
 
-        final HashMap<String, String> newMetadata = new HashMap<>();
+        final HashMap<String, Object> newMetadata = new HashMap<>();
         newMetadata.put("local_ip", "127.0.0.1");
 
         final boolean presenceMonitoring = !resource.getPresenceMonitoringEnabled();
@@ -570,7 +567,7 @@ public class ResourceManagementTest {
         final Map<String, String> labels = new HashMap<>();
         labels.put("os", "DARWIN");
 
-        final Map<String, String> metadata = new HashMap<>();
+        final Map<String, Object> metadata = new HashMap<>();
         metadata.put("local_ip", "127.0.0.1");
 
         ResourceCreate create = podamFactory.manufacturePojo(ResourceCreate.class);
@@ -879,17 +876,17 @@ public class ResourceManagementTest {
 
     @Test
     public void testGetTenantResourceMetadataKeys() {
-        Map<String, String> metadata1 = new HashMap<>();
+        Map<String, Object> metadata1 = new HashMap<>();
         metadata1.put("key1", "value-1-1");
         persistResource("t-1", "r-1", Collections.emptyMap(), metadata1);
-        Map<String, String> metadata2 = new HashMap<>();
+        Map<String, Object> metadata2 = new HashMap<>();
         metadata2.put("key2", "value-2-2");
         persistResource("t-1", "r-2", Collections.emptyMap(), metadata2);
-        Map<String, String> metadata3 = new HashMap<>();
+        Map<String, Object> metadata3 = new HashMap<>();
         metadata3.put("key2", "value-2-2");
         metadata3.put("key3", "value-3-2");
         persistResource("t-1", "r-3", Collections.emptyMap(), metadata3);
-        Map<String, String> metadata4 = new HashMap<>();
+        Map<String, Object> metadata4 = new HashMap<>();
         metadata4.put("key1", "value-1-x");
         metadata4.put("key2", "value-2-x");
         persistResource("t-2", "r-4", Collections.emptyMap(), metadata4);
@@ -903,7 +900,7 @@ public class ResourceManagementTest {
     }
 
     private void persistResource(String tenantId, String resourceId, Map<String, String> labels,
-                                 Map<String, String> metadata) {
+                                 Map<String, Object> metadata) {
         entityManager.persist(
             new Resource()
                 .setTenantId(tenantId)

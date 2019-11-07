@@ -31,7 +31,7 @@ public class ResourceCreate implements Serializable {
 
     Map<String,String> labels;
 
-    Map<String,String> metadata;
+    Map<String,Object> metadata;
 
     @NotNull
     Boolean presenceMonitoringEnabled;
