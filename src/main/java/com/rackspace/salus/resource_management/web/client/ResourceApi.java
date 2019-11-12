@@ -16,10 +16,12 @@
 
 package com.rackspace.salus.resource_management.web.client;
 
+import com.rackspace.salus.resource_management.web.model.ResourceCreate;
 import com.rackspace.salus.resource_management.web.model.ResourceDTO;
 import com.rackspace.salus.telemetry.model.LabelSelectorMethod;
 import java.util.List;
 import java.util.Map;
+import org.springframework.util.MultiValueMap;
 
 /**
  * This interface declares a subset of internal REST API calls exposed by the Resource Management
@@ -39,4 +41,6 @@ public interface ResourceApi {
   List<ResourceDTO> getExpectedEnvoys();
 
   List<String> getAllDistinctTenantIds();
+
+  ResourceDTO createResource(String tenantId, ResourceCreate create, MultiValueMap<String, String> headers);
 }
