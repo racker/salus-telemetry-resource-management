@@ -16,7 +16,10 @@
 
 package com.rackspace.salus.resource_management.web.client;
 
+import static com.rackspace.salus.common.web.RemoteOperations.mapRestClientExceptions;
+
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.rackspace.salus.resource_management.web.model.ResourceCreate;
 import com.rackspace.salus.resource_management.web.model.ResourceDTO;
 import com.rackspace.salus.telemetry.model.LabelSelectorMethod;
 import java.io.BufferedReader;
@@ -28,9 +31,13 @@ import java.util.Map;
 import java.util.Objects;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.ParameterizedTypeReference;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponentsBuilder;
@@ -63,6 +70,8 @@ import org.springframework.web.util.UriComponentsBuilder;
  */
 @Slf4j
 public class ResourceApiClient implements ResourceApi {
+
+  private static final String SERVICE_NAME = "resource-management";
 
   private static final ParameterizedTypeReference<List<ResourceDTO>> LIST_OF_RESOURCE =
       new ParameterizedTypeReference<>() {};
@@ -156,5 +165,27 @@ public class ResourceApiClient implements ResourceApi {
     );
 
     return resp.getBody();
+  }
+
+  @Override
+  public ResourceDTO createResource(String tenantId, ResourceCreate create, MultiValueMap<String, String> headers) {
+    String uriString = UriComponentsBuilder
+        .fromUriString("/api/tenant/{tenantId}/resources")
+        .buildAndExpand(tenantId)
+        .toUriString();
+
+    HttpHeaders reqHeaders = new HttpHeaders();
+    reqHeaders.setContentType(MediaType.APPLICATION_JSON);
+    if (headers != null) {
+      reqHeaders.addAll(headers);
+    }
+
+    return mapRestClientExceptions(
+        SERVICE_NAME,
+        () -> restTemplate.postForEntity(
+            uriString,
+            new HttpEntity<>(create, reqHeaders),
+            ResourceDTO.class
+        ).getBody());
   }
 }
