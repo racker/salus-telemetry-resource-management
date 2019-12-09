@@ -16,12 +16,10 @@
 
 package com.rackspace.salus.resource_management.config;
 
-import org.springframework.boot.autoconfigure.domain.EntityScan;
+import com.rackspace.salus.telemetry.EnableSalusJpa;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 
-@EntityScan("com.rackspace.salus.telemetry.entities")
-@EnableJpaRepositories("com.rackspace.salus.telemetry.repositories")
+@EnableSalusJpa
 @Configuration
 public class DatabaseConfig {
 
