@@ -18,6 +18,8 @@ spring:
   jackson:
     mapper:
       default-view-inclusion: true
+  zipkin:
+    enabled: false
 logging:
   level:
     web: debug
