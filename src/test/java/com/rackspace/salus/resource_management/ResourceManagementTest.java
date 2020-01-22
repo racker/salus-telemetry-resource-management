@@ -663,6 +663,50 @@ public class ResourceManagementTest {
     }
 
     @Test
+    public void testMatchResourceWithNoLabelsAsOrRequest() {
+        final Map<String, String> labels = new HashMap<>();
+        labels.put("os", "DARWIN");
+        labels.put("env", "test");
+
+        final Map<String, String> matchLabels = new HashMap<>();
+        labels.put("os", "DARWIN");
+
+        ResourceCreate create = podamFactory.manufacturePojo(ResourceCreate.class);
+        create.setLabels(Collections.emptyMap());
+        String tenantId = RandomStringUtils.randomAlphanumeric(10);
+        resourceManagement.createResource(tenantId, create);
+        entityManager.flush();
+
+        Page<Resource> resources = resourceManagement.getResourcesFromLabels(matchLabels, tenantId, LabelSelectorMethod.OR, Pageable.unpaged());
+        assertEquals(1L, resources.getTotalElements()); //make sure we only returned the one value
+        assertEquals(tenantId, resources.getContent().get(0).getTenantId());
+        assertEquals(create.getResourceId(), resources.getContent().get(0).getResourceId());
+        assertEquals(Collections.emptyMap(), resources.getContent().get(0).getLabels());
+    }
+
+    public void testMatchResourceWithNoLabelsAsOrRequestOnlyReturnsTenant() {
+        final Map<String, String> labels = new HashMap<>();
+        labels.put("os", "DARWIN");
+        labels.put("env", "test");
+
+        final Map<String, String> matchLabels = new HashMap<>();
+        labels.put("os", "DARWIN");
+
+        ResourceCreate create = podamFactory.manufacturePojo(ResourceCreate.class);
+        create.setLabels(Collections.emptyMap());
+        String tenantId = RandomStringUtils.randomAlphanumeric(10);
+        resourceManagement.createResource(tenantId, create);
+        resourceManagement.createResource(RandomStringUtils.randomAlphanumeric(10), create);
+        entityManager.flush();
+
+        Page<Resource> resources = resourceManagement.getResourcesFromLabels(matchLabels, tenantId, LabelSelectorMethod.OR, Pageable.unpaged());
+        assertEquals(1L, resources.getTotalElements()); //make sure we only returned the one value
+        assertEquals(tenantId, resources.getContent().get(0).getTenantId());
+        assertEquals(create.getResourceId(), resources.getContent().get(0).getResourceId());
+        assertEquals(labels, resources.getContent().get(0).getLabels());
+    }
+
+    @Test
     public void testFailedMatchResourceWithMultipleLabels() {
         final Map<String, String> resourceLabels = new HashMap<>();
         resourceLabels.put("os", "DARWIN");
