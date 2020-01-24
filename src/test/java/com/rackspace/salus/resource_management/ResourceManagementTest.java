@@ -690,7 +690,6 @@ public class ResourceManagementTest {
         Page<Resource> resources = resourceManagement.getResourcesFromLabels(Collections.emptyMap(), tenantId, LabelSelectorMethod.OR, Pageable.unpaged());
         assertEquals(2L, resources.getTotalElements()); //make sure we only returned the one value
         assertEquals(tenantId, resources.getContent().get(0).getTenantId());
-        //assertThat(resources.get()., containsInAnyOrder(create.getResourceId(), create2.getResourceId()));
         assertEquals(create.getResourceId(), resources.getContent().get(0).getResourceId());
         assertEquals(Collections.emptyMap(), resources.getContent().get(0).getLabels());
     }
