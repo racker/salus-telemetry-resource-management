@@ -51,6 +51,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -681,26 +682,26 @@ public class ResourceManagementTest {
         labels.put("env", "test");
 
         ResourceCreate create2 = podamFactory.manufacturePojo(ResourceCreate.class);
-        create.setLabels(labels);
+        create2.setLabels(labels);
         resourceManagement.createResource(tenantId, create2);
 
 
         entityManager.flush();
 
         Page<Resource> resources = resourceManagement.getResourcesFromLabels(Collections.emptyMap(), tenantId, LabelSelectorMethod.OR, Pageable.unpaged());
-        assertEquals(2L, resources.getTotalElements()); //make sure we only returned the one value
+        List<Map<String, String>> resourceLabels = resources.get().map(Resource::getLabels).collect(Collectors.toList());
+        List<String> resourceIds = resources.get().map(Resource::getResourceId).collect(Collectors.toList());
+
+        assertEquals(2L, resources.getTotalElements());
         assertEquals(tenantId, resources.getContent().get(0).getTenantId());
-        assertEquals(create.getResourceId(), resources.getContent().get(0).getResourceId());
-        assertEquals(Collections.emptyMap(), resources.getContent().get(0).getLabels());
+        assertThat(resourceLabels, containsInAnyOrder(create.getLabels(), create2.getLabels()));
+        assertThat(resourceIds, containsInAnyOrder(create.getResourceId(), create2.getResourceId()));
     }
 
     public void testMatchResourceWithNoLabelsAsOrRequestOnlyReturnsTenant() {
         final Map<String, String> labels = new HashMap<>();
         labels.put("os", "DARWIN");
         labels.put("env", "test");
-
-        final Map<String, String> matchLabels = new HashMap<>();
-        labels.put("os", "DARWIN");
 
         ResourceCreate create = podamFactory.manufacturePojo(ResourceCreate.class);
         create.setLabels(Collections.emptyMap());
@@ -709,7 +710,7 @@ public class ResourceManagementTest {
         resourceManagement.createResource(RandomStringUtils.randomAlphanumeric(10), create);
         entityManager.flush();
 
-        Page<Resource> resources = resourceManagement.getResourcesFromLabels(matchLabels, tenantId, LabelSelectorMethod.OR, Pageable.unpaged());
+        Page<Resource> resources = resourceManagement.getResourcesFromLabels(Collections.emptyMap(), tenantId, LabelSelectorMethod.OR, Pageable.unpaged());
         assertEquals(1L, resources.getTotalElements()); //make sure we only returned the one value
         assertEquals(tenantId, resources.getContent().get(0).getTenantId());
         assertEquals(create.getResourceId(), resources.getContent().get(0).getResourceId());
