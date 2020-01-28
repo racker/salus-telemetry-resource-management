@@ -698,6 +698,7 @@ public class ResourceManagementTest {
         assertThat(resourceIds, containsInAnyOrder(create.getResourceId(), create2.getResourceId()));
     }
 
+    //This test is supposed to make sure that when matching resources we are still only returning the tenants requested
     public void testMatchResourceWithNoLabelsAsOrRequestOnlyReturnsTenant() {
         final Map<String, String> labels = new HashMap<>();
         labels.put("os", "DARWIN");
