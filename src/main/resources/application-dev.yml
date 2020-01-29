@@ -15,7 +15,7 @@ spring:
     platform: mysql
   kafka:
     listener:
-      # this will allow for to start consumer of a particular topic before the producer
+      # this will allow for us to start consumer of a particular topic before the producer
       missing-topics-fatal: false
 logging:
   level:
