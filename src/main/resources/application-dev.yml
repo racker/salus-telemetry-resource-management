@@ -13,6 +13,10 @@ spring:
     url: jdbc:mysql://localhost:3306/default?verifyServerCertificate=false&useSSL=false&requireSSL=false
     driver-class-name: com.mysql.cj.jdbc.Driver
     platform: mysql
+  kafka:
+    listener:
+      # this will allow for us to start consumer of a particular topic before the producer
+      missing-topics-fatal: false
 logging:
   level:
     com.rackspace.salus: debug
