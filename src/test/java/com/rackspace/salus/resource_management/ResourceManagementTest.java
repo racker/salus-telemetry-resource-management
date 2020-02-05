@@ -18,6 +18,7 @@ package com.rackspace.salus.resource_management;
 
 import static com.rackspace.salus.telemetry.model.LabelNamespaces.AGENT;
 import static com.rackspace.salus.telemetry.model.LabelNamespaces.applyNamespace;
+import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.hasEntry;
@@ -49,7 +50,6 @@ import com.rackspace.salus.test.EnableTestContainersDatabase;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
