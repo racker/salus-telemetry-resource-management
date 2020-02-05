@@ -22,6 +22,7 @@ import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.hasEntry;
+import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.hamcrest.Matchers.nullValue;
 import static org.junit.Assert.assertEquals;
@@ -955,6 +956,18 @@ public class ResourceManagementTest {
             .getTenantResourceMetadataKeys("t-1");
 
         assertThat(results, equalTo(Arrays.asList("key1", "key2", "key3")));
+    }
+
+    @Test
+    public void testGetTenantResourceMetadataKeys_whenNull() {
+        persistResource("t-1", "r-1", Collections.emptyMap(), null);
+
+        entityManager.flush();
+
+        final List<String> results = resourceManagement
+            .getTenantResourceMetadataKeys("t-1");
+
+        assertThat(results, hasSize(0));
     }
 
     private void persistResource(String tenantId, String resourceId, Map<String, String> labels,
