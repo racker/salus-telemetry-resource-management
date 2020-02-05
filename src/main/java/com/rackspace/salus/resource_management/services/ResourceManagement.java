@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 Rackspace US, Inc.
+ * Copyright 2020 Rackspace US, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,16 +20,16 @@ import static com.rackspace.salus.telemetry.model.LabelNamespaces.labelHasNamesp
 
 import com.rackspace.salus.common.util.SpringResourceUtils;
 import com.rackspace.salus.resource_management.config.ResourceManagementProperties;
-import com.rackspace.salus.telemetry.entities.Resource;
-import com.rackspace.salus.telemetry.model.LabelSelectorMethod;
-import com.rackspace.salus.telemetry.repositories.ResourceRepository;
 import com.rackspace.salus.resource_management.web.model.ResourceCreate;
 import com.rackspace.salus.resource_management.web.model.ResourceUpdate;
+import com.rackspace.salus.telemetry.entities.Resource;
 import com.rackspace.salus.telemetry.errors.AlreadyExistsException;
 import com.rackspace.salus.telemetry.messaging.AttachEvent;
 import com.rackspace.salus.telemetry.messaging.ResourceEvent;
 import com.rackspace.salus.telemetry.model.LabelNamespaces;
+import com.rackspace.salus.telemetry.model.LabelSelectorMethod;
 import com.rackspace.salus.telemetry.model.NotFoundException;
+import com.rackspace.salus.telemetry.repositories.ResourceRepository;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -39,6 +39,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -477,9 +478,10 @@ public class ResourceManagement {
         .getResultStream();
 
     return resultStream
-        .flatMap(map -> map.keySet().stream()
-            .map(k -> (String) k)
-        )
+        // resources with no metadata rows get populated with a null field by JPA
+        // ...so filter to keep just the metadata maps that are non-null
+        .filter(Objects::nonNull)
+        .flatMap(map -> map.keySet().stream())
         .distinct()
         .collect(Collectors.toList());
   }
