@@ -17,7 +17,7 @@
 package com.rackspace.salus.resource_management.services;
 
 import com.rackspace.salus.common.errors.RuntimeKafkaException;
-import com.rackspace.salus.common.messaging.KafkaMessageKeyBuilder;
+import com.rackspace.salus.telemetry.messaging.KafkaMessageKeyBuilder;
 import com.rackspace.salus.common.messaging.KafkaTopicProperties;
 import com.rackspace.salus.telemetry.messaging.KafkaMessageType;
 import com.rackspace.salus.telemetry.messaging.ResourceEvent;

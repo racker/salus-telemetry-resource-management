@@ -16,7 +16,6 @@
 
 package com.rackspace.salus.resource_management.web.controller;
 
-import com.fasterxml.jackson.annotation.JsonView;
 import com.rackspace.salus.resource_management.services.ResourceManagement;
 import com.rackspace.salus.resource_management.web.model.ResourceCreate;
 import com.rackspace.salus.resource_management.web.model.ResourceDTO;
@@ -26,7 +25,6 @@ import com.rackspace.salus.telemetry.errors.AlreadyExistsException;
 import com.rackspace.salus.telemetry.model.LabelSelectorMethod;
 import com.rackspace.salus.telemetry.model.NotFoundException;
 import com.rackspace.salus.telemetry.model.PagedContent;
-import com.rackspace.salus.telemetry.model.View;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import io.swagger.annotations.ApiResponse;
@@ -86,7 +84,6 @@ public class ResourceApiController {
   }
 
   @GetMapping("/admin/resources")
-  @JsonView(View.Admin.class)
   @ApiOperation(value = "Gets all Resources irrespective of Tenant")
   public PagedContent<ResourceDTO> getAll(Pageable pageable) {
 
@@ -95,7 +92,6 @@ public class ResourceApiController {
   }
 
   @GetMapping("/envoys")
-  @JsonView(View.Admin.class)
   public SseEmitter getAllWithPresenceMonitoringAsStream() {
     SseEmitter emitter = new SseEmitter();
     Stream<Resource> resourcesWithEnvoys = resourceManagement.getResources(true);
@@ -114,7 +110,6 @@ public class ResourceApiController {
 
   @GetMapping("/tenant/{tenantId}/resources/{resourceId}")
   @ApiOperation(value = "Gets specific Resource for specific Tenant")
-  @JsonView(View.Public.class)
   public ResourceDTO getByResourceId(@PathVariable String tenantId,
       @PathVariable String resourceId) throws NotFoundException {
 
@@ -125,7 +120,6 @@ public class ResourceApiController {
 
   @GetMapping("/tenant/{tenantId}/resources")
   @ApiOperation(value = "Gets all Resources for authenticated tenant")
-  @JsonView(View.Public.class)
   public PagedContent<ResourceDTO>  getAllForTenant(@PathVariable String tenantId, Pageable pageable) {
 
     return PagedContent.fromPage(resourceManagement.getResources(tenantId, pageable)
@@ -136,7 +130,6 @@ public class ResourceApiController {
   @ResponseStatus(HttpStatus.CREATED)
   @ApiOperation(value = "Create one Resource for Tenant")
   @ApiResponses(value = { @ApiResponse(code = 201, message = "Successfully Created Resource")})
-  @JsonView(View.Public.class)
   public ResourceDTO create(@PathVariable String tenantId,
       @Valid @RequestBody final ResourceCreate input)
       throws IllegalArgumentException, AlreadyExistsException {
@@ -145,7 +138,6 @@ public class ResourceApiController {
 
   @PutMapping("/tenant/{tenantId}/resources/{resourceId}")
   @ApiOperation(value = "Updates specific Resource for Tenant")
-  @JsonView(View.Public.class)
   public ResourceDTO update(@PathVariable String tenantId,
       @PathVariable String resourceId,
       @Valid @RequestBody final ResourceUpdate input) throws IllegalArgumentException {
@@ -156,14 +148,12 @@ public class ResourceApiController {
   @ResponseStatus(HttpStatus.NO_CONTENT)
   @ApiOperation(value = "Gets all Resources for authenticated tenant")
   @ApiResponses(value = { @ApiResponse(code = 204, message = "Resource Deleted")})
-  @JsonView(View.Public.class)
   public void delete(@PathVariable String tenantId,
       @PathVariable String resourceId) {
     resourceManagement.removeResource(tenantId, resourceId);
   }
 
   @GetMapping("/admin/resources-by-label/{tenantId}/{logicalOperator}")
-  @JsonView(View.Admin.class)
   public List<ResourceDTO> getAllTenantResourcesWithLabels(@PathVariable String tenantId,
                                                            @RequestParam Map<String, String> labels,
                                                            @PathVariable LabelSelectorMethod logicalOperator) {
@@ -175,7 +165,6 @@ public class ResourceApiController {
   }
 
   @GetMapping("/tenant/{tenantId}/resources-by-label/{logicalOperator}")
-  @JsonView(View.Public.class)
   public PagedContent<ResourceDTO> getPagedResourcesWithLabels(@PathVariable String tenantId,
       @RequestParam Map<String, String> labels, @PathVariable LabelSelectorMethod logicalOperator,
                                                           Pageable pageable) {
@@ -193,14 +182,12 @@ public class ResourceApiController {
 
   @GetMapping("/tenant/{tenantId}/resource-labels")
   @ApiOperation("Lists the label keys and the values for each that are currently in use on resources")
-  @JsonView(View.Public.class)
   public MultiValueMap<String,String> getResourceLabels(@PathVariable String tenantId) {
     return resourceManagement.getTenantResourceLabels(tenantId);
   }
 
   @GetMapping("/tenant/{tenantId}/resource-metadata-keys")
   @ApiOperation("Lists the metadata keys current in use on resources")
-  @JsonView(View.Public.class)
   public List<String> getResourceMetadataKeys(@PathVariable String tenantId) {
     return resourceManagement.getTenantResourceMetadataKeys(tenantId);
   }
