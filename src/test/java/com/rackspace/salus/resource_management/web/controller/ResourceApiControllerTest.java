@@ -68,6 +68,8 @@ import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.MediaType;
+import org.springframework.security.test.context.support.WithMockUser;
+import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.junit4.SpringRunner;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.util.LinkedMultiValueMap;
@@ -77,6 +79,7 @@ import uk.co.jemos.podam.api.PodamFactoryImpl;
 
 @RunWith(SpringRunner.class)
 @WebMvcTest(controllers = ResourceApiController.class)
+@ActiveProfiles("test")
 public class ResourceApiControllerTest {
 
   // A timestamp to be used in tests that translates to "1970-01-02T03:46:40Z"
@@ -96,8 +99,9 @@ public class ResourceApiControllerTest {
   @Autowired
   ObjectMapper objectMapper;
 
+  @WithMockUser(roles = "CUSTOMER")
   @Test
-  public void testGetByResourceId() throws Exception {
+  public void testGetByResourceIdAsCustomer() throws Exception {
 
     final Resource expectedResource = new Resource()
         .setLabels(Collections.singletonMap("env", "prod"))
@@ -117,7 +121,66 @@ public class ResourceApiControllerTest {
         .andExpect(status().isOk())
         .andExpect(content().json(
             // id field should not be returned
-            SpringResourceUtils.readContent("ResourceApiControllerTest/single_public_resource.json"), true));
+            SpringResourceUtils.readContent(
+                "ResourceApiControllerTest/single_public_resource_customer.json"), true));
+
+    verify(resourceManagement).getResource("t-1", "r-1");
+    verifyNoMoreInteractions(resourceManagement);
+  }
+
+  @WithMockUser(roles = "EMPLOYEE")
+  @Test
+  public void testGetByResourceIdAsEmployee() throws Exception {
+
+    final Resource expectedResource = new Resource()
+        .setLabels(Collections.singletonMap("env", "prod"))
+        .setMetadata(Collections.singletonMap("custom", "new"))
+        .setResourceId("r-1")
+        .setTenantId("t-1")
+        .setCreatedTimestamp(DEFAULT_TIMESTAMP)
+        .setUpdatedTimestamp(DEFAULT_TIMESTAMP)
+        .setId(1001L);
+    when(resourceManagement.getResource(any(), any()))
+        .thenReturn(Optional.of(expectedResource));
+
+    mockMvc.perform(get(
+        "/api/tenant/{tenantId}/resources/{resourceId}",
+        "t-1", "r-1"
+    ).accept(MediaType.APPLICATION_JSON))
+        .andExpect(status().isOk())
+        .andExpect(content().json(
+            // id field should not be returned
+            SpringResourceUtils.readContent(
+                "ResourceApiControllerTest/single_public_resource_employee.json"), true));
+
+    verify(resourceManagement).getResource("t-1", "r-1");
+    verifyNoMoreInteractions(resourceManagement);
+  }
+
+  @WithMockUser(roles = "ENGINEER")
+  @Test
+  public void testGetByResourceIdAsAdmin() throws Exception {
+
+    final Resource expectedResource = new Resource()
+        .setLabels(Collections.singletonMap("env", "prod"))
+        .setMetadata(Collections.singletonMap("custom", "new"))
+        .setResourceId("r-1")
+        .setTenantId("t-1")
+        .setCreatedTimestamp(DEFAULT_TIMESTAMP)
+        .setUpdatedTimestamp(DEFAULT_TIMESTAMP)
+        .setId(1001L);
+    when(resourceManagement.getResource(any(), any()))
+        .thenReturn(Optional.of(expectedResource));
+
+    mockMvc.perform(get(
+        "/api/tenant/{tenantId}/resources/{resourceId}",
+        "t-1", "r-1"
+    ).accept(MediaType.APPLICATION_JSON))
+        .andExpect(status().isOk())
+        .andExpect(content().json(
+            // id field should not be returned
+            SpringResourceUtils.readContent(
+                "ResourceApiControllerTest/single_public_resource_admin.json"), true));
 
     verify(resourceManagement).getResource("t-1", "r-1");
     verifyNoMoreInteractions(resourceManagement);
