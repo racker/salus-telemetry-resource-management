@@ -2,7 +2,7 @@ package com.rackspace.salus.resource_management.web.model;
 
 import com.fasterxml.jackson.annotation.JsonView;
 import com.rackspace.salus.telemetry.entities.Resource;
-import com.rackspace.salus.telemetry.model.View;
+import com.rackspace.salus.common.web.View;
 import java.time.format.DateTimeFormatter;
 import java.util.Map;
 import lombok.Data;
@@ -13,8 +13,7 @@ import lombok.NoArgsConstructor;
 public class ResourceDTO {
   @JsonView(View.Admin.class)
   Long id;
-  //@JsonView(View.Public.class) // This will be changed to Internal or Admin when we switch to role based views.
-  // Disabling this until we have a way for our internal requests to bypass that view (this might need new endpoints)
+  @JsonView(View.Internal.class)
   String tenantId;
   String resourceId;
   Map<String,String> labels;
