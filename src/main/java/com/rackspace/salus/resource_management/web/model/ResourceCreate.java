@@ -19,13 +19,14 @@ package com.rackspace.salus.resource_management.web.model;
 import java.io.Serializable;
 import java.util.Map;
 import javax.validation.constraints.NotNull;
+import javax.validation.constraints.Pattern;
 import lombok.Data;
-import org.hibernate.validator.constraints.NotBlank;
 
-//import javax.validation.constraints.NotBlank;
+import javax.validation.constraints.NotBlank;
 
 @Data
 public class ResourceCreate implements Serializable {
+    @Pattern(regexp="[A-Za-z0-9:-]+")
     @NotBlank
     String resourceId;
 

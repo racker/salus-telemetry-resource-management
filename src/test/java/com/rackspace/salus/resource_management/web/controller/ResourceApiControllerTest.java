@@ -281,13 +281,15 @@ public class ResourceApiControllerTest {
   @Test
   public void testCreateResource() throws Exception {
     Resource resource = podamFactory.manufacturePojo(Resource.class);
+    String resourceId = "resource28-13:databaseNode";
+    resource.setResourceId(resourceId);
     when(resourceManagement.createResource(anyString(), any()))
         .thenReturn(resource);
 
     String tenantId = RandomStringUtils.randomAlphabetic( 8 );
 
     ResourceCreate create = podamFactory.manufacturePojo(ResourceCreate.class);
-
+    create.setResourceId(resourceId);
     mockMvc.perform(post("/api/tenant/{tenantId}/resources", tenantId)
         .content(objectMapper.writeValueAsString(create))
         .contentType(MediaType.APPLICATION_JSON)
@@ -303,12 +305,13 @@ public class ResourceApiControllerTest {
   @Test
   public void testCreateDuplicateResource() throws Exception {
     String error = "Zone already exists with name z-1 on tenant t-1";
+    String resourceId = RandomStringUtils.randomAlphabetic(8);
     when(resourceManagement.createResource(anyString(), any()))
         .thenThrow(new AlreadyExistsException(error));
 
     String tenantId = RandomStringUtils.randomAlphabetic( 8 );
     ResourceCreate create = podamFactory.manufacturePojo(ResourceCreate.class);
-
+    create.setResourceId(resourceId);
     mockMvc.perform(post("/api/tenant/{tenantId}/resources", tenantId)
         .content(objectMapper.writeValueAsString(create))
         .contentType(MediaType.APPLICATION_JSON)
@@ -332,7 +335,26 @@ public class ResourceApiControllerTest {
         .characterEncoding(StandardCharsets.UTF_8.name()))
         .andExpect(status().isBadRequest())
         .andExpect(validationError(
-            "resourceId", "may not be empty"
+            "resourceId", "must not be blank"
+        ));
+
+    verifyNoMoreInteractions(resourceManagement);
+  }
+
+  @Test
+  public void testCreateResourceWithInvalidIdField() throws Exception {
+    String tenantId = RandomStringUtils.randomAlphabetic( 8 );
+
+    ResourceCreate create = podamFactory.manufacturePojo(ResourceCreate.class);
+    create.setResourceId("$invalidResourceId");
+
+    mockMvc.perform(post("/api/tenant/{tenantId}/resources", tenantId)
+        .content(objectMapper.writeValueAsString(create))
+        .contentType(MediaType.APPLICATION_JSON)
+        .characterEncoding(StandardCharsets.UTF_8.name()))
+        .andExpect(status().isBadRequest())
+        .andExpect(validationError(
+            "resourceId", "must match \"[A-Za-z0-9:-]+\""
         ));
 
     verifyNoMoreInteractions(resourceManagement);
@@ -341,10 +363,10 @@ public class ResourceApiControllerTest {
   @Test
   public void testCreateResourceWithoutPresenceMonitoringField() throws Exception {
     String tenantId = RandomStringUtils.randomAlphabetic( 8 );
-
+    String resourceId = RandomStringUtils.randomAlphabetic(8);
     ResourceCreate create = podamFactory.manufacturePojo(ResourceCreate.class);
     create.setPresenceMonitoringEnabled(null);
-
+    create.setResourceId(resourceId);
     mockMvc.perform(post("/api/tenant/{tenantId}/resources", tenantId)
         .content(objectMapper.writeValueAsString(create))
         .contentType(MediaType.APPLICATION_JSON)
@@ -361,6 +383,7 @@ public class ResourceApiControllerTest {
     Resource resource = podamFactory.manufacturePojo(Resource.class);
     when(resourceManagement.updateResource(anyString(), anyString(), any()))
         .thenReturn(resource);
+    resource.setResourceId(RandomStringUtils.randomAlphabetic(8));
 
     String tenantId = resource.getTenantId();
     String resourceId = resource.getResourceId();

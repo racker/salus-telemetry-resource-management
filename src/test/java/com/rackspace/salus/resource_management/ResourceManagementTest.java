@@ -127,6 +127,8 @@ public class ResourceManagementTest {
         for (int i=0; i<count; i++) {
             String tenantId = RandomStringUtils.randomAlphanumeric(10);
             ResourceCreate create = podamFactory.manufacturePojo(ResourceCreate.class);
+            String resourceId = RandomStringUtils.randomAlphanumeric(10);
+            create.setResourceId(resourceId);
             resourceManagement.createResource(tenantId, create);
         }
     }
@@ -134,6 +136,8 @@ public class ResourceManagementTest {
     private void createResourcesForTenant(int count, String tenantId) {
         for (int i=0; i<count; i++) {
             ResourceCreate create = podamFactory.manufacturePojo(ResourceCreate.class);
+            String resourceId = RandomStringUtils.randomAlphanumeric(10);
+            create.setResourceId(resourceId);
             resourceManagement.createResource(tenantId, create);
         }
     }
@@ -150,6 +154,8 @@ public class ResourceManagementTest {
     public void testCreateNewResource() {
         ResourceCreate create = podamFactory.manufacturePojo(ResourceCreate.class);
         String tenantId = RandomStringUtils.randomAlphanumeric(10);
+        String resourceId = RandomStringUtils.randomAlphanumeric(10);
+        create.setResourceId(resourceId);
 
         Resource returned = resourceManagement.createResource(tenantId, create);
 
@@ -221,6 +227,9 @@ public class ResourceManagementTest {
     @Test
     public void testNewEnvoyAttach() {
         AttachEvent attachEvent = podamFactory.manufacturePojo(AttachEvent.class);
+        String resourceId = RandomStringUtils.randomAlphanumeric(10);
+        //podam doesn't know that the resourceId on the attachEvent needs to be alphanumeric, :, or -
+        attachEvent.setResourceId(resourceId);
         resourceManagement.handleEnvoyAttach(attachEvent);
 
         final Optional<Resource> resource = resourceManagement.getResource(
@@ -526,6 +535,8 @@ public class ResourceManagementTest {
     public void testRemoveResource() {
         ResourceCreate create = podamFactory.manufacturePojo(ResourceCreate.class);
         String tenantId = RandomStringUtils.randomAlphanumeric(10);
+        String resourceId = RandomStringUtils.randomAlphanumeric(10);
+        create.setResourceId(resourceId);
         resourceManagement.createResource(tenantId, create);
 
         Optional<Resource> created = resourceManagement.getResource(tenantId, create.getResourceId());
@@ -578,6 +589,8 @@ public class ResourceManagementTest {
         create.setLabels(labels);
         create.setMetadata(metadata);
         String tenantId = RandomStringUtils.randomAlphanumeric(10);
+        String resourceId = RandomStringUtils.randomAlphanumeric(10);
+        create.setResourceId(resourceId);
         resourceManagement.createResource(tenantId, create);
         entityManager.flush();
         Page<Resource> resources = resourceManagement.getResourcesFromLabels(labels, tenantId, LabelSelectorMethod.AND, Pageable.unpaged());
@@ -593,6 +606,8 @@ public class ResourceManagementTest {
 
         ResourceCreate create = podamFactory.manufacturePojo(ResourceCreate.class);
         create.setLabels(labels);
+        String resourceId = RandomStringUtils.randomAlphanumeric(10);
+        create.setResourceId(resourceId);
         String tenantId = RandomStringUtils.randomAlphanumeric(10);
         String tenantId2 = RandomStringUtils.randomAlphanumeric(10);
         resourceManagement.createResource(tenantId, create);
@@ -613,6 +628,8 @@ public class ResourceManagementTest {
         create.setLabels(labels);
         String tenantId = RandomStringUtils.randomAlphanumeric(10);
         String tenantId2 = RandomStringUtils.randomAlphanumeric(10);
+        String resourceId = RandomStringUtils.randomAlphanumeric(10);
+        create.setResourceId(resourceId);
         resourceManagement.createResource(tenantId, create);
         resourceManagement.createResource(tenantId2, create);
 
@@ -630,6 +647,8 @@ public class ResourceManagementTest {
 
         ResourceCreate create = podamFactory.manufacturePojo(ResourceCreate.class);
         create.setLabels(labels);
+        String resourceId = RandomStringUtils.randomAlphanumeric(10);
+        create.setResourceId(resourceId);
         String tenantId = RandomStringUtils.randomAlphanumeric(10);
         resourceManagement.createResource(tenantId, create);
         entityManager.flush();
@@ -652,6 +671,8 @@ public class ResourceManagementTest {
 
         ResourceCreate create = podamFactory.manufacturePojo(ResourceCreate.class);
         create.setLabels(labels);
+        String resourceId = RandomStringUtils.randomAlphanumeric(10);
+        create.setResourceId(resourceId);
         String tenantId = RandomStringUtils.randomAlphanumeric(10);
         resourceManagement.createResource(tenantId, create);
         entityManager.flush();
@@ -673,6 +694,8 @@ public class ResourceManagementTest {
         ResourceCreate create = podamFactory.manufacturePojo(ResourceCreate.class);
         create.setLabels(Collections.emptyMap());
         String tenantId = RandomStringUtils.randomAlphanumeric(10);
+        String resourceId = RandomStringUtils.randomAlphanumeric(10);
+        create.setResourceId(resourceId);
         resourceManagement.createResource(tenantId, create);
 
 
@@ -683,6 +706,8 @@ public class ResourceManagementTest {
 
         ResourceCreate create2 = podamFactory.manufacturePojo(ResourceCreate.class);
         create2.setLabels(labels);
+        resourceId = RandomStringUtils.randomAlphanumeric(10);
+        create2.setResourceId(resourceId);
         resourceManagement.createResource(tenantId, create2);
 
 
@@ -730,6 +755,8 @@ public class ResourceManagementTest {
 
         ResourceCreate create = podamFactory.manufacturePojo(ResourceCreate.class);
         create.setLabels(resourceLabels);
+        String resourceId = RandomStringUtils.randomAlphanumeric(10);
+        create.setResourceId(resourceId);
         String tenantId = RandomStringUtils.randomAlphanumeric(10);
         resourceManagement.createResource(tenantId, create);
         entityManager.flush();
@@ -749,6 +776,8 @@ public class ResourceManagementTest {
         labels.put("env", "prod");
 
         ResourceCreate create = podamFactory.manufacturePojo(ResourceCreate.class);
+        String resourceId = RandomStringUtils.randomAlphanumeric(10);
+        create.setResourceId(resourceId);
         create.setLabels(resourceLabels);
         String tenantId = RandomStringUtils.randomAlphanumeric(10);
         resourceManagement.createResource(tenantId, create);
@@ -770,6 +799,8 @@ public class ResourceManagementTest {
 
         ResourceCreate create = podamFactory.manufacturePojo(ResourceCreate.class);
         create.setLabels(resourceLabels);
+        String resourceId = RandomStringUtils.randomAlphanumeric(10);
+        create.setResourceId(resourceId);
         String tenantId = RandomStringUtils.randomAlphanumeric(10);
         resourceManagement.createResource(tenantId, create);
         entityManager.flush();
@@ -794,6 +825,8 @@ public class ResourceManagementTest {
         ResourceCreate create = podamFactory.manufacturePojo(ResourceCreate.class);
         create.setLabels(resourceLabels);
         String tenantId = RandomStringUtils.randomAlphanumeric(10);
+        String resourceId = RandomStringUtils.randomAlphanumeric(10);
+        create.setResourceId(resourceId);
         resourceManagement.createResource(tenantId, create);
         entityManager.flush();
 
@@ -816,6 +849,8 @@ public class ResourceManagementTest {
 
         ResourceCreate create = podamFactory.manufacturePojo(ResourceCreate.class);
         create.setLabels(resourceLabels);
+        String resourceId = RandomStringUtils.randomAlphanumeric(10);
+        create.setResourceId(resourceId);
         String tenantId = RandomStringUtils.randomAlphanumeric(10);
         resourceManagement.createResource(tenantId, create);
         entityManager.flush();
@@ -836,6 +871,8 @@ public class ResourceManagementTest {
 
 
         ResourceCreate create = podamFactory.manufacturePojo(ResourceCreate.class);
+        String resourceId = RandomStringUtils.randomAlphanumeric(10);
+        create.setResourceId(resourceId);
         create.setLabels(resourceLabels);
         String tenantId = RandomStringUtils.randomAlphanumeric(10);
         resourceManagement.createResource(tenantId, create);
@@ -854,6 +891,8 @@ public class ResourceManagementTest {
         ResourceCreate create = podamFactory.manufacturePojo(ResourceCreate.class);
         create.setLabels(resourceLabels);
         String tenantId = RandomStringUtils.randomAlphanumeric(10);
+        String resourceId = RandomStringUtils.randomAlphanumeric(10);
+        create.setResourceId(resourceId);
         resourceManagement.createResource(tenantId, create);
         entityManager.flush();
 
