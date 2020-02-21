@@ -16,6 +16,8 @@
 
 package com.rackspace.salus.resource_management.web.model;
 
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import com.rackspace.salus.telemetry.translators.JsonToLowerCaseDeserializer;
 import java.io.Serializable;
 import java.util.Map;
 import javax.validation.constraints.NotNull;
@@ -28,6 +30,7 @@ import javax.validation.constraints.NotBlank;
 public class ResourceCreate implements Serializable {
     @Pattern(regexp="[A-Za-z0-9:-]+")
     @NotBlank
+    @JsonDeserialize(using = JsonToLowerCaseDeserializer.class)
     String resourceId;
 
     Map<String,String> labels;

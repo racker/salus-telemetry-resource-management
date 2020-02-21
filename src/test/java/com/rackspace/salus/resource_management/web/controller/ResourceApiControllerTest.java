@@ -298,6 +298,7 @@ public class ResourceApiControllerTest {
         .andExpect(content()
             .contentTypeCompatibleWith(MediaType.APPLICATION_JSON));
 
+    create.setResourceId(create.getResourceId().toLowerCase());
     verify(resourceManagement).createResource(tenantId, create);
     verifyNoMoreInteractions(resourceManagement);
   }
@@ -318,6 +319,7 @@ public class ResourceApiControllerTest {
         .characterEncoding(StandardCharsets.UTF_8.name()))
         .andExpect(status().isUnprocessableEntity());
 
+    create.setResourceId(create.getResourceId().toLowerCase());
     verify(resourceManagement).createResource(tenantId, create);
     verifyNoMoreInteractions(resourceManagement);
   }
