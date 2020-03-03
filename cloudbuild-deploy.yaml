@@ -1,6 +1,11 @@
 substitutions:
   _GCS_CACHE_BUCKET: salus-cache
   _SALUS_PROJECT: salus-telemetry-resource-management
+  _SALUS_APP: resource-management
+  _APP_NAMESPACE: salus-development
+  _CLOUDSDK_COMPUTE_ZONE: us-east1-b
+  _CLOUDSDK_COMPUTE_REGION: us-east1
+  _CLOUDSDK_CONTAINER_CLUSTER: salus-dev
 
 steps:
 
@@ -91,3 +96,18 @@ steps:
     - name: user.home
       path: /root
 
+  - name: gcr.io/cloud-builders/git
+    id: HELM_CLONE
+    waitFor:
+    - COMPILE_AND_PUSH_CONTAINER
+    - PUSH_UP_CACHE
+    args: ['clone', 'https://source.developers.google.com/p/$PROJECT_ID/r/github_rackspace-segment-support_helm-salus-${_SALUS_APP}', '/workspace/helm-salus-${_SALUS_APP}/']
+
+  - name: 'gcr.io/$PROJECT_ID/helm'
+    id: DEPLOY_APPLICATION
+    args: ['upgrade', '--install', '${_SALUS_APP}', '--namespace', '${_APP_NAMESPACE}', '/workspace/helm-salus-${_SALUS_APP}']
+    env:
+    - 'CLOUDSDK_COMPUTE_ZONE=${_CLOUDSDK_COMPUTE_ZONE}'
+    - 'CLOUDSDK_COMPUTE_REGION=${_CLOUDSDK_COMPUTE_REGION}'
+    - 'CLOUDSDK_CONTAINER_CLUSTER=${_CLOUDSDK_CONTAINER_CLUSTER}'
+    - 'TILLERLESS=true'
