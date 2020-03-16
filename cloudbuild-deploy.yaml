@@ -2,7 +2,7 @@ substitutions:
   _GCS_CACHE_BUCKET: salus-cache
   _SALUS_PROJECT: salus-telemetry-resource-management
   _SALUS_APP: resource-management
-  _APP_NAMESPACE: salus-development
+  _APP_NAMESPACE: default
   _CLOUDSDK_COMPUTE_ZONE: us-east1-b
   _CLOUDSDK_CONTAINER_CLUSTER: salus-dev
 
