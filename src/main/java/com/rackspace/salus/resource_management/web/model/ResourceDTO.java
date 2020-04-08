@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonView;
 import com.rackspace.salus.telemetry.entities.Resource;
 import com.rackspace.salus.common.web.View;
 import java.time.format.DateTimeFormatter;
+import java.util.Collections;
 import java.util.Map;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -16,8 +17,8 @@ public class ResourceDTO {
   @JsonView(View.Internal.class)
   String tenantId;
   String resourceId;
-  Map<String,String> labels;
-  Map<String,String> metadata;
+  Map<String,String> labels = Collections.emptyMap();
+  Map<String,String> metadata = Collections.emptyMap();
   Boolean presenceMonitoringEnabled;
   boolean associatedWithEnvoy;
   String createdTimestamp;
