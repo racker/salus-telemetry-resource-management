@@ -46,6 +46,8 @@ import com.rackspace.salus.resource_management.web.model.ResourceUpdate;
 import com.rackspace.salus.telemetry.entities.Resource;
 import com.rackspace.salus.telemetry.errors.AlreadyExistsException;
 import com.rackspace.salus.telemetry.model.LabelSelectorMethod;
+import com.rackspace.salus.telemetry.repositories.TenantMetadataRepository;
+import com.rackspace.salus.telemetry.web.TenantVerification;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -96,8 +98,56 @@ public class ResourceApiControllerTest {
   @MockBean
   ResourceManagement resourceManagement;
 
+  @MockBean
+  TenantMetadataRepository tenantMetadataRepository;
+
   @Autowired
   ObjectMapper objectMapper;
+
+  @Test
+  public void testTenantVerification_Success() throws Exception {
+    String tenantId = RandomStringUtils.randomAlphabetic( 8 );
+    String resourceId = RandomStringUtils.randomAlphabetic( 8 );
+    String errorMsg = String.format("No resource found for %s on tenant %s", resourceId, tenantId);
+
+    when(resourceManagement.getResource(anyString(), anyString()))
+        .thenReturn(Optional.empty());
+    when(tenantMetadataRepository.existsByTenantId(tenantId))
+        .thenReturn(true);
+
+    mockMvc.perform(get("/api/tenant/{tenantId}/resources/{resourceId}", tenantId, resourceId)
+        // header must be set to trigger tenant verification
+        .header(TenantVerification.HEADER_TENANT, tenantId)
+        .contentType(MediaType.APPLICATION_JSON))
+        .andExpect(status().isNotFound())
+        .andExpect(content()
+            .contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+        .andExpect(jsonPath("$.message", is(errorMsg)));
+
+    verify(tenantMetadataRepository).existsByTenantId(tenantId);
+  }
+
+  @Test
+  public void testTenantVerification_Fail() throws Exception {
+    String tenantId = RandomStringUtils.randomAlphabetic( 8 );
+    String resourceId = RandomStringUtils.randomAlphabetic( 8 );
+
+    when(resourceManagement.getResource(anyString(), anyString()))
+        .thenReturn(Optional.empty());
+    when(tenantMetadataRepository.existsByTenantId(tenantId))
+        .thenReturn(false);
+
+    mockMvc.perform(get("/api/tenant/{tenantId}/resources/{resourceId}", tenantId, resourceId)
+        // header must be set to trigger tenant verification
+        .header(TenantVerification.HEADER_TENANT, tenantId)
+        .contentType(MediaType.APPLICATION_JSON))
+        .andExpect(status().isNotFound())
+        .andExpect(content()
+            .contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+        .andExpect(jsonPath("$.message", is(TenantVerification.ERROR_MSG)));
+
+    verify(tenantMetadataRepository).existsByTenantId(tenantId);
+  }
 
   @WithMockUser(roles = "CUSTOMER")
   @Test
