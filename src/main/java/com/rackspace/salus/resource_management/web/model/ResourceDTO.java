@@ -16,6 +16,8 @@ public class ResourceDTO {
   Long id;
   @JsonView(View.Internal.class)
   String tenantId;
+  @JsonView(View.Internal.class)
+  String envoyId;
   String resourceId;
   Map<String,String> labels = Collections.emptyMap();
   Map<String,String> metadata = Collections.emptyMap();
@@ -24,14 +26,14 @@ public class ResourceDTO {
   String createdTimestamp;
   String updatedTimestamp;
 
-  public ResourceDTO(Resource resource) {
+  public ResourceDTO(Resource resource, String envoyId) {
     this.id = resource.getId();
     this.tenantId = resource.getTenantId();
     this.resourceId = resource.getResourceId();
     this.labels = resource.getLabels();
     this.metadata = resource.getMetadata();
     this.presenceMonitoringEnabled = resource.getPresenceMonitoringEnabled();
-    this.associatedWithEnvoy = resource.isAssociatedWithEnvoy();
+    this.associatedWithEnvoy = envoyId != null;
     this.createdTimestamp = DateTimeFormatter.ISO_INSTANT.format(resource.getCreatedTimestamp());
     this.updatedTimestamp = DateTimeFormatter.ISO_INSTANT.format(resource.getUpdatedTimestamp());
   }
