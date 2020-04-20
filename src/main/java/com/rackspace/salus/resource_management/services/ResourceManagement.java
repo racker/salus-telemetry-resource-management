@@ -21,14 +21,17 @@ import static com.rackspace.salus.telemetry.model.LabelNamespaces.labelHasNamesp
 import com.rackspace.salus.common.util.SpringResourceUtils;
 import com.rackspace.salus.resource_management.config.ResourceManagementProperties;
 import com.rackspace.salus.resource_management.web.model.ResourceCreate;
+import com.rackspace.salus.resource_management.web.model.ResourceDTO;
 import com.rackspace.salus.resource_management.web.model.ResourceUpdate;
 import com.rackspace.salus.telemetry.entities.Resource;
 import com.rackspace.salus.telemetry.errors.AlreadyExistsException;
+import com.rackspace.salus.telemetry.etcd.services.EnvoyResourceManagement;
 import com.rackspace.salus.telemetry.messaging.AttachEvent;
 import com.rackspace.salus.telemetry.messaging.ResourceEvent;
 import com.rackspace.salus.telemetry.model.LabelNamespaces;
 import com.rackspace.salus.telemetry.model.LabelSelectorMethod;
 import com.rackspace.salus.telemetry.model.NotFoundException;
+import com.rackspace.salus.telemetry.model.ResourceInfo;
 import com.rackspace.salus.telemetry.repositories.ResourceRepository;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -36,12 +39,15 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import javax.persistence.EntityManager;
@@ -70,17 +76,20 @@ public class ResourceManagement {
   JdbcTemplate jdbcTemplate;
   private final EntityManager entityManager;
   private final ResourceManagementProperties resourceManagementProperties;
+  private final EnvoyResourceManagement envoyResourceManagement;
 
   @Autowired
   public ResourceManagement(ResourceRepository resourceRepository,
                             KafkaEgress kafkaEgress,
                             JdbcTemplate jdbcTemplate,
                             EntityManager entityManager,
-                            ResourceManagementProperties resourceManagementProperties) throws IOException {
+                            ResourceManagementProperties resourceManagementProperties,
+                            EnvoyResourceManagement envoyResourceManagement) throws IOException {
     this.resourceRepository = resourceRepository;
     this.kafkaEgress = kafkaEgress;
     this.jdbcTemplate = jdbcTemplate;
     this.entityManager = entityManager;
+    this.envoyResourceManagement = envoyResourceManagement;
     this.resourceManagementProperties = resourceManagementProperties;
     labelMatchQuery = SpringResourceUtils.readContent("sql-queries/resource_label_matching_query.sql");
     labelMatchOrQuery = SpringResourceUtils.readContent("sql-queries/resource_label_matching_OR_query.sql");
@@ -133,23 +142,43 @@ public class ResourceManagement {
     return resourceRepository.findByTenantIdAndResourceId(tenantId, resourceId);
   }
 
-  /**
-   * Get a selection of resource objects across all accounts.
-   * @param page The slice of results to be returned.
-   * @return The resources found that match the page criteria.
-   */
-  public Page<Resource> getAllResources(Pageable page) {
-    return resourceRepository.findAll(page);
+  public ResourceDTO getResourceDTO(String tenantId, String resourceId) {
+    Optional<Resource> resource = resourceRepository.findByTenantIdAndResourceId(tenantId, resourceId);
+    // we need to get the
+    if(resource.get() == null) {
+      throw new NotFoundException(String.format("No resource found for %s on tenant %s",
+          resourceId, tenantId));
+    }
+    String envoyId = envoyResourceManagement.getOne(resource.get().getTenantId(), resource.get().getResourceId()).join().getEnvoyId();
+    return new ResourceDTO(resource.get(), null);
   }
 
   /**
-   * Same as {@link #getAllResources(Pageable page) getAllResources} except restricted to a single tenant.
+   * Get a selection of resource objects across all accounts.
+   * @param page The slice of results to be returned.
+   * @return The resourceDTOs found that match the page criteria.
+   */
+  public Page<ResourceDTO> getAllResourceDTOs(Pageable page) {
+    final List<ResourceDTO> values = new LinkedList();
+    resourceRepository.findAll().forEach(r -> {
+      values.add(new ResourceDTO(r,null)); //envoyResourceManagement.getOne(r.getTenantId(), r.getResourceId()).join().getEnvoyId()));
+    });
+    return new PageImpl(values, page, values.size());
+  }
+
+  /**
+   * Same as {@link #getAllResourceDTOs(Pageable page) getAllResources} except restricted to a single tenant.
    * @param tenantId The tenant to select resources from.
    * @param page The slice of results to be returned.
    * @return The resources found for the tenant that match the page criteria.
    */
-  public Page<Resource> getResources(String tenantId, Pageable page) {
-    return resourceRepository.findAllByTenantId(tenantId, page);
+  public Page<ResourceDTO> getResourceDTOs(String tenantId, Pageable page) {
+    final List<ResourceDTO> values = new LinkedList();
+    resourceRepository.findAllByTenantId(tenantId).forEach(r -> {
+      values.add(new ResourceDTO(r, null));//envoyResourceManagement.getOne(r.getTenantId(), r.getResourceId()).join().getEnvoyId()));
+    });
+
+    return new PageImpl(values, page, values.size());
   }
 
   public List<Resource> getAllTenantResources(String tenantId) {
@@ -160,8 +189,11 @@ public class ResourceManagement {
    * @param presenceMonitoringEnabled Whether presence monitoring is enabled or not.
    * @return Stream of resources.
    */
-  public Stream<Resource> getResources(boolean presenceMonitoringEnabled) {
-    return resourceRepository.findAllByPresenceMonitoringEnabled(presenceMonitoringEnabled).stream();
+  public Stream<ResourceDTO> getResources(boolean presenceMonitoringEnabled) {
+    return resourceRepository.findAllByPresenceMonitoringEnabled(presenceMonitoringEnabled)
+        .stream()
+        .map(r -> getResourceDTOFromResource(r))
+        .collect(Collectors.toList()).stream();
   }
 
   /**
@@ -216,7 +248,7 @@ public class ResourceManagement {
    * @param updatedValues The new resource parameters to store.
    * @return The newly updated resource.
    */
-  public Resource updateResource(String tenantId, String resourceId, @Valid ResourceUpdate updatedValues) {
+  public ResourceDTO updateResource(String tenantId, String resourceId, @Valid ResourceUpdate updatedValues) {
     Resource resource = getResource(tenantId, resourceId)
         .orElseThrow(() -> new NotFoundException(String.format("No resource found for %s on tenant %s",
             resourceId, tenantId)));
@@ -245,7 +277,7 @@ public class ResourceManagement {
         .to(resource::setPresenceMonitoringEnabled);
     saveAndPublishResource(resource, true, null);
 
-    return resource;
+    return getResourceDTOFromResource(resource);
   }
 
   private void checkLabels(Map<String,String> labels) {
@@ -305,8 +337,7 @@ public class ResourceManagement {
           .setTenantId(tenantId)
           .setResourceId(resourceId)
           .setLabels(labels)
-          .setPresenceMonitoringEnabled(true)
-          .setAssociatedWithEnvoy(true);
+          .setPresenceMonitoringEnabled(true);
       saveAndPublishResource(newResource, true, null);
     }
   }
@@ -363,7 +394,6 @@ public class ResourceManagement {
     if (labelsChanged || !reattached) {
       // ...then save it
 
-      existingResource.setAssociatedWithEnvoy(true);
       existingResource.setLabels(resourceLabels);
 
       log.debug("Saving resource due to Envoy attachment: {}", existingResource);
@@ -401,6 +431,15 @@ public class ResourceManagement {
     saveAndPublishResource(resource, false, null);
   }
 
+  public Page<ResourceDTO> getResourceDTOsFromLabels(Map<String, String> labels, String tenantId, LabelSelectorMethod logicalOperation, Pageable page) {
+    Page<Resource> pagedResources = getResourcesFromLabels(labels, tenantId, logicalOperation, page);
+    final List<ResourceDTO> values = new LinkedList();
+    pagedResources.get().forEach(r -> {
+      values.add(new ResourceDTO(r, null));//envoyResourceManagement.getOne(r.getTenantId(), r.getResourceId()).join().getEnvoyId()));
+    });
+    return (Page<ResourceDTO>) getPagedResults(values, page);
+  }
+
   /**
    * takes in a Mapping of labels for a tenant, builds and runs the query to match to those labels
    * @param labels the labels that we need to match to
@@ -410,7 +449,7 @@ public class ResourceManagement {
    */
   public Page<Resource> getResourcesFromLabels(Map<String, String> labels, String tenantId, LabelSelectorMethod logicalOperation, Pageable page) {
     if(labels == null || labels.isEmpty()) {
-      return getPagedResults(getAllTenantResources(tenantId), page);
+      return (Page<Resource>) getPagedResults(getAllTenantResources(tenantId), page);
     }
 
     MapSqlParameterSource paramSource = new MapSqlParameterSource();
@@ -447,7 +486,7 @@ public class ResourceManagement {
       resources.add(resource);
     }
 
-    return getPagedResults(resources, page);
+    return (Page<Resource>) getPagedResults(resources, page);
   }
 
 
@@ -493,14 +532,14 @@ public class ResourceManagement {
    * @return A Page object containing only the resources that were requested.
    */
   @SuppressWarnings("Duplicates")
-  private Page<Resource> getPagedResults(List<Resource> resources, Pageable page) {
+  private Page<?> getPagedResults(List<?> resources, Pageable page) {
     if (page.isPaged()) {
       int start = page.getPageSize() * page.getPageNumber();
       int end = start + page.getPageSize();
       if (end > resources.size()) {
         end = resources.size();
       }
-      List<Resource> results;
+      List<?> results;
       try {
         results = resources.subList(start, end);
       } catch (IndexOutOfBoundsException | IllegalArgumentException e) {
@@ -510,6 +549,11 @@ public class ResourceManagement {
     } else {
       return new PageImpl<>(resources, page, resources.size());
     }
+  }
+
+  private ResourceDTO getResourceDTOFromResource(Resource resource) {
+    return new ResourceDTO(resource,null);
+        //envoyResourceManagement.getOne(resource.getTenantId(), resource.getResourceId()).join().getEnvoyId());
   }
 
   public Collection<String> getLabelNamespaces() {

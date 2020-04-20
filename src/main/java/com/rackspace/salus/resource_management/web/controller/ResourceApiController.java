@@ -86,19 +86,17 @@ public class ResourceApiController {
   @GetMapping("/admin/resources")
   @ApiOperation(value = "Gets all Resources irrespective of Tenant")
   public PagedContent<ResourceDTO> getAll(Pageable pageable) {
-
-    return PagedContent.fromPage(resourceManagement.getAllResources(pageable)
-        .map(ResourceDTO::new));
+    return PagedContent.fromPage(resourceManagement.getAllResourceDTOs(pageable));
   }
 
   @GetMapping("/envoys")
   public SseEmitter getAllWithPresenceMonitoringAsStream() {
     SseEmitter emitter = new SseEmitter();
-    Stream<Resource> resourcesWithEnvoys = resourceManagement.getResources(true);
+    Stream<ResourceDTO> resourcesWithEnvoys = resourceManagement.getResources(true);
     taskExecutor.execute(() -> {
       resourcesWithEnvoys.forEach(r -> {
         try {
-          emitter.send(new ResourceDTO(r));
+          emitter.send(r);
         } catch (IOException e) {
           emitter.completeWithError(e);
         }
@@ -113,17 +111,15 @@ public class ResourceApiController {
   public ResourceDTO getByResourceId(@PathVariable String tenantId,
       @PathVariable String resourceId) throws NotFoundException {
 
-    Optional<Resource> resource = resourceManagement.getResource(tenantId, resourceId);
-    return resource.map(ResourceDTO::new).orElseThrow(() -> new NotFoundException(String.format("No resource found for %s on tenant %s",
-        resourceId, tenantId)));
+    ResourceDTO resourceDTO = resourceManagement.getResourceDTO(tenantId, resourceId);
+    return resourceDTO;
   }
 
   @GetMapping("/tenant/{tenantId}/resources")
   @ApiOperation(value = "Gets all Resources for authenticated tenant")
   public PagedContent<ResourceDTO>  getAllForTenant(@PathVariable String tenantId, Pageable pageable) {
 
-    return PagedContent.fromPage(resourceManagement.getResources(tenantId, pageable)
-        .map(ResourceDTO::new));
+    return PagedContent.fromPage(resourceManagement.getResourceDTOs(tenantId, pageable));
   }
 
   @PostMapping("/tenant/{tenantId}/resources")
@@ -133,7 +129,7 @@ public class ResourceApiController {
   public ResourceDTO create(@PathVariable String tenantId,
       @Valid @RequestBody final ResourceCreate input)
       throws IllegalArgumentException, AlreadyExistsException {
-    return new ResourceDTO(resourceManagement.createResource(tenantId, input));
+    return new ResourceDTO(resourceManagement.createResource(tenantId, input), null);
   }
 
   @PutMapping("/tenant/{tenantId}/resources/{resourceId}")
@@ -141,7 +137,7 @@ public class ResourceApiController {
   public ResourceDTO update(@PathVariable String tenantId,
       @PathVariable String resourceId,
       @Valid @RequestBody final ResourceUpdate input) throws IllegalArgumentException {
-    return new ResourceDTO(resourceManagement.updateResource(tenantId, resourceId, input));
+    return resourceManagement.updateResource(tenantId, resourceId, input);
   }
 
   @DeleteMapping("/tenant/{tenantId}/resources/{resourceId}")
@@ -158,10 +154,9 @@ public class ResourceApiController {
                                                            @RequestParam Map<String, String> labels,
                                                            @PathVariable LabelSelectorMethod logicalOperator) {
 
+
     return resourceManagement
-        .getResourcesFromLabels(labels, tenantId, logicalOperator, Pageable.unpaged())
-        .map(ResourceDTO::new)
-        .getContent();
+        .getResourceDTOsFromLabels(labels, tenantId, logicalOperator, Pageable.unpaged()).getContent();
   }
 
   @GetMapping("/tenant/{tenantId}/resources-by-label/{logicalOperator}")
@@ -176,8 +171,7 @@ public class ResourceApiController {
 
     return PagedContent.fromPage(
         resourceManagement
-            .getResourcesFromLabels(resourceLabels, tenantId, logicalOperator, pageable)
-            .map(ResourceDTO::new));
+            .getResourceDTOsFromLabels(resourceLabels, tenantId, logicalOperator, pageable));
   }
 
   @GetMapping("/tenant/{tenantId}/resource-labels")
