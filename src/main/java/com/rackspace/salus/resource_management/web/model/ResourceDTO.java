@@ -16,9 +16,9 @@ public class ResourceDTO {
   Long id;
   @JsonView(View.Internal.class)
   String tenantId;
-  @JsonView(View.Internal.class)
-  String envoyId;
   @JsonView(View.Admin.class)
+  String envoyId;
+  @JsonView(View.Internal.class)
   boolean associatedWithEnvoy;
   String resourceId;
   Map<String,String> labels = Collections.emptyMap();

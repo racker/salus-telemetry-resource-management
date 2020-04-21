@@ -75,6 +75,7 @@ import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.junit4.SpringRunner;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import uk.co.jemos.podam.api.PodamFactory;
@@ -184,17 +185,17 @@ public class ResourceApiControllerTest {
   @Test
   public void testGetByResourceIdAsEmployee() throws Exception {
 
-    final Resource expectedResource = new Resource()
+    final ResourceDTO expectedResource = new ResourceDTO()
         .setLabels(Collections.singletonMap("env", "prod"))
         .setMetadata(Collections.singletonMap("custom", "new"))
         .setResourceId("r-1")
         .setTenantId("t-1")
-        .setCreatedTimestamp(DEFAULT_TIMESTAMP)
-        .setUpdatedTimestamp(DEFAULT_TIMESTAMP)
+        .setCreatedTimestamp(DEFAULT_TIMESTAMP.toString())
+        .setUpdatedTimestamp(DEFAULT_TIMESTAMP.toString())
         .setAssociatedWithEnvoy(false)
         .setId(1001L);
-    when(resourceManagement.getResource(any(), any()))
-        .thenReturn(Optional.of(expectedResource));
+    when(resourceManagement.getResourceDTO(any(), any()))
+        .thenReturn(expectedResource);
 
     mockMvc.perform(get(
         "/api/tenant/{tenantId}/resources/{resourceId}",
@@ -206,7 +207,7 @@ public class ResourceApiControllerTest {
             SpringResourceUtils.readContent(
                 "ResourceApiControllerTest/single_public_resource_employee.json"), true));
 
-    verify(resourceManagement).getResource("t-1", "r-1");
+    verify(resourceManagement).getResourceDTO("t-1", "r-1");
     verifyNoMoreInteractions(resourceManagement);
   }
 
@@ -214,29 +215,32 @@ public class ResourceApiControllerTest {
   @Test
   public void testGetByResourceIdAsAdmin() throws Exception {
 
-    final Resource expectedResource = new Resource()
+    final ResourceDTO expectedResource = new ResourceDTO()
         .setLabels(Collections.singletonMap("env", "prod"))
         .setMetadata(Collections.singletonMap("custom", "new"))
         .setResourceId("r-1")
         .setTenantId("t-1")
-        .setCreatedTimestamp(DEFAULT_TIMESTAMP)
-        .setUpdatedTimestamp(DEFAULT_TIMESTAMP)
+        .setCreatedTimestamp(DEFAULT_TIMESTAMP.toString())
+        .setUpdatedTimestamp(DEFAULT_TIMESTAMP.toString())
         .setAssociatedWithEnvoy(false)
         .setId(1001L);
-    when(resourceManagement.getResource(any(), any()))
-        .thenReturn(Optional.of(expectedResource));
+    when(resourceManagement.getResourceDTO(any(), any()))
+        .thenReturn(expectedResource);
 
-    mockMvc.perform(get(
+    ResultActions value = mockMvc.perform(get(
         "/api/tenant/{tenantId}/resources/{resourceId}",
         "t-1", "r-1"
-    ).accept(MediaType.APPLICATION_JSON))
+    ).accept(MediaType.APPLICATION_JSON));
+
+
+        value
         .andExpect(status().isOk())
         .andExpect(content().json(
             // id field should not be returned
             SpringResourceUtils.readContent(
                 "ResourceApiControllerTest/single_public_resource_admin.json"), true));
 
-    verify(resourceManagement).getResource("t-1", "r-1");
+    verify(resourceManagement).getResourceDTO("t-1", "r-1");
     verifyNoMoreInteractions(resourceManagement);
   }
 

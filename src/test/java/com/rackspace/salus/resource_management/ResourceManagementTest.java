@@ -227,6 +227,15 @@ public class ResourceManagementTest {
 
     @Test
     public void testGetResourcesWithPresenceMonitoringAsStream() {
+
+        ResourceInfo info = new ResourceInfo()
+            .setEnvoyId("e-1")
+            .setTenantId("t-1")
+            .setResourceId("r-1");
+
+        CompletableFuture<ResourceInfo> envoyInformation = CompletableFuture.completedFuture(info);
+        when(envoyResourceManagement.getOne(any(), any()))
+            .thenReturn(envoyInformation);
         int totalResources = 100;
         createResources(totalResources);
         Stream s = resourceManagement.getResources(true);
@@ -437,6 +446,7 @@ public class ResourceManagementTest {
                 .setLabels(resourceLabels)
                 .setTenantId("t-1")
                 .setPresenceMonitoringEnabled(false)
+                .setAssociatedWithEnvoy(true)
         );
         entityManager.flush();
 
@@ -487,6 +497,15 @@ public class ResourceManagementTest {
           .setLabels(newLabels)
           .setPresenceMonitoringEnabled(presenceMonitoring);
 
+        ResourceInfo info = new ResourceInfo()
+            .setEnvoyId("e-1")
+            .setTenantId("t-1")
+            .setResourceId("r-1");
+
+        CompletableFuture<ResourceInfo> envoyInformation = CompletableFuture.completedFuture(info);
+        when(envoyResourceManagement.getOne(any(), any()))
+            .thenReturn(envoyInformation);
+
         ResourceDTO newResource;
         try {
             newResource = resourceManagement.updateResource(
@@ -530,6 +549,14 @@ public class ResourceManagementTest {
             .setMetadata(newMetadata)
             .setPresenceMonitoringEnabled(presenceMonitoring);
 
+        ResourceInfo info = new ResourceInfo()
+            .setEnvoyId("e-1")
+            .setTenantId("t-1")
+            .setResourceId("r-1");
+
+        CompletableFuture<ResourceInfo> envoyInformation = CompletableFuture.completedFuture(info);
+        when(envoyResourceManagement.getOne(any(), any()))
+            .thenReturn(envoyInformation);
         ResourceDTO newResource = resourceManagement.updateResource(
             resource.getTenantId(),
             resource.getResourceId(),

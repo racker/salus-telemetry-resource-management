@@ -337,7 +337,8 @@ public class ResourceManagement {
           .setTenantId(tenantId)
           .setResourceId(resourceId)
           .setLabels(labels)
-          .setPresenceMonitoringEnabled(true);
+          .setPresenceMonitoringEnabled(true)
+          .setAssociatedWithEnvoy(true);
       saveAndPublishResource(newResource, true, null);
     }
   }
@@ -394,6 +395,7 @@ public class ResourceManagement {
     if (labelsChanged || !reattached) {
       // ...then save it
 
+      existingResource.setAssociatedWithEnvoy(true);
       existingResource.setLabels(resourceLabels);
 
       log.debug("Saving resource due to Envoy attachment: {}", existingResource);
@@ -552,8 +554,10 @@ public class ResourceManagement {
   }
 
   private ResourceDTO getResourceDTOFromResource(Resource resource) {
-    return new ResourceDTO(resource,null);
-        //envoyResourceManagement.getOne(resource.getTenantId(), resource.getResourceId()).join().getEnvoyId());
+    return new ResourceDTO(resource,
+        envoyResourceManagement.getOne(resource.getTenantId(), resource.getResourceId())
+            .join()
+            .getEnvoyId());
   }
 
   public Collection<String> getLabelNamespaces() {
