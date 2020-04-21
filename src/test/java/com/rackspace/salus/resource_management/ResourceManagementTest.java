@@ -517,6 +517,8 @@ public class ResourceManagementTest {
             return;
         }
 
+        resource = resourceManagement.getAllResourceDTOs(PageRequest.of(0, 1)).getContent().get(0);
+
         assertThat(newResource.getLabels(), equalTo(resource.getLabels()));
         assertThat(newResource.getId(), equalTo(resource.getId()));
         assertThat(newResource.getPresenceMonitoringEnabled(), equalTo(presenceMonitoring));
