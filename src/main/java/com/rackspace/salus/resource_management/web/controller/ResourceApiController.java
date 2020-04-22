@@ -110,9 +110,7 @@ public class ResourceApiController {
   @ApiOperation(value = "Gets specific Resource for specific Tenant")
   public ResourceDTO getByResourceId(@PathVariable String tenantId,
       @PathVariable String resourceId) throws NotFoundException {
-
-    ResourceDTO resourceDTO = resourceManagement.getResourceDTO(tenantId, resourceId);
-    return resourceDTO;
+    return resourceManagement.getResourceDTO(tenantId, resourceId);
   }
 
   @GetMapping("/tenant/{tenantId}/resources")
@@ -153,8 +151,6 @@ public class ResourceApiController {
   public List<ResourceDTO> getAllTenantResourcesWithLabels(@PathVariable String tenantId,
                                                            @RequestParam Map<String, String> labels,
                                                            @PathVariable LabelSelectorMethod logicalOperator) {
-
-
     return resourceManagement
         .getResourceDTOsFromLabels(labels, tenantId, logicalOperator, Pageable.unpaged()).getContent();
   }

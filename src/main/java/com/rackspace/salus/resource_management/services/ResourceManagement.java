@@ -145,7 +145,7 @@ public class ResourceManagement {
   public ResourceDTO getResourceDTO(String tenantId, String resourceId) {
     Optional<Resource> resource = resourceRepository.findByTenantIdAndResourceId(tenantId, resourceId);
 
-    if(resource.get() == null) {
+    if(!resource.isPresent()) {
       throw new NotFoundException(String.format("No resource found for %s on tenant %s",
           resourceId, tenantId));
     }
@@ -161,7 +161,7 @@ public class ResourceManagement {
   public Page<ResourceDTO> getAllResourceDTOs(Pageable page) {
     final List<ResourceDTO> values = new LinkedList();
     resourceRepository.findAll().forEach(r -> {
-      values.add(new ResourceDTO(r,null)); //envoyResourceManagement.getOne(r.getTenantId(), r.getResourceId()).join().getEnvoyId()));
+      values.add(getResourceDTOFromResource(r));
     });
     return new PageImpl(values, page, values.size());
   }
