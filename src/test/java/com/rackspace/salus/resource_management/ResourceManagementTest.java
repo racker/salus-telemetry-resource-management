@@ -139,6 +139,15 @@ public class ResourceManagementTest {
             ResourceCreate create = podamFactory.manufacturePojo(ResourceCreate.class);
             String resourceId = RandomStringUtils.randomAlphanumeric(10);
             create.setResourceId(resourceId);
+
+            ResourceInfo info = new ResourceInfo()
+                .setEnvoyId("e-1")
+                .setTenantId(tenantId)
+                .setResourceId(resourceId);
+
+            when(envoyResourceManagement.getOne(tenantId, resourceId))
+                .thenReturn(CompletableFuture.completedFuture(info));
+
             resourceManagement.createResource(tenantId, create);
         }
     }
@@ -167,7 +176,15 @@ public class ResourceManagementTest {
         String resourceId = RandomStringUtils.randomAlphanumeric(10);
         create.setResourceId(resourceId);
 
-        Resource returned = resourceManagement.createResource(tenantId, create);
+        ResourceInfo info = new ResourceInfo()
+            .setEnvoyId("e-1")
+            .setTenantId(tenantId)
+            .setResourceId(resourceId);
+
+        when(envoyResourceManagement.getOne(any(), any()))
+            .thenReturn(CompletableFuture.completedFuture(info));
+
+        ResourceDTO returned = resourceManagement.createResource(tenantId, create);
 
         assertThat(returned.getId(), notNullValue());
         assertThat(returned.getResourceId(), equalTo(create.getResourceId()));
@@ -215,6 +232,13 @@ public class ResourceManagementTest {
         Page<ResourceDTO> result = resourceManagement.getAllResourceDTOs(page);
 
         assertThat(result.getTotalElements(), equalTo(1L));
+
+        ResourceInfo info = new ResourceInfo()
+            .setEnvoyId("e-1")
+            .setTenantId(tenantId);
+
+        when(envoyResourceManagement.getOne(any(), any()))
+            .thenReturn(CompletableFuture.completedFuture(info));
 
         createResourcesForTenant(totalResources , tenantId);
 
@@ -581,6 +605,15 @@ public class ResourceManagementTest {
         String tenantId = RandomStringUtils.randomAlphanumeric(10);
         String resourceId = RandomStringUtils.randomAlphanumeric(10);
         create.setResourceId(resourceId);
+
+        ResourceInfo info = new ResourceInfo()
+            .setEnvoyId("e-1")
+            .setTenantId(tenantId)
+            .setResourceId(resourceId);
+
+        when(envoyResourceManagement.getOne(any(), any()))
+            .thenReturn(CompletableFuture.completedFuture(info));
+
         resourceManagement.createResource(tenantId, create);
 
         Optional<Resource> created = resourceManagement.getResource(tenantId, create.getResourceId());
@@ -635,6 +668,15 @@ public class ResourceManagementTest {
         String tenantId = RandomStringUtils.randomAlphanumeric(10);
         String resourceId = RandomStringUtils.randomAlphanumeric(10);
         create.setResourceId(resourceId);
+
+        ResourceInfo info = new ResourceInfo()
+            .setEnvoyId("e-1")
+            .setTenantId(tenantId)
+            .setResourceId(resourceId);
+
+        when(envoyResourceManagement.getOne(any(), any()))
+            .thenReturn(CompletableFuture.completedFuture(info));
+
         resourceManagement.createResource(tenantId, create);
         entityManager.flush();
         Page<Resource> resources = resourceManagement.getResourcesFromLabels(labels, tenantId, LabelSelectorMethod.AND, Pageable.unpaged());
@@ -654,6 +696,15 @@ public class ResourceManagementTest {
         create.setResourceId(resourceId);
         String tenantId = RandomStringUtils.randomAlphanumeric(10);
         String tenantId2 = RandomStringUtils.randomAlphanumeric(10);
+
+        ResourceInfo info = new ResourceInfo()
+            .setEnvoyId("e-1")
+            .setTenantId(tenantId)
+            .setResourceId(resourceId);
+
+        when(envoyResourceManagement.getOne(any(), any()))
+            .thenReturn(CompletableFuture.completedFuture(info));
+
         resourceManagement.createResource(tenantId, create);
         resourceManagement.createResource(tenantId2, create);
 
@@ -674,6 +725,13 @@ public class ResourceManagementTest {
         String tenantId2 = RandomStringUtils.randomAlphanumeric(10);
         String resourceId = RandomStringUtils.randomAlphanumeric(10);
         create.setResourceId(resourceId);
+        ResourceInfo info = new ResourceInfo()
+            .setEnvoyId("e-1")
+            .setTenantId(tenantId)
+            .setResourceId(resourceId);
+
+        when(envoyResourceManagement.getOne(any(), any()))
+            .thenReturn(CompletableFuture.completedFuture(info));
         resourceManagement.createResource(tenantId, create);
         resourceManagement.createResource(tenantId2, create);
 
@@ -694,6 +752,15 @@ public class ResourceManagementTest {
         String resourceId = RandomStringUtils.randomAlphanumeric(10);
         create.setResourceId(resourceId);
         String tenantId = RandomStringUtils.randomAlphanumeric(10);
+
+        ResourceInfo info = new ResourceInfo()
+            .setEnvoyId("e-1")
+            .setTenantId(tenantId)
+            .setResourceId(resourceId);
+
+        when(envoyResourceManagement.getOne(any(), any()))
+            .thenReturn(CompletableFuture.completedFuture(info));
+
         resourceManagement.createResource(tenantId, create);
         entityManager.flush();
 
@@ -718,6 +785,15 @@ public class ResourceManagementTest {
         String resourceId = RandomStringUtils.randomAlphanumeric(10);
         create.setResourceId(resourceId);
         String tenantId = RandomStringUtils.randomAlphanumeric(10);
+
+        ResourceInfo info = new ResourceInfo()
+            .setEnvoyId("e-1")
+            .setTenantId(tenantId)
+            .setResourceId(resourceId);
+
+        when(envoyResourceManagement.getOne(any(), any()))
+            .thenReturn(CompletableFuture.completedFuture(info));
+
         resourceManagement.createResource(tenantId, create);
         entityManager.flush();
 
@@ -740,6 +816,15 @@ public class ResourceManagementTest {
         String tenantId = RandomStringUtils.randomAlphanumeric(10);
         String resourceId = RandomStringUtils.randomAlphanumeric(10);
         create.setResourceId(resourceId);
+
+        ResourceInfo info = new ResourceInfo()
+            .setEnvoyId("e-1")
+            .setTenantId(tenantId)
+            .setResourceId(resourceId);
+
+        when(envoyResourceManagement.getOne(any(), any()))
+            .thenReturn(CompletableFuture.completedFuture(info));
+
         resourceManagement.createResource(tenantId, create);
 
 
@@ -802,6 +887,15 @@ public class ResourceManagementTest {
         String resourceId = RandomStringUtils.randomAlphanumeric(10);
         create.setResourceId(resourceId);
         String tenantId = RandomStringUtils.randomAlphanumeric(10);
+
+        ResourceInfo info = new ResourceInfo()
+            .setEnvoyId("e-1")
+            .setTenantId(tenantId)
+            .setResourceId(resourceId);
+
+        when(envoyResourceManagement.getOne(any(), any()))
+            .thenReturn(CompletableFuture.completedFuture(info));
+
         resourceManagement.createResource(tenantId, create);
         entityManager.flush();
 
@@ -824,8 +918,19 @@ public class ResourceManagementTest {
         create.setResourceId(resourceId);
         create.setLabels(resourceLabels);
         String tenantId = RandomStringUtils.randomAlphanumeric(10);
+
+        ResourceInfo info = new ResourceInfo()
+            .setEnvoyId("e-1")
+            .setTenantId(tenantId)
+            .setResourceId(resourceId);
+
+        when(envoyResourceManagement.getOne(any(), any()))
+            .thenReturn(CompletableFuture.completedFuture(info));
+
         resourceManagement.createResource(tenantId, create);
         entityManager.flush();
+
+
 
         Page<Resource> resources = resourceManagement.getResourcesFromLabels(labels, tenantId, LabelSelectorMethod.OR, Pageable.unpaged());
         assertEquals(0L, resources.getTotalElements());
@@ -846,6 +951,15 @@ public class ResourceManagementTest {
         String resourceId = RandomStringUtils.randomAlphanumeric(10);
         create.setResourceId(resourceId);
         String tenantId = RandomStringUtils.randomAlphanumeric(10);
+
+        ResourceInfo info = new ResourceInfo()
+            .setEnvoyId("e-1")
+            .setTenantId(tenantId)
+            .setResourceId(resourceId);
+
+        when(envoyResourceManagement.getOne(any(), any()))
+            .thenReturn(CompletableFuture.completedFuture(info));
+
         resourceManagement.createResource(tenantId, create);
         entityManager.flush();
 
@@ -871,6 +985,15 @@ public class ResourceManagementTest {
         String tenantId = RandomStringUtils.randomAlphanumeric(10);
         String resourceId = RandomStringUtils.randomAlphanumeric(10);
         create.setResourceId(resourceId);
+
+        ResourceInfo info = new ResourceInfo()
+            .setEnvoyId("e-1")
+            .setTenantId(tenantId)
+            .setResourceId(resourceId);
+
+        when(envoyResourceManagement.getOne(any(), any()))
+            .thenReturn(CompletableFuture.completedFuture(info));
+
         resourceManagement.createResource(tenantId, create);
         entityManager.flush();
 
@@ -896,6 +1019,14 @@ public class ResourceManagementTest {
         String resourceId = RandomStringUtils.randomAlphanumeric(10);
         create.setResourceId(resourceId);
         String tenantId = RandomStringUtils.randomAlphanumeric(10);
+        ResourceInfo info = new ResourceInfo()
+            .setEnvoyId("e-1")
+            .setTenantId(tenantId)
+            .setResourceId(resourceId);
+
+        when(envoyResourceManagement.getOne(any(), any()))
+            .thenReturn(CompletableFuture.completedFuture(info));
+
         resourceManagement.createResource(tenantId, create);
         entityManager.flush();
 
@@ -919,6 +1050,15 @@ public class ResourceManagementTest {
         create.setResourceId(resourceId);
         create.setLabels(resourceLabels);
         String tenantId = RandomStringUtils.randomAlphanumeric(10);
+
+        ResourceInfo info = new ResourceInfo()
+            .setEnvoyId("e-1")
+            .setTenantId(tenantId)
+            .setResourceId(resourceId);
+
+        when(envoyResourceManagement.getOne(any(), any()))
+            .thenReturn(CompletableFuture.completedFuture(info));
+
         resourceManagement.createResource(tenantId, create);
         entityManager.flush();
 
@@ -937,6 +1077,15 @@ public class ResourceManagementTest {
         String tenantId = RandomStringUtils.randomAlphanumeric(10);
         String resourceId = RandomStringUtils.randomAlphanumeric(10);
         create.setResourceId(resourceId);
+
+        ResourceInfo info = new ResourceInfo()
+            .setEnvoyId("e-1")
+            .setTenantId(tenantId)
+            .setResourceId(resourceId);
+
+        when(envoyResourceManagement.getOne(any(), any()))
+            .thenReturn(CompletableFuture.completedFuture(info));
+
         resourceManagement.createResource(tenantId, create);
         entityManager.flush();
 

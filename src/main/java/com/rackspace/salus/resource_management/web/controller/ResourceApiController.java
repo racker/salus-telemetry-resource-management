@@ -129,7 +129,7 @@ public class ResourceApiController {
   public ResourceDTO create(@PathVariable String tenantId,
       @Valid @RequestBody final ResourceCreate input)
       throws IllegalArgumentException, AlreadyExistsException {
-    return new ResourceDTO(resourceManagement.createResource(tenantId, input), null);
+    return resourceManagement.createResource(tenantId, input);
   }
 
   @PutMapping("/tenant/{tenantId}/resources/{resourceId}")

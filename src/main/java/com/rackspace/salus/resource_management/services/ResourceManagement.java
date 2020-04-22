@@ -144,13 +144,13 @@ public class ResourceManagement {
 
   public ResourceDTO getResourceDTO(String tenantId, String resourceId) {
     Optional<Resource> resource = resourceRepository.findByTenantIdAndResourceId(tenantId, resourceId);
-    // we need to get the
+
     if(resource.get() == null) {
       throw new NotFoundException(String.format("No resource found for %s on tenant %s",
           resourceId, tenantId));
     }
-    String envoyId = envoyResourceManagement.getOne(resource.get().getTenantId(), resource.get().getResourceId()).join().getEnvoyId();
-    return new ResourceDTO(resource.get(), null);
+
+    return getResourceDTOFromResource(resource.get());
   }
 
   /**
@@ -167,7 +167,7 @@ public class ResourceManagement {
   }
 
   /**
-   * Same as {@link #getAllResourceDTOs(Pageable page) getAllResources} except restricted to a single tenant.
+   * Same as {@link #getAllResourceDTOs(Pageable page) getAllResourceDTOs} except restricted to a single tenant.
    * @param tenantId The tenant to select resources from.
    * @param page The slice of results to be returned.
    * @return The resources found for the tenant that match the page criteria.
@@ -175,7 +175,7 @@ public class ResourceManagement {
   public Page<ResourceDTO> getResourceDTOs(String tenantId, Pageable page) {
     final List<ResourceDTO> values = new LinkedList();
     resourceRepository.findAllByTenantId(tenantId).forEach(r -> {
-      values.add(new ResourceDTO(r, null));//envoyResourceManagement.getOne(r.getTenantId(), r.getResourceId()).join().getEnvoyId()));
+      values.add(getResourceDTOFromResource(r));
     });
 
     return new PageImpl(values, page, values.size());
@@ -219,7 +219,7 @@ public class ResourceManagement {
    * @throws IllegalArgumentException
    * @throws AlreadyExistsException
    */
-  public Resource createResource(String tenantId, @Valid ResourceCreate newResource) throws IllegalArgumentException, AlreadyExistsException {
+  public ResourceDTO createResource(String tenantId, @Valid ResourceCreate newResource) throws IllegalArgumentException, AlreadyExistsException {
     if (exists(tenantId, newResource.getResourceId())) {
       throw new AlreadyExistsException(String.format("Resource already exists with identifier %s on tenant %s",
           newResource.getResourceId(), tenantId));
@@ -238,7 +238,7 @@ public class ResourceManagement {
 
     resource = saveAndPublishResource(resource, true, null);
 
-    return resource;
+    return getResourceDTOFromResource(resource);
   }
 
   /**
@@ -437,7 +437,7 @@ public class ResourceManagement {
     Page<Resource> pagedResources = getResourcesFromLabels(labels, tenantId, logicalOperation, page);
     final List<ResourceDTO> values = new LinkedList();
     pagedResources.get().forEach(r -> {
-      values.add(new ResourceDTO(r, null));//envoyResourceManagement.getOne(r.getTenantId(), r.getResourceId()).join().getEnvoyId()));
+      values.add(getResourceDTOFromResource(r));
     });
     return (Page<ResourceDTO>) getPagedResults(values, page);
   }

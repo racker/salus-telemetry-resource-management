@@ -338,7 +338,7 @@ public class ResourceApiControllerTest {
 
   @Test
   public void testCreateResource() throws Exception {
-    Resource resource = podamFactory.manufacturePojo(Resource.class);
+    ResourceDTO resource = podamFactory.manufacturePojo(ResourceDTO.class);
     String resourceId = "resource28-13:databaseNode";
     resource.setResourceId(resourceId);
     when(resourceManagement.createResource(anyString(), any()))

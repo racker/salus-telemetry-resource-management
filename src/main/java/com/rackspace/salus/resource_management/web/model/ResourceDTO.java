@@ -36,8 +36,7 @@ public class ResourceDTO {
     this.presenceMonitoringEnabled = resource.getPresenceMonitoringEnabled();
     this.associatedWithEnvoy = envoyId != null;
     this.envoyId = envoyId;
-    this.associatedWithEnvoy = envoyId != null;
-    this.createdTimestamp = DateTimeFormatter.ISO_INSTANT.format(resource.getCreatedTimestamp());
-    this.updatedTimestamp = DateTimeFormatter.ISO_INSTANT.format(resource.getUpdatedTimestamp());
+    this.createdTimestamp = resource.getCreatedTimestamp() == null ? null : DateTimeFormatter.ISO_INSTANT.format(resource.getCreatedTimestamp());
+    this.updatedTimestamp = resource.getUpdatedTimestamp() == null ? null : DateTimeFormatter.ISO_INSTANT.format(resource.getUpdatedTimestamp());
   }
 }
