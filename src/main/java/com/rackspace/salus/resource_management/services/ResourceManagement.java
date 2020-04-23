@@ -554,10 +554,10 @@ public class ResourceManagement {
   }
 
   private ResourceDTO getResourceDTOFromResource(Resource resource) {
+    ResourceInfo resourceInfo = envoyResourceManagement.getOne(resource.getTenantId(), resource.getResourceId()).join();
+
     return new ResourceDTO(resource,
-        envoyResourceManagement.getOne(resource.getTenantId(), resource.getResourceId())
-            .join()
-            .getEnvoyId());
+        resourceInfo == null ? null : resourceInfo.getEnvoyId());
   }
 
   public Collection<String> getLabelNamespaces() {

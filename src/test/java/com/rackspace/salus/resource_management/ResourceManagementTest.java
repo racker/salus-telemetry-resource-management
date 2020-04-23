@@ -205,6 +205,12 @@ public class ResourceManagementTest {
         Random random = new Random();
         int totalResources = random.nextInt(150 - 50) + 50;
         int pageSize = 10;
+        ResourceInfo info = new ResourceInfo()
+            .setEnvoyId("e-1")
+            .setTenantId(TENANT);
+
+        when(envoyResourceManagement.getOne(any(), any()))
+            .thenReturn(CompletableFuture.completedFuture(info));
 
         Pageable page = PageRequest.of(0, pageSize);
         Page<ResourceDTO> result = resourceManagement.getAllResourceDTOs(page);
@@ -228,17 +234,17 @@ public class ResourceManagementTest {
         int pageSize = 10;
         String tenantId = RandomStringUtils.randomAlphanumeric(10);
 
-        Pageable page = PageRequest.of(0, pageSize);
-        Page<ResourceDTO> result = resourceManagement.getAllResourceDTOs(page);
-
-        assertThat(result.getTotalElements(), equalTo(1L));
-
         ResourceInfo info = new ResourceInfo()
             .setEnvoyId("e-1")
             .setTenantId(tenantId);
 
         when(envoyResourceManagement.getOne(any(), any()))
             .thenReturn(CompletableFuture.completedFuture(info));
+
+        Pageable page = PageRequest.of(0, pageSize);
+        Page<ResourceDTO> result = resourceManagement.getAllResourceDTOs(page);
+
+        assertThat(result.getTotalElements(), equalTo(1L));
 
         createResourcesForTenant(totalResources , tenantId);
 
@@ -513,6 +519,13 @@ public class ResourceManagementTest {
 
     @Test
     public void testUpdateExistingResource() {
+        ResourceInfo info = new ResourceInfo()
+            .setEnvoyId("e-1")
+            .setTenantId(TENANT)
+            .setResourceId(RESOURCE_ID);
+
+        when(envoyResourceManagement.getOne(any(), any()))
+          .thenReturn(CompletableFuture.completedFuture(info));
         ResourceDTO resource = resourceManagement.getAllResourceDTOs(PageRequest.of(0, 1)).getContent().get(0);
         Map<String, String> newLabels = new HashMap<>(resource.getLabels());
         newLabels.put("newLabel", "newValue");
@@ -520,15 +533,6 @@ public class ResourceManagementTest {
         ResourceUpdate update = new ResourceUpdate()
           .setLabels(newLabels)
           .setPresenceMonitoringEnabled(presenceMonitoring);
-
-        ResourceInfo info = new ResourceInfo()
-            .setEnvoyId("e-1")
-            .setTenantId("t-1")
-            .setResourceId("r-1");
-
-        CompletableFuture<ResourceInfo> envoyInformation = CompletableFuture.completedFuture(info);
-        when(envoyResourceManagement.getOne(any(), any()))
-            .thenReturn(envoyInformation);
 
         ResourceDTO newResource;
         try {

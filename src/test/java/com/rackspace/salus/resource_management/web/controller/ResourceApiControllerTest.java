@@ -223,6 +223,7 @@ public class ResourceApiControllerTest {
         .setCreatedTimestamp(DEFAULT_TIMESTAMP.toString())
         .setUpdatedTimestamp(DEFAULT_TIMESTAMP.toString())
         .setAssociatedWithEnvoy(false)
+        .setEnvoyId("e-1")
         .setId(1001L);
     when(resourceManagement.getResourceDTO(any(), any()))
         .thenReturn(expectedResource);
