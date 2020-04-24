@@ -482,7 +482,7 @@ public class ResourceManagement {
         (resultSet, rowIndex) -> resultSet.getLong(1)
     );
 
-    return resourceRepository.findAllByResourceIdIn(resourceIds, page);
+    return resourceRepository.findByIdIn(resourceIds, page);
 
   }
 
