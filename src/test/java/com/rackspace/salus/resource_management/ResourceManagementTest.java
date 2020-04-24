@@ -191,6 +191,7 @@ public class ResourceManagementTest {
         assertThat(returned.getPresenceMonitoringEnabled(), notNullValue());
         assertThat(returned.getPresenceMonitoringEnabled(), equalTo(create.getPresenceMonitoringEnabled()));
         assertThat(returned.getLabels().size(), greaterThan(0));
+        assertThat(returned.getEnvoyId(), equalTo("e-1"));
         assertTrue(Maps.difference(create.getLabels(), returned.getLabels()).areEqual());
 
         Optional<Resource> retrieved = resourceManagement.getResource(tenantId, create.getResourceId());
@@ -547,6 +548,7 @@ public class ResourceManagementTest {
 
         resource = resourceManagement.getAllResourceDTOs(PageRequest.of(0, 1)).getContent().get(0);
 
+        assertThat(newResource.getEnvoyId(), equalTo("e-1"));
         assertThat(newResource.getLabels(), equalTo(resource.getLabels()));
         assertThat(newResource.getId(), equalTo(resource.getId()));
         assertThat(newResource.getPresenceMonitoringEnabled(), equalTo(presenceMonitoring));
@@ -600,7 +602,7 @@ public class ResourceManagementTest {
         assertThat(newResource.getLabels(), equalTo(expectedLabels));
         assertThat(newResource.getMetadata(), equalTo(resource.getMetadata()));
         assertThat(newResource.getId(), equalTo(resource.getId()));
-        //assertThat(newResource.getPresenceMonitoringEnabled(), equalTo(presenceMonitoring));
+        assertThat(newResource.getPresenceMonitoringEnabled(), equalTo(presenceMonitoring));
     }
 
     @Test

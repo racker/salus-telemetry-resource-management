@@ -159,11 +159,12 @@ public class ResourceManagement {
    * @return The resourceDTOs found that match the page criteria.
    */
   public Page<ResourceDTO> getAllResourceDTOs(Pageable page) {
-    final List<ResourceDTO> values = new LinkedList();
-    resourceRepository.findAll().forEach(r -> {
-      values.add(getResourceDTOFromResource(r));
+    final List<ResourceDTO> resourceDTOs = new LinkedList();
+    Page<Resource> resources = resourceRepository.findAll(page);
+    resources.forEach(r -> {
+      resourceDTOs.add(getResourceDTOFromResource(r));
     });
-    return new PageImpl(values, page, values.size());
+    return new PageImpl(resourceDTOs, page, resources.getTotalElements());
   }
 
   /**
@@ -173,17 +174,16 @@ public class ResourceManagement {
    * @return The resources found for the tenant that match the page criteria.
    */
   public Page<ResourceDTO> getResourceDTOs(String tenantId, Pageable page) {
-    final List<ResourceDTO> values = new LinkedList();
-    resourceRepository.findAllByTenantId(tenantId).forEach(r -> {
-      values.add(getResourceDTOFromResource(r));
+    final List<ResourceDTO> resourceDTOs = new LinkedList();
+    Page<Resource> resources = resourceRepository.findAllByTenantId(tenantId, page);
+
+    resources.forEach(r -> {
+      resourceDTOs.add(getResourceDTOFromResource(r));
     });
 
-    return new PageImpl(values, page, values.size());
+    return new PageImpl(resourceDTOs, page, resources.getTotalElements());
   }
 
-  public List<Resource> getAllTenantResources(String tenantId) {
-    return resourceRepository.findAllByTenantId(tenantId);
-  }
   /**
    * Get all resources where the presence monitoring field matches the parameter provided.
    * @param presenceMonitoringEnabled Whether presence monitoring is enabled or not.
@@ -192,8 +192,7 @@ public class ResourceManagement {
   public Stream<ResourceDTO> getResources(boolean presenceMonitoringEnabled) {
     return resourceRepository.findAllByPresenceMonitoringEnabled(presenceMonitoringEnabled)
         .stream()
-        .map(r -> getResourceDTOFromResource(r))
-        .collect(Collectors.toList()).stream();
+        .map(this::getResourceDTOFromResource);
   }
 
   /**
@@ -439,7 +438,7 @@ public class ResourceManagement {
     pagedResources.get().forEach(r -> {
       values.add(getResourceDTOFromResource(r));
     });
-    return (Page<ResourceDTO>) getPagedResults(values, page);
+    return new PageImpl(values, page, pagedResources.getTotalElements());
   }
 
   /**
@@ -451,7 +450,7 @@ public class ResourceManagement {
    */
   public Page<Resource> getResourcesFromLabels(Map<String, String> labels, String tenantId, LabelSelectorMethod logicalOperation, Pageable page) {
     if(labels == null || labels.isEmpty()) {
-      return (Page<Resource>) getPagedResults(getAllTenantResources(tenantId), page);
+      return resourceRepository.findAllByTenantId(tenantId, page);
     }
 
     MapSqlParameterSource paramSource = new MapSqlParameterSource();
@@ -483,12 +482,8 @@ public class ResourceManagement {
         (resultSet, rowIndex) -> resultSet.getLong(1)
     );
 
-    final List<Resource> resources = new ArrayList<>();
-    for (Resource resource : resourceRepository.findAllById(resourceIds)) {
-      resources.add(resource);
-    }
+    return resourceRepository.findAllByResourceIdIn(resourceIds, page);
 
-    return (Page<Resource>) getPagedResults(resources, page);
   }
 
 
@@ -525,32 +520,6 @@ public class ResourceManagement {
         .flatMap(map -> map.keySet().stream())
         .distinct()
         .collect(Collectors.toList());
-  }
-
-  /**
-   * Converts a list of resources into a Page containing only the requested elements.
-   * @param resources The full list of resources found.
-   * @param page The page details that were requested.
-   * @return A Page object containing only the resources that were requested.
-   */
-  @SuppressWarnings("Duplicates")
-  private Page<?> getPagedResults(List<?> resources, Pageable page) {
-    if (page.isPaged()) {
-      int start = page.getPageSize() * page.getPageNumber();
-      int end = start + page.getPageSize();
-      if (end > resources.size()) {
-        end = resources.size();
-      }
-      List<?> results;
-      try {
-        results = resources.subList(start, end);
-      } catch (IndexOutOfBoundsException | IllegalArgumentException e) {
-        results = Collections.emptyList();
-      }
-      return new PageImpl<>(results, page, resources.size());
-    } else {
-      return new PageImpl<>(resources, page, resources.size());
-    }
   }
 
   private ResourceDTO getResourceDTOFromResource(Resource resource) {

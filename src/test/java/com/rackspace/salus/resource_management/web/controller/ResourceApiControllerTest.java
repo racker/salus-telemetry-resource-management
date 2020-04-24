@@ -228,13 +228,10 @@ public class ResourceApiControllerTest {
     when(resourceManagement.getResourceDTO(any(), any()))
         .thenReturn(expectedResource);
 
-    ResultActions value = mockMvc.perform(get(
+    mockMvc.perform(get(
         "/api/tenant/{tenantId}/resources/{resourceId}",
         "t-1", "r-1"
-    ).accept(MediaType.APPLICATION_JSON));
-
-
-        value
+    ).accept(MediaType.APPLICATION_JSON))
         .andExpect(status().isOk())
         .andExpect(content().json(
             // id field should not be returned
