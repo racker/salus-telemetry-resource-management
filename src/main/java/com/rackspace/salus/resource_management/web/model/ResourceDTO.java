@@ -34,7 +34,7 @@ public class ResourceDTO {
     this.labels = resource.getLabels();
     this.metadata = resource.getMetadata();
     this.presenceMonitoringEnabled = resource.getPresenceMonitoringEnabled();
-    this.associatedWithEnvoy = envoyId != null;
+    this.associatedWithEnvoy = resource.isAssociatedWithEnvoy();
     this.envoyId = envoyId;
     this.createdTimestamp = resource.getCreatedTimestamp() == null ? null : DateTimeFormatter.ISO_INSTANT.format(resource.getCreatedTimestamp());
     this.updatedTimestamp = resource.getUpdatedTimestamp() == null ? null : DateTimeFormatter.ISO_INSTANT.format(resource.getUpdatedTimestamp());
