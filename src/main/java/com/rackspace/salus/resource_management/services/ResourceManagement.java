@@ -159,12 +159,8 @@ public class ResourceManagement {
    * @return The resourceDTOs found that match the page criteria.
    */
   public Page<ResourceDTO> getAllResourceDTOs(Pageable page) {
-    final List<ResourceDTO> resourceDTOs = new LinkedList();
-    Page<Resource> resources = resourceRepository.findAll(page);
-    resources.forEach(r -> {
-      resourceDTOs.add(getResourceDTOFromResource(r));
-    });
-    return new PageImpl(resourceDTOs, page, resources.getTotalElements());
+    return resourceRepository.findAll(page)
+        .map(this::getResourceDTOFromResource);
   }
 
   /**
@@ -174,14 +170,8 @@ public class ResourceManagement {
    * @return The resources found for the tenant that match the page criteria.
    */
   public Page<ResourceDTO> getResourceDTOs(String tenantId, Pageable page) {
-    final List<ResourceDTO> resourceDTOs = new LinkedList();
-    Page<Resource> resources = resourceRepository.findAllByTenantId(tenantId, page);
-
-    resources.forEach(r -> {
-      resourceDTOs.add(getResourceDTOFromResource(r));
-    });
-
-    return new PageImpl(resourceDTOs, page, resources.getTotalElements());
+    return resourceRepository.findAllByTenantId(tenantId, page)
+        .map(this::getResourceDTOFromResource);
   }
 
   /**
@@ -433,12 +423,8 @@ public class ResourceManagement {
   }
 
   public Page<ResourceDTO> getResourceDTOsFromLabels(Map<String, String> labels, String tenantId, LabelSelectorMethod logicalOperation, Pageable page) {
-    Page<Resource> pagedResources = getResourcesFromLabels(labels, tenantId, logicalOperation, page);
-    final List<ResourceDTO> values = new LinkedList();
-    pagedResources.get().forEach(r -> {
-      values.add(getResourceDTOFromResource(r));
-    });
-    return new PageImpl(values, page, pagedResources.getTotalElements());
+    return getResourcesFromLabels(labels, tenantId, logicalOperation, page)
+      .map(this::getResourceDTOFromResource);
   }
 
   /**
