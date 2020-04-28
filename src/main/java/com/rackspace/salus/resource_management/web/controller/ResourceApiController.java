@@ -91,7 +91,7 @@ public class ResourceApiController {
   @GetMapping("/envoys")
   public SseEmitter getAllWithPresenceMonitoringAsStream() {
     SseEmitter emitter = new SseEmitter();
-    Stream<ResourceDTO> resourcesWithEnvoys = resourceManagement.getResources(true);
+    Stream<Resource> resourcesWithEnvoys = resourceManagement.getResources(true);
     taskExecutor.execute(() -> {
       resourcesWithEnvoys.forEach(r -> {
         try {

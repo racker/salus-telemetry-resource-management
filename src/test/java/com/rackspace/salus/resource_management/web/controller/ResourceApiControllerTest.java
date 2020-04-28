@@ -494,9 +494,9 @@ public class ResourceApiControllerTest {
   @Test
   public void testGetStreamOfResources() throws Exception {
     int numberOfResources = 20;
-    List<ResourceDTO> resources = new ArrayList<>();
+    List<Resource> resources = new ArrayList<>();
     for (int i=0; i<numberOfResources; i++) {
-      resources.add(podamFactory.manufacturePojo(ResourceDTO.class));
+      resources.add(podamFactory.manufacturePojo(Resource.class));
     }
 
     List<String> expectedData = resources.stream()
@@ -510,7 +510,7 @@ public class ResourceApiControllerTest {
         }).collect(Collectors.toList());
     assertThat(expectedData.size(), equalTo(resources.size()));
 
-    Stream<ResourceDTO> resourceStream = resources.stream();
+    Stream<Resource> resourceStream = resources.stream();
 
     when(resourceManagement.getResources(true))
         .thenReturn(resourceStream);

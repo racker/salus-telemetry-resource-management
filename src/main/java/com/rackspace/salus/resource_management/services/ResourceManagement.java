@@ -34,20 +34,15 @@ import com.rackspace.salus.telemetry.model.NotFoundException;
 import com.rackspace.salus.telemetry.model.ResourceInfo;
 import com.rackspace.salus.telemetry.repositories.ResourceRepository;
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import javax.persistence.EntityManager;
@@ -176,10 +171,9 @@ public class ResourceManagement {
    * @param presenceMonitoringEnabled Whether presence monitoring is enabled or not.
    * @return Stream of resources.
    */
-  public Stream<ResourceDTO> getResources(boolean presenceMonitoringEnabled) {
+  public Stream<Resource> getResources(boolean presenceMonitoringEnabled) {
     return resourceRepository.findAllByPresenceMonitoringEnabled(presenceMonitoringEnabled)
-        .stream()
-        .map(this::getResourceDTOFromResource);
+        .stream();
   }
 
   /**
