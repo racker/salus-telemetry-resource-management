@@ -143,14 +143,11 @@ public class ResourceManagement {
   }
 
   public ResourceDTO getResourceDTO(String tenantId, String resourceId) {
-    Optional<Resource> resource = resourceRepository.findByTenantIdAndResourceId(tenantId, resourceId);
+    Resource resource = resourceRepository.findByTenantIdAndResourceId(tenantId, resourceId)
+        .orElseThrow(() -> new NotFoundException(
+            String.format("No resource found for %s on tenant %s", resourceId, tenantId)));
 
-    if(!resource.isPresent()) {
-      throw new NotFoundException(String.format("No resource found for %s on tenant %s",
-          resourceId, tenantId));
-    }
-
-    return getResourceDTOFromResource(resource.get());
+    return getResourceDTOFromResource(resource);
   }
 
   /**
