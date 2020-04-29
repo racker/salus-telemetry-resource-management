@@ -46,6 +46,7 @@ import com.rackspace.salus.resource_management.web.model.ResourceUpdate;
 import com.rackspace.salus.telemetry.entities.Resource;
 import com.rackspace.salus.telemetry.errors.AlreadyExistsException;
 import com.rackspace.salus.telemetry.model.LabelSelectorMethod;
+import com.rackspace.salus.telemetry.model.NotFoundException;
 import com.rackspace.salus.telemetry.repositories.TenantMetadataRepository;
 import com.rackspace.salus.telemetry.web.TenantVerification;
 import java.nio.charset.StandardCharsets;
@@ -74,6 +75,7 @@ import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.junit4.SpringRunner;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import uk.co.jemos.podam.api.PodamFactory;
@@ -109,9 +111,9 @@ public class ResourceApiControllerTest {
     String tenantId = RandomStringUtils.randomAlphabetic( 8 );
     String resourceId = RandomStringUtils.randomAlphabetic( 8 );
     String errorMsg = String.format("No resource found for %s on tenant %s", resourceId, tenantId);
-
-    when(resourceManagement.getResource(anyString(), anyString()))
-        .thenReturn(Optional.empty());
+    NotFoundException exception = new NotFoundException(errorMsg);
+    when(resourceManagement.getResourceDTO(anyString(), anyString()))
+        .thenThrow(exception);
     when(tenantMetadataRepository.existsByTenantId(tenantId))
         .thenReturn(true);
 
@@ -153,16 +155,17 @@ public class ResourceApiControllerTest {
   @Test
   public void testGetByResourceIdAsCustomer() throws Exception {
 
-    final Resource expectedResource = new Resource()
+    final ResourceDTO expectedResource = new ResourceDTO()
         .setLabels(Collections.singletonMap("env", "prod"))
         .setMetadata(Collections.singletonMap("custom", "new"))
         .setResourceId("r-1")
         .setTenantId("t-1")
-        .setCreatedTimestamp(DEFAULT_TIMESTAMP)
-        .setUpdatedTimestamp(DEFAULT_TIMESTAMP)
+        .setCreatedTimestamp(DEFAULT_TIMESTAMP.toString())
+        .setUpdatedTimestamp(DEFAULT_TIMESTAMP.toString())
+        .setAssociatedWithEnvoy(true)
         .setId(1001L);
-    when(resourceManagement.getResource(any(), any()))
-        .thenReturn(Optional.of(expectedResource));
+    when(resourceManagement.getResourceDTO(any(), any()))
+        .thenReturn(expectedResource);
 
     mockMvc.perform(get(
         "/api/tenant/{tenantId}/resources/{resourceId}",
@@ -174,7 +177,7 @@ public class ResourceApiControllerTest {
             SpringResourceUtils.readContent(
                 "ResourceApiControllerTest/single_public_resource_customer.json"), true));
 
-    verify(resourceManagement).getResource("t-1", "r-1");
+    verify(resourceManagement).getResourceDTO("t-1", "r-1");
     verifyNoMoreInteractions(resourceManagement);
   }
 
@@ -182,16 +185,17 @@ public class ResourceApiControllerTest {
   @Test
   public void testGetByResourceIdAsEmployee() throws Exception {
 
-    final Resource expectedResource = new Resource()
+    final ResourceDTO expectedResource = new ResourceDTO()
         .setLabels(Collections.singletonMap("env", "prod"))
         .setMetadata(Collections.singletonMap("custom", "new"))
         .setResourceId("r-1")
         .setTenantId("t-1")
-        .setCreatedTimestamp(DEFAULT_TIMESTAMP)
-        .setUpdatedTimestamp(DEFAULT_TIMESTAMP)
+        .setCreatedTimestamp(DEFAULT_TIMESTAMP.toString())
+        .setUpdatedTimestamp(DEFAULT_TIMESTAMP.toString())
+        .setAssociatedWithEnvoy(false)
         .setId(1001L);
-    when(resourceManagement.getResource(any(), any()))
-        .thenReturn(Optional.of(expectedResource));
+    when(resourceManagement.getResourceDTO(any(), any()))
+        .thenReturn(expectedResource);
 
     mockMvc.perform(get(
         "/api/tenant/{tenantId}/resources/{resourceId}",
@@ -203,7 +207,7 @@ public class ResourceApiControllerTest {
             SpringResourceUtils.readContent(
                 "ResourceApiControllerTest/single_public_resource_employee.json"), true));
 
-    verify(resourceManagement).getResource("t-1", "r-1");
+    verify(resourceManagement).getResourceDTO("t-1", "r-1");
     verifyNoMoreInteractions(resourceManagement);
   }
 
@@ -211,16 +215,18 @@ public class ResourceApiControllerTest {
   @Test
   public void testGetByResourceIdAsAdmin() throws Exception {
 
-    final Resource expectedResource = new Resource()
+    final ResourceDTO expectedResource = new ResourceDTO()
         .setLabels(Collections.singletonMap("env", "prod"))
         .setMetadata(Collections.singletonMap("custom", "new"))
         .setResourceId("r-1")
         .setTenantId("t-1")
-        .setCreatedTimestamp(DEFAULT_TIMESTAMP)
-        .setUpdatedTimestamp(DEFAULT_TIMESTAMP)
+        .setCreatedTimestamp(DEFAULT_TIMESTAMP.toString())
+        .setUpdatedTimestamp(DEFAULT_TIMESTAMP.toString())
+        .setAssociatedWithEnvoy(false)
+        .setEnvoyId("e-1")
         .setId(1001L);
-    when(resourceManagement.getResource(any(), any()))
-        .thenReturn(Optional.of(expectedResource));
+    when(resourceManagement.getResourceDTO(any(), any()))
+        .thenReturn(expectedResource);
 
     mockMvc.perform(get(
         "/api/tenant/{tenantId}/resources/{resourceId}",
@@ -232,18 +238,18 @@ public class ResourceApiControllerTest {
             SpringResourceUtils.readContent(
                 "ResourceApiControllerTest/single_public_resource_admin.json"), true));
 
-    verify(resourceManagement).getResource("t-1", "r-1");
+    verify(resourceManagement).getResourceDTO("t-1", "r-1");
     verifyNoMoreInteractions(resourceManagement);
   }
 
   @Test
   public void testNoResourceFound() throws Exception {
-    when(resourceManagement.getResource(anyString(), anyString()))
-        .thenReturn(Optional.empty());
-
     String tenantId = RandomStringUtils.randomAlphabetic( 8 );
     String resourceId = RandomStringUtils.randomAlphabetic( 8 );
     String errorMsg = String.format("No resource found for %s on tenant %s", resourceId, tenantId);
+    NotFoundException exception = new NotFoundException(errorMsg);
+    when(resourceManagement.getResourceDTO(anyString(), anyString()))
+        .thenThrow(exception);
 
     mockMvc.perform(get("/api/tenant/{tenantId}/resources/{resourceId}", tenantId, resourceId)
         .contentType(MediaType.APPLICATION_JSON))
@@ -252,7 +258,7 @@ public class ResourceApiControllerTest {
             .contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
         .andExpect(jsonPath("$.message", is(errorMsg)));
 
-    verify(resourceManagement).getResource(tenantId, resourceId);
+    verify(resourceManagement).getResourceDTO(tenantId, resourceId);
     verifyNoMoreInteractions(resourceManagement);
   }
 
@@ -262,18 +268,18 @@ public class ResourceApiControllerTest {
     // Use the APIs default Pageable settings
     int page = 0;
     int pageSize = 20;
-    List<Resource> resources = new ArrayList<>();
+    List<ResourceDTO> resources = new ArrayList<>();
     for (int i=0; i<numberOfResources; i++) {
-      resources.add(podamFactory.manufacturePojo(Resource.class));
+      resources.add(podamFactory.manufacturePojo(ResourceDTO.class));
     }
 
     int start = page * pageSize;
     int end = numberOfResources;
-    Page<Resource> pageOfResources = new PageImpl<>(resources.subList(start, end),
+    Page<ResourceDTO> pageOfResources = new PageImpl<>(resources.subList(start, end),
         PageRequest.of(page, pageSize),
         numberOfResources);
 
-    when(resourceManagement.getResources(anyString(), any()))
+    when(resourceManagement.getResourceDTOs(anyString(), any()))
         .thenReturn(pageOfResources);
 
     String tenantId = RandomStringUtils.randomAlphabetic( 8 );
@@ -287,7 +293,7 @@ public class ResourceApiControllerTest {
         .andExpect(jsonPath("$.totalPages", equalTo(1)))
         .andExpect(jsonPath("$.totalElements", equalTo(numberOfResources)));
 
-    verify(resourceManagement).getResources(tenantId, PageRequest.of(0, 20));
+    verify(resourceManagement).getResourceDTOs(tenantId, PageRequest.of(0, 20));
     verifyNoMoreInteractions(resourceManagement);
   }
 
@@ -296,20 +302,20 @@ public class ResourceApiControllerTest {
     int numberOfResources = 99;
     int pageSize = 4;
     int page = 14;
-    List<Resource> resources = new ArrayList<>();
+    List<ResourceDTO> resourceDTOs = new ArrayList<>();
     for (int i=0; i<numberOfResources; i++) {
-      resources.add(podamFactory.manufacturePojo(Resource.class));
+      resourceDTOs.add(podamFactory.manufacturePojo(ResourceDTO.class));
     }
     int start = page * pageSize;
     int end = start + pageSize;
-    Page<Resource> pageOfResources = new PageImpl<>(resources.subList(start, end),
+    Page<ResourceDTO> pageOfResourceDTOs = new PageImpl<>(resourceDTOs.subList(start, end),
         PageRequest.of(page, pageSize),
         numberOfResources);
 
-    assertThat(pageOfResources.getContent().size(), equalTo(pageSize));
+    assertThat(pageOfResourceDTOs.getContent().size(), equalTo(pageSize));
 
-    when(resourceManagement.getResources(anyString(), any()))
-        .thenReturn(pageOfResources);
+    when(resourceManagement.getResourceDTOs(anyString(), any()))
+        .thenReturn(pageOfResourceDTOs);
 
     String tenantId = RandomStringUtils.randomAlphabetic( 8 );
 
@@ -324,13 +330,13 @@ public class ResourceApiControllerTest {
         .andExpect(jsonPath("$.totalPages", equalTo((numberOfResources + pageSize - 1) / pageSize)))
         .andExpect(jsonPath("$.totalElements", equalTo(numberOfResources)));
 
-    verify(resourceManagement).getResources(tenantId, PageRequest.of(page, pageSize));
+    verify(resourceManagement).getResourceDTOs(tenantId, PageRequest.of(page, pageSize));
     verifyNoMoreInteractions(resourceManagement);
   }
 
   @Test
   public void testCreateResource() throws Exception {
-    Resource resource = podamFactory.manufacturePojo(Resource.class);
+    ResourceDTO resource = podamFactory.manufacturePojo(ResourceDTO.class);
     String resourceId = "resource28-13:databaseNode";
     resource.setResourceId(resourceId);
     when(resourceManagement.createResource(anyString(), any()))
@@ -430,13 +436,13 @@ public class ResourceApiControllerTest {
 
   @Test
   public void testUpdateResource() throws Exception {
-    Resource resource = podamFactory.manufacturePojo(Resource.class);
+    ResourceDTO resourceDTO = podamFactory.manufacturePojo(ResourceDTO.class);
     when(resourceManagement.updateResource(anyString(), anyString(), any()))
-        .thenReturn(resource);
-    resource.setResourceId(RandomStringUtils.randomAlphabetic(8));
+        .thenReturn(resourceDTO);
+    resourceDTO.setResourceId(RandomStringUtils.randomAlphabetic(8));
 
-    String tenantId = resource.getTenantId();
-    String resourceId = resource.getResourceId();
+    String tenantId = resourceDTO.getTenantId();
+    String resourceId = resourceDTO.getResourceId();
 
     ResourceUpdate update = podamFactory.manufacturePojo(ResourceUpdate.class);
 
@@ -458,19 +464,19 @@ public class ResourceApiControllerTest {
     // Use the APIs default Pageable settings
     int page = 0;
     int pageSize = 20;
-    List<Resource> resources = new ArrayList<>();
+    List<ResourceDTO> resources = new ArrayList<>();
     for (int i=0; i<numberOfResources; i++) {
-      resources.add(podamFactory.manufacturePojo(Resource.class));
+      resources.add(podamFactory.manufacturePojo(ResourceDTO.class));
     }
 
     int start = page * pageSize;
     int end = numberOfResources;
-    Page<Resource> pageOfResources = new PageImpl<>(resources.subList(start, end),
+    Page<ResourceDTO> pageOfResourceDTOs = new PageImpl<>(resources.subList(start, end),
         PageRequest.of(page, pageSize),
         numberOfResources);
 
-    when(resourceManagement.getAllResources(any()))
-        .thenReturn(pageOfResources);
+    when(resourceManagement.getAllResourceDTOs(any()))
+        .thenReturn(pageOfResourceDTOs);
 
     mockMvc.perform(get("/api/admin/resources")
         .contentType(MediaType.APPLICATION_JSON))
@@ -481,7 +487,7 @@ public class ResourceApiControllerTest {
         .andExpect(jsonPath("$.totalPages", equalTo(1)))
         .andExpect(jsonPath("$.totalElements", equalTo(numberOfResources)));
 
-    verify(resourceManagement).getAllResources(PageRequest.of(0, 20));
+    verify(resourceManagement).getAllResourceDTOs(PageRequest.of(0, 20));
     verifyNoMoreInteractions(resourceManagement);
   }
 
@@ -496,7 +502,7 @@ public class ResourceApiControllerTest {
     List<String> expectedData = resources.stream()
         .map(r -> {
           try {
-            return "data:" + objectMapper.writeValueAsString(new ResourceDTO(r));
+            return "data:" + objectMapper.writeValueAsString(new ResourceDTO(r, null));
           } catch (JsonProcessingException e) {
             assertThat(e, nullValue());
             return null;
@@ -522,11 +528,11 @@ public class ResourceApiControllerTest {
   @Test
   public void testGetResourcesWithLabels() throws Exception {
 
-    final List<Resource> expectedResources = IntStream.range(0, 4)
-        .mapToObj(value -> podamFactory.manufacturePojo(Resource.class))
+    final List<ResourceDTO> expectedResources = IntStream.range(0, 4)
+        .mapToObj(value -> podamFactory.manufacturePojo(ResourceDTO.class))
         .collect(Collectors.toList());
 
-    when(resourceManagement.getResourcesFromLabels(any(), any(), any(), any()))
+    when(resourceManagement.getResourceDTOsFromLabels(any(), any(), any(), any()))
         .thenReturn(new PageImpl<>(expectedResources, Pageable.unpaged(), expectedResources.size()));
 
     mockMvc.perform(get(
@@ -535,7 +541,7 @@ public class ResourceApiControllerTest {
     ).accept(MediaType.APPLICATION_JSON))
         .andExpect(status().isOk());
 
-    verify(resourceManagement).getResourcesFromLabels(
+    verify(resourceManagement).getResourceDTOsFromLabels(
         Collections.singletonMap("env", "prod"),
         "t-1",
         LabelSelectorMethod.AND,
@@ -548,11 +554,11 @@ public class ResourceApiControllerTest {
   @Test
   public void testGetResourcesWithLabels_largerPageSize() throws Exception {
 
-    final List<Resource> expectedResources = IntStream.range(0, 4)
-        .mapToObj(value -> podamFactory.manufacturePojo(Resource.class))
+    final List<ResourceDTO> expectedResources = IntStream.range(0, 4)
+        .mapToObj(value -> podamFactory.manufacturePojo(ResourceDTO.class))
         .collect(Collectors.toList());
 
-    when(resourceManagement.getResourcesFromLabels(any(), any(), any(), any()))
+    when(resourceManagement.getResourceDTOsFromLabels(any(), any(), any(), any()))
         .thenReturn(new PageImpl<>(expectedResources, Pageable.unpaged(), expectedResources.size()));
 
     mockMvc.perform(
@@ -567,7 +573,7 @@ public class ResourceApiControllerTest {
     )
         .andExpect(status().isOk());
 
-    verify(resourceManagement).getResourcesFromLabels(
+    verify(resourceManagement).getResourceDTOsFromLabels(
         Collections.singletonMap("env", "prod"),
         "t-1",
         LabelSelectorMethod.AND,
@@ -583,11 +589,11 @@ public class ResourceApiControllerTest {
     // grab the value that Spring Boot will configure
     final int maxPageSize = springDataWebProperties.getPageable().getMaxPageSize();
 
-    final List<Resource> expectedResources = IntStream.range(0, 4)
-        .mapToObj(value -> podamFactory.manufacturePojo(Resource.class))
+    final List<ResourceDTO> expectedResources = IntStream.range(0, 4)
+        .mapToObj(value -> podamFactory.manufacturePojo(ResourceDTO.class))
         .collect(Collectors.toList());
 
-    when(resourceManagement.getResourcesFromLabels(any(), any(), any(), any()))
+    when(resourceManagement.getResourceDTOsFromLabels(any(), any(), any(), any()))
         .thenReturn(new PageImpl<>(expectedResources, PageRequest.of(0, maxPageSize), expectedResources.size()));
 
     mockMvc.perform(
@@ -602,7 +608,7 @@ public class ResourceApiControllerTest {
     )
         .andExpect(status().isOk());
 
-    verify(resourceManagement).getResourcesFromLabels(
+    verify(resourceManagement).getResourceDTOsFromLabels(
         Collections.singletonMap("env", "prod"),
         "t-1",
         LabelSelectorMethod.AND,
@@ -616,11 +622,11 @@ public class ResourceApiControllerTest {
   @Test
   public void testGetAllTenantResourcesWithLabels() throws Exception {
 
-    final List<Resource> expectedResources = IntStream.range(0, 4)
-        .mapToObj(value -> podamFactory.manufacturePojo(Resource.class))
+    final List<ResourceDTO> expectedResources = IntStream.range(0, 4)
+        .mapToObj(value -> podamFactory.manufacturePojo(ResourceDTO.class))
         .collect(Collectors.toList());
 
-    when(resourceManagement.getResourcesFromLabels(any(), any(), any(), any()))
+    when(resourceManagement.getResourceDTOsFromLabels(any(), any(), any(), any()))
         .thenReturn(new PageImpl<>(expectedResources, Pageable.unpaged(), expectedResources.size()));
 
     mockMvc.perform(
@@ -633,7 +639,7 @@ public class ResourceApiControllerTest {
     )
         .andExpect(status().isOk());
 
-    verify(resourceManagement).getResourcesFromLabels(
+    verify(resourceManagement).getResourceDTOsFromLabels(
         Collections.singletonMap("env", "prod"),
         "t-1",
         LabelSelectorMethod.AND,
