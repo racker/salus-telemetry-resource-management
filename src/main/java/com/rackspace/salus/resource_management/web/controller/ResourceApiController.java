@@ -95,7 +95,7 @@ public class ResourceApiController {
     taskExecutor.execute(() -> {
       resourcesWithEnvoys.forEach(r -> {
         try {
-          emitter.send(r);
+          emitter.send(new ResourceDTO(r, null));
         } catch (IOException e) {
           emitter.completeWithError(e);
         }
