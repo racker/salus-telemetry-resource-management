@@ -502,7 +502,7 @@ public class ResourceApiControllerTest {
     List<String> expectedData = resources.stream()
         .map(r -> {
           try {
-            return "data:" + objectMapper.writeValueAsString(r);
+            return "data:" + objectMapper.writeValueAsString(new ResourceDTO(r, null));
           } catch (JsonProcessingException e) {
             assertThat(e, nullValue());
             return null;
