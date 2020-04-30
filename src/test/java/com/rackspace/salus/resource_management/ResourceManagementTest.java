@@ -18,6 +18,7 @@ package com.rackspace.salus.resource_management;
 
 import static com.rackspace.salus.telemetry.model.LabelNamespaces.AGENT;
 import static com.rackspace.salus.telemetry.model.LabelNamespaces.applyNamespace;
+import static org.hamcrest.Matchers.anEmptyMap;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.greaterThan;
@@ -191,6 +192,7 @@ public class ResourceManagementTest {
         assertThat(returned.getPresenceMonitoringEnabled(), notNullValue());
         assertThat(returned.getPresenceMonitoringEnabled(), equalTo(create.getPresenceMonitoringEnabled()));
         assertThat(returned.getLabels().size(), greaterThan(0));
+        assertThat(returned.getMetadata(), notNullValue());
         assertThat(returned.getEnvoyId(), equalTo("e-1"));
         assertTrue(Maps.difference(create.getLabels(), returned.getLabels()).areEqual());
 
@@ -296,6 +298,7 @@ public class ResourceManagementTest {
             assertThat(resource.get().getLabels().get(name), equalTo(value));
         });
         assertThat(resource.get().getResourceId(), equalTo(attachEvent.getResourceId()));
+        assertThat(resource.get().getMetadata(), anEmptyMap());
     }
 
     @Test
@@ -413,10 +416,13 @@ public class ResourceManagementTest {
         resourceLabels.put(applyNamespace(AGENT, "notInNew"), "old-agent-value");
         resourceLabels.put("nonAgentLabel", "someValue");
 
+        final Map<String, String> originalMetadata = Map.of("key1", "value1");
+
         final Resource resource = resourceRepository.save(
             new Resource()
                 .setResourceId("r-1")
                 .setLabels(resourceLabels)
+                .setMetadata(originalMetadata)
                 .setTenantId("t-1")
                 .setPresenceMonitoringEnabled(false)
                 .setAssociatedWithEnvoy(true)
@@ -452,6 +458,7 @@ public class ResourceManagementTest {
 
         assertThat(actualResource.isPresent(), equalTo(true));
         assertThat(actualResource.get().getLabels(), equalTo(expectedResourceLabels));
+        assertThat(actualResource.get().getMetadata(), equalTo(originalMetadata));
 
         verify(kafkaEgress).sendResourceEvent(resourceEventArg.capture());
         assertThat(resourceEventArg.getValue(), equalTo(
@@ -471,10 +478,13 @@ public class ResourceManagementTest {
         resourceLabels.put(applyNamespace(AGENT, "discovered_hostname"), "h-1");
         resourceLabels.put("nonAgentLabel", "someValue");
 
+        final Map<String, String> originalMetadata = Map.of("key1", "value1");
+
         final Resource resource = resourceRepository.save(
             new Resource()
                 .setResourceId("r-1")
                 .setLabels(resourceLabels)
+                .setMetadata(originalMetadata)
                 .setTenantId("t-1")
                 .setPresenceMonitoringEnabled(false)
                 .setAssociatedWithEnvoy(true)
@@ -502,6 +512,7 @@ public class ResourceManagementTest {
 
         assertThat(actualResource.isPresent(), equalTo(true));
         assertThat(actualResource.get().getLabels(), equalTo(expectedResourceLabels));
+        assertThat(actualResource.get().getMetadata(), equalTo(originalMetadata));
 
         // ONLY sends ReattachedEnvoyResourceEvent and NOT a resource change event
 
@@ -1197,8 +1208,8 @@ public class ResourceManagementTest {
     }
 
     @Test
-    public void testGetTenantResourceMetadataKeys_whenNull() {
-        persistResource("t-1", "r-1", Collections.emptyMap(), null);
+    public void testGetTenantResourceMetadataKeys_whenEmpty() {
+        persistResource("t-1", "r-1", Collections.emptyMap(), Collections.emptyMap());
 
         entityManager.flush();
 
