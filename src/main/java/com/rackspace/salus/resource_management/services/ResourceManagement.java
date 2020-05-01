@@ -35,6 +35,7 @@ import com.rackspace.salus.telemetry.model.ResourceInfo;
 import com.rackspace.salus.telemetry.repositories.ResourceRepository;
 import java.io.IOException;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -213,7 +214,8 @@ public class ResourceManagement {
         .setTenantId(tenantId)
         .setResourceId(newResource.getResourceId())
         .setLabels(newResource.getLabels())
-        .setMetadata(newResource.getMetadata())
+        .setMetadata(newResource.getMetadata() != null ?
+            newResource.getMetadata() : Collections.emptyMap())
         .setPresenceMonitoringEnabled(newResource.getPresenceMonitoringEnabled());
 
     resource = saveAndPublishResource(resource, true, null);
@@ -317,6 +319,7 @@ public class ResourceManagement {
           .setTenantId(tenantId)
           .setResourceId(resourceId)
           .setLabels(labels)
+          .setMetadata(Collections.emptyMap())
           .setPresenceMonitoringEnabled(true)
           .setAssociatedWithEnvoy(true);
       saveAndPublishResource(newResource, true, null);
