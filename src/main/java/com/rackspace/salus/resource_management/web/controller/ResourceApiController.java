@@ -188,8 +188,8 @@ public class ResourceApiController {
     return resourceManagement.getLabelNamespaces();
   }
 
-  @GetMapping("/tenant/{tenantId}/resource-search/{searchCriteria}")
-  @ApiOperation("Lists the label namespaces that are reserved for use by the system")
+  @GetMapping("/tenant/{tenantId}/search/{searchCriteria}")
+  @ApiOperation("Find all resources that match the searchCriteria in the ResourceId")
   public PagedContent<Resource> getResourcesSearch(@PathVariable String tenantId, @PathVariable String searchCriteria, Pageable page) {
     return PagedContent.fromPage(resourceManagement.resourceSearch(tenantId, searchCriteria, page));
   }
