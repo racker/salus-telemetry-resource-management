@@ -12,6 +12,7 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
+ *
  */
 
 package com.rackspace.salus.resource_management.services;
@@ -511,5 +512,9 @@ public class ResourceManagement {
 
   public Collection<String> getLabelNamespaces() {
     return LabelNamespaces.getNamespaces();
+  }
+
+  public Page<Resource> resourceSearch(String tenantId, String searchCriteria, Pageable page) {
+    return resourceRepository.findByTenantIdAndResourceIdContaining(tenantId, searchCriteria, page);
   }
 }

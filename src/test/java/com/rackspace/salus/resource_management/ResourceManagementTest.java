@@ -12,6 +12,7 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
+ *
  */
 
 package com.rackspace.salus.resource_management;
@@ -1217,6 +1218,20 @@ public class ResourceManagementTest {
             .getTenantResourceMetadataKeys("t-1");
 
         assertThat(results, hasSize(0));
+    }
+
+    @Test
+    public void testSearchResource() {
+      persistResource("t-1", "ping", Collections.emptyMap(), Collections.emptyMap());
+      persistResource("t-1", "CPU", Collections.emptyMap(), Collections.emptyMap());
+      persistResource("t-1", "databasingEverything", Collections.emptyMap(), Collections.emptyMap());
+      persistResource("t-2", "ping", Collections.emptyMap(), Collections.emptyMap());
+
+      Pageable page = PageRequest.of(0, 1);
+      Page<Resource> resources = resourceManagement.resourceSearch("t-1", "in", page);
+      assertThat(resources.getTotalElements(), equalTo(2L));
+      assertThat(resources.getTotalPages(), equalTo(2));
+      assertThat(resources.getNumberOfElements(), equalTo(1));
     }
 
     private void persistResource(String tenantId, String resourceId, Map<String, String> labels,
