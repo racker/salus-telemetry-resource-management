@@ -188,9 +188,9 @@ public class ResourceApiController {
     return resourceManagement.getLabelNamespaces();
   }
 
-  @GetMapping("/tenant/{tenantId}/search/{searchCriteria}")
+  @GetMapping("/tenant/{tenantId}/search/")
   @ApiOperation("Find all resources that match the searchCriteria in the ResourceId")
-  public PagedContent<Resource> getResourcesSearch(@PathVariable String tenantId, @PathVariable String searchCriteria, Pageable page) {
-    return PagedContent.fromPage(resourceManagement.resourceSearch(tenantId, searchCriteria, page));
+  public PagedContent<Resource> getResourcesBySearchString(@PathVariable String tenantId, @RequestParam("q") String searchCriteria, Pageable page) {
+    return PagedContent.fromPage(resourceManagement.getResourcesBySearchString(tenantId, searchCriteria, page));
   }
 }

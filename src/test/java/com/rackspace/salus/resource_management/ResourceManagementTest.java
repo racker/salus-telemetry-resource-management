@@ -1227,11 +1227,15 @@ public class ResourceManagementTest {
       persistResource("t-1", "databasingEverything", Collections.emptyMap(), Collections.emptyMap());
       persistResource("t-2", "ping", Collections.emptyMap(), Collections.emptyMap());
 
+      Optional<Resource> resource = resourceManagement.getResource("t-1", "ping");
+
       Pageable page = PageRequest.of(0, 1);
-      Page<Resource> resources = resourceManagement.resourceSearch("t-1", "in", page);
+      Page<Resource> resources = resourceManagement.getResourcesBySearchString("t-1", "in", page);
+      //Need to make sure we test the paging query so make sure the total number of elements is what we expect to find.
       assertThat(resources.getTotalElements(), equalTo(2L));
       assertThat(resources.getTotalPages(), equalTo(2));
       assertThat(resources.getNumberOfElements(), equalTo(1));
+      assertThat(resources.get().findFirst().get().getResourceId(), equalTo(resource.get().getResourceId()));
     }
 
     private void persistResource(String tenantId, String resourceId, Map<String, String> labels,
