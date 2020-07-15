@@ -83,6 +83,7 @@ import org.springframework.context.annotation.Import;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.test.context.junit4.SpringRunner;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
@@ -1229,7 +1230,7 @@ public class ResourceManagementTest {
 
       Optional<Resource> resource = resourceManagement.getResource("t-1", "ping");
 
-      Pageable page = PageRequest.of(0, 1);
+      Pageable page = PageRequest.of(0, 1, Sort.by("resourceId").descending());
       Page<Resource> resources = resourceManagement.getResourcesBySearchString("t-1", "in", page);
       //Need to make sure we test the paging query so make sure the total number of elements is what we expect to find.
       assertThat(resources.getTotalElements(), equalTo(2L));
