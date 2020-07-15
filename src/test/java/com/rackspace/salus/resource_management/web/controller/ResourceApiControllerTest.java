@@ -730,8 +730,8 @@ public class ResourceApiControllerTest {
         .andExpect(status().isOk())
         .andExpect(content()
             .contentTypeCompatibleWith(MediaType.APPLICATION_JSON));
-
-    verify(resourceManagement).getResourcesBySearchString(any(), any(), any());
+    Pageable page = PageRequest.of(0, 20);
+    verify(resourceManagement).getResourcesBySearchString("t-1", "searchValue", page);
 
     verifyNoMoreInteractions(resourceManagement);
   }
