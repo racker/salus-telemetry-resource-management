@@ -715,9 +715,7 @@ public class ResourceApiControllerTest {
   @Test
   public void testSearchResources() throws Exception {
 
-    final List<ResourceDTO> expectedResources = IntStream.range(0, 4)
-        .mapToObj(value -> podamFactory.manufacturePojo(ResourceDTO.class))
-        .collect(Collectors.toList());
+    final List<ResourceDTO> expectedResources = podamFactory.manufacturePojo(ArrayList.class, ResourceDTO.class);
 
 
     when(resourceManagement.getResourcesBySearchString(any(), any(), any()))
