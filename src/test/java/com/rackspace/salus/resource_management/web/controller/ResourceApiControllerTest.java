@@ -711,4 +711,26 @@ public class ResourceApiControllerTest {
 
     verifyNoMoreInteractions(resourceManagement);
   }
+
+  @Test
+  public void testSearchResources() throws Exception {
+
+    final List<ResourceDTO> expectedResources = podamFactory.manufacturePojo(ArrayList.class, ResourceDTO.class);
+
+
+    when(resourceManagement.getResourcesBySearchString(any(), any(), any()))
+        .thenReturn(new PageImpl(expectedResources));
+
+    mockMvc.perform(get(
+        "/api/tenant/{tenantId}/search",
+        "t-1"
+    ).param("q", "searchValue").accept(MediaType.APPLICATION_JSON))
+        .andExpect(status().isOk())
+        .andExpect(content()
+            .contentTypeCompatibleWith(MediaType.APPLICATION_JSON));
+    Pageable page = PageRequest.of(0, 20);
+    verify(resourceManagement).getResourcesBySearchString("t-1", "searchValue", page);
+
+    verifyNoMoreInteractions(resourceManagement);
+  }
 }

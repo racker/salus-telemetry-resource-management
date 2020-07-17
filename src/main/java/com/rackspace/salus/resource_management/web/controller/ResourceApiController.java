@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 Rackspace US, Inc.
+ * Copyright 2020 Rackspace US, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -12,6 +12,7 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
+ *
  */
 
 package com.rackspace.salus.resource_management.web.controller;
@@ -185,5 +186,11 @@ public class ResourceApiController {
   @ApiOperation("Lists the label namespaces that are reserved for use by the system")
   public Collection<String> getLabelNamespaces(@PathVariable String tenantId) {
     return resourceManagement.getLabelNamespaces();
+  }
+
+  @GetMapping("/tenant/{tenantId}/search")
+  @ApiOperation("Find all resources that match the searchCriteria in the ResourceId")
+  public PagedContent<Resource> getResourcesBySearchString(@PathVariable String tenantId, @RequestParam("q") String searchCriteria, Pageable page) {
+    return PagedContent.fromPage(resourceManagement.getResourcesBySearchString(tenantId, searchCriteria, page));
   }
 }

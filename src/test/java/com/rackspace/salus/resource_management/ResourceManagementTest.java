@@ -12,6 +12,7 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
+ *
  */
 
 package com.rackspace.salus.resource_management;
@@ -82,6 +83,7 @@ import org.springframework.context.annotation.Import;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.test.context.junit4.SpringRunner;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
@@ -1217,6 +1219,24 @@ public class ResourceManagementTest {
             .getTenantResourceMetadataKeys("t-1");
 
         assertThat(results, hasSize(0));
+    }
+
+    @Test
+    public void testSearchResource() {
+      persistResource("t-1", "ping", Collections.emptyMap(), Collections.emptyMap());
+      persistResource("t-1", "CPU", Collections.emptyMap(), Collections.emptyMap());
+      persistResource("t-1", "databasingEverything", Collections.emptyMap(), Collections.emptyMap());
+      persistResource("t-2", "ping", Collections.emptyMap(), Collections.emptyMap());
+
+      Optional<Resource> resource = resourceManagement.getResource("t-1", "ping");
+
+      Pageable page = PageRequest.of(0, 1, Sort.by("resourceId").descending());
+      Page<Resource> resources = resourceManagement.getResourcesBySearchString("t-1", "in", page);
+      //Need to make sure we test the paging query so make sure the total number of elements is what we expect to find.
+      assertThat(resources.getTotalElements(), equalTo(2L));
+      assertThat(resources.getTotalPages(), equalTo(2));
+      assertThat(resources.getNumberOfElements(), equalTo(1));
+      assertThat(resources.get().findFirst().get().getResourceId(), equalTo(resource.get().getResourceId()));
     }
 
     private void persistResource(String tenantId, String resourceId, Map<String, String> labels,
