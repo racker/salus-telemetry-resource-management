@@ -1231,7 +1231,15 @@ public class ResourceManagementTest {
       Optional<Resource> resource = resourceManagement.getResource("t-1", "ping");
 
       Pageable page = PageRequest.of(0, 1, Sort.by("resourceId").descending());
-      Page<Resource> resources = resourceManagement.getResourcesBySearchString("t-1", "in", page);
+      ResourceInfo info = new ResourceInfo()
+          .setEnvoyId("e-1")
+          .setTenantId("t-1")
+          .setResourceId("resourceIdDoesntMatter");
+
+      when(envoyResourceManagement.getOne(any(), any()))
+          .thenReturn(CompletableFuture.completedFuture(info));
+
+      Page<ResourceDTO> resources = resourceManagement.getResourcesBySearchString("t-1", "in", page);
       //Need to make sure we test the paging query so make sure the total number of elements is what we expect to find.
       assertThat(resources.getTotalElements(), equalTo(2L));
       assertThat(resources.getTotalPages(), equalTo(2));
