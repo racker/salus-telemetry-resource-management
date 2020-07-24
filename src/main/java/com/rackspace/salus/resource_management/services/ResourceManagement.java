@@ -514,7 +514,8 @@ public class ResourceManagement {
     return LabelNamespaces.getNamespaces();
   }
 
-  public Page<Resource> getResourcesBySearchString(String tenantId, String searchCriteria, Pageable page) {
-    return resourceRepository.findByTenantIdAndResourceIdContaining(tenantId, searchCriteria, page);
+  public Page<ResourceDTO> getResourcesBySearchString(String tenantId, String searchCriteria, Pageable page) {
+    return resourceRepository.findByTenantIdAndResourceIdContaining(tenantId, searchCriteria, page)
+        .map(this::getResourceDTOFromResource);
   }
 }

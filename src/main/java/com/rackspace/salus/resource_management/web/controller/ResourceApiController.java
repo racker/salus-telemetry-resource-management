@@ -190,7 +190,7 @@ public class ResourceApiController {
 
   @GetMapping("/tenant/{tenantId}/search")
   @ApiOperation("Find all resources that match the searchCriteria in the ResourceId")
-  public PagedContent<Resource> getResourcesBySearchString(@PathVariable String tenantId, @RequestParam("q") String searchCriteria, Pageable page) {
+  public PagedContent<ResourceDTO> getResourcesBySearchString(@PathVariable String tenantId, @RequestParam("q") String searchCriteria, Pageable page) {
     return PagedContent.fromPage(resourceManagement.getResourcesBySearchString(tenantId, searchCriteria, page));
   }
 }
