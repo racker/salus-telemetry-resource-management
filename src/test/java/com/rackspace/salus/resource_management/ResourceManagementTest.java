@@ -1247,6 +1247,11 @@ public class ResourceManagementTest {
       assertThat(resources.get().findFirst().get().getResourceId(), equalTo(resource.get().getResourceId()));
     }
 
+    @Test
+    public void testRemoveAllTenantResources() {
+
+    }
+
     private void persistResource(String tenantId, String resourceId, Map<String, String> labels,
                                  Map<String, String> metadata) {
         entityManager.persist(

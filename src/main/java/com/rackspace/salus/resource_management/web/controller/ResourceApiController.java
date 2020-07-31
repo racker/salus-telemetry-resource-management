@@ -193,4 +193,10 @@ public class ResourceApiController {
   public PagedContent<ResourceDTO> getResourcesBySearchString(@PathVariable String tenantId, @RequestParam("q") String searchCriteria, Pageable page) {
     return PagedContent.fromPage(resourceManagement.getResourcesBySearchString(tenantId, searchCriteria, page));
   }
+
+  @DeleteMapping("/tenant/{tenantId}/")
+  @ApiOperation("Remove all resources associated with provided tenant")
+  public void getResourcesBySearchString(@PathVariable String tenantId) {
+    resourceManagement.removeAllTenantResources(tenantId);
+  }
 }

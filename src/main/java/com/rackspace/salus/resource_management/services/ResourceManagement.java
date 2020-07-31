@@ -518,4 +518,8 @@ public class ResourceManagement {
     return resourceRepository.findByTenantIdAndResourceIdContaining(tenantId, searchCriteria, page)
         .map(this::getResourceDTOFromResource);
   }
+
+  public void removeAllTenantResources(String tenantId) {
+    resourceRepository.deleteAllByTenantId(tenantId);
+  }
 }
