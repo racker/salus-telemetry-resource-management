@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 Rackspace US, Inc.
+ * Copyright 2020 Rackspace US, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -75,7 +75,6 @@ import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.junit4.SpringRunner;
 import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import uk.co.jemos.podam.api.PodamFactory;
@@ -337,7 +336,7 @@ public class ResourceApiControllerTest {
   @Test
   public void testCreateResource() throws Exception {
     ResourceDTO resource = podamFactory.manufacturePojo(ResourceDTO.class);
-    String resourceId = "resource28-13:databaseNode";
+    String resourceId = "resource28-13:databaseNode.com";
     resource.setResourceId(resourceId);
     when(resourceManagement.createResource(anyString(), any()))
         .thenReturn(resource);
@@ -410,7 +409,7 @@ public class ResourceApiControllerTest {
         .characterEncoding(StandardCharsets.UTF_8.name()))
         .andExpect(status().isBadRequest())
         .andExpect(validationError(
-            "resourceId", "must match \"[A-Za-z0-9:-]+\""
+            "resourceId", "must match \"[A-Za-z0-9.:-]+\""
         ));
 
     verifyNoMoreInteractions(resourceManagement);
