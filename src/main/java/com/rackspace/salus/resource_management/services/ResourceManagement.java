@@ -520,6 +520,16 @@ public class ResourceManagement {
   }
 
   public void removeAllTenantResources(String tenantId) {
+    List<Resource> resources = resourceRepository.findAllByTenantId(tenantId);
+
     resourceRepository.deleteAllByTenantId(tenantId);
+
+    resources.forEach(resource ->
+        publishResourceEvent(
+            new ResourceEvent()
+                .setTenantId(tenantId)
+                .setResourceId(resource.getResourceId())
+                .setDeleted(true)
+        ));
   }
 }
