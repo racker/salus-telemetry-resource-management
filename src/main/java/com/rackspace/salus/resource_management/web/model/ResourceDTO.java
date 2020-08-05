@@ -2,8 +2,9 @@ package com.rackspace.salus.resource_management.web.model;
 
 import com.fasterxml.jackson.annotation.JsonView;
 import com.rackspace.salus.telemetry.entities.Resource;
-import com.rackspace.salus.telemetry.model.View;
+import com.rackspace.salus.common.web.View;
 import java.time.format.DateTimeFormatter;
+import java.util.Collections;
 import java.util.Map;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -13,18 +14,20 @@ import lombok.NoArgsConstructor;
 public class ResourceDTO {
   @JsonView(View.Admin.class)
   Long id;
-  //@JsonView(View.Public.class) // This will be changed to Internal or Admin when we switch to role based views.
-  // Disabling this until we have a way for our internal requests to bypass that view (this might need new endpoints)
+  @JsonView(View.Internal.class)
   String tenantId;
-  String resourceId;
-  Map<String,String> labels;
-  Map<String,String> metadata;
-  Boolean presenceMonitoringEnabled;
+  @JsonView(View.Admin.class)
+  String envoyId;
+  @JsonView(View.Internal.class)
   boolean associatedWithEnvoy;
+  String resourceId;
+  Map<String,String> labels = Collections.emptyMap();
+  Map<String,String> metadata = Collections.emptyMap();
+  Boolean presenceMonitoringEnabled;
   String createdTimestamp;
   String updatedTimestamp;
 
-  public ResourceDTO(Resource resource) {
+  public ResourceDTO(Resource resource, String envoyId) {
     this.id = resource.getId();
     this.tenantId = resource.getTenantId();
     this.resourceId = resource.getResourceId();
@@ -32,7 +35,8 @@ public class ResourceDTO {
     this.metadata = resource.getMetadata();
     this.presenceMonitoringEnabled = resource.getPresenceMonitoringEnabled();
     this.associatedWithEnvoy = resource.isAssociatedWithEnvoy();
-    this.createdTimestamp = DateTimeFormatter.ISO_INSTANT.format(resource.getCreatedTimestamp());
-    this.updatedTimestamp = DateTimeFormatter.ISO_INSTANT.format(resource.getUpdatedTimestamp());
+    this.envoyId = envoyId;
+    this.createdTimestamp = resource.getCreatedTimestamp() == null ? null : DateTimeFormatter.ISO_INSTANT.format(resource.getCreatedTimestamp());
+    this.updatedTimestamp = resource.getUpdatedTimestamp() == null ? null : DateTimeFormatter.ISO_INSTANT.format(resource.getUpdatedTimestamp());
   }
 }

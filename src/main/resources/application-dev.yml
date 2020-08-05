@@ -13,6 +13,21 @@ spring:
     url: jdbc:mysql://localhost:3306/default?verifyServerCertificate=false&useSSL=false&requireSSL=false
     driver-class-name: com.mysql.cj.jdbc.Driver
     platform: mysql
+  kafka:
+    listener:
+      # this will allow for us to start consumer of a particular topic before the producer
+      missing-topics-fatal: false
 logging:
   level:
     com.rackspace.salus: debug
+salus:
+  common:
+    roles:
+      role-to-view:
+        # An anonymous role is used for unauthenticated requests.
+        # i.e. internal service-to-service requests.
+        ROLE_ANONYMOUS: ADMIN
+        ROLE_CUSTOMER: PUBLIC
+        ROLE_EMPLOYEE: INTERNAL
+        ROLE_ENGINEER: ADMIN
+        ROLE_IDENTITY_USER_ADMIN: PUBLIC

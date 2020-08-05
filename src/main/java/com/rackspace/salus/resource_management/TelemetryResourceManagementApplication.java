@@ -16,9 +16,13 @@
 
 package com.rackspace.salus.resource_management;
 
+import com.rackspace.salus.common.config.AutoConfigureSalusAppMetrics;
 import com.rackspace.salus.common.messaging.EnableSalusKafkaMessaging;
 import com.rackspace.salus.common.util.DumpConfigProperties;
 import com.rackspace.salus.common.web.EnableExtendedErrorAttributes;
+import com.rackspace.salus.common.web.EnableRoleBasedJsonViews;
+import com.rackspace.salus.telemetry.etcd.EnableEtcd;
+import com.rackspace.salus.telemetry.web.EnableTenantVerification;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.autoconfigure.security.servlet.SecurityAutoConfiguration;
@@ -28,6 +32,10 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 @EnableScheduling
 @EnableSalusKafkaMessaging
 @EnableExtendedErrorAttributes
+@EnableRoleBasedJsonViews
+@EnableTenantVerification
+@AutoConfigureSalusAppMetrics
+@EnableEtcd
 public class TelemetryResourceManagementApplication {
 
   public static void main(String[] args) {

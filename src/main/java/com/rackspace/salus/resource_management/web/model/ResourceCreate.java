@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 Rackspace US, Inc.
+ * Copyright 2020 Rackspace US, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,14 +18,14 @@ package com.rackspace.salus.resource_management.web.model;
 
 import java.io.Serializable;
 import java.util.Map;
+import javax.validation.constraints.NotBlank;
 import javax.validation.constraints.NotNull;
+import javax.validation.constraints.Pattern;
 import lombok.Data;
-import org.hibernate.validator.constraints.NotBlank;
-
-//import javax.validation.constraints.NotBlank;
 
 @Data
 public class ResourceCreate implements Serializable {
+    @Pattern(regexp="[A-Za-z0-9.:-]+")
     @NotBlank
     String resourceId;
 

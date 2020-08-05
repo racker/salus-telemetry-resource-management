@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 Rackspace US, Inc.
+ * Copyright 2020 Rackspace US, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -12,12 +12,14 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
+ *
  */
 
 package com.rackspace.salus.resource_management;
 
 import static com.rackspace.salus.telemetry.model.LabelNamespaces.AGENT;
 import static com.rackspace.salus.telemetry.model.LabelNamespaces.applyNamespace;
+import static org.hamcrest.Matchers.anEmptyMap;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.greaterThan;
@@ -29,25 +31,30 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
+import static org.mockito.Mockito.when;
 
 import com.google.common.collect.Maps;
 import com.rackspace.salus.resource_management.config.DatabaseConfig;
 import com.rackspace.salus.resource_management.config.ResourceManagementProperties;
-import com.rackspace.salus.telemetry.model.LabelSelectorMethod;
-import com.rackspace.salus.telemetry.repositories.ResourceRepository;
 import com.rackspace.salus.resource_management.services.KafkaEgress;
 import com.rackspace.salus.resource_management.services.ResourceManagement;
 import com.rackspace.salus.resource_management.web.model.ResourceCreate;
+import com.rackspace.salus.resource_management.web.model.ResourceDTO;
 import com.rackspace.salus.resource_management.web.model.ResourceUpdate;
+import com.rackspace.salus.telemetry.entities.Resource;
+import com.rackspace.salus.telemetry.etcd.services.EnvoyResourceManagement;
 import com.rackspace.salus.telemetry.messaging.AttachEvent;
 import com.rackspace.salus.telemetry.messaging.ResourceEvent;
 import com.rackspace.salus.telemetry.model.LabelNamespaces;
+import com.rackspace.salus.telemetry.model.LabelSelectorMethod;
 import com.rackspace.salus.telemetry.model.NotFoundException;
-import com.rackspace.salus.telemetry.entities.Resource;
-import java.util.ArrayList;
+import com.rackspace.salus.telemetry.model.ResourceInfo;
+import com.rackspace.salus.telemetry.repositories.ResourceRepository;
+import com.rackspace.salus.test.EnableTestContainersDatabase;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
@@ -55,6 +62,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Random;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
@@ -74,6 +83,7 @@ import org.springframework.context.annotation.Import;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.test.context.junit4.SpringRunner;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
@@ -82,8 +92,9 @@ import uk.co.jemos.podam.api.PodamFactoryImpl;
 
 @SuppressWarnings("OptionalGetWithoutIsPresent")
 @RunWith(SpringRunner.class)
+@EnableTestContainersDatabase
 @DataJpaTest
-@Import({ResourceManagement.class, ResourceManagementProperties.class, DatabaseConfig.class})
+@Import({ResourceManagement.class, ResourceManagementProperties.class, DatabaseConfig.class, EnvoyResourceManagement.class})
 public class ResourceManagementTest {
 
     public static final String TENANT = "abcde";
@@ -97,6 +108,9 @@ public class ResourceManagementTest {
 
     @Autowired
     EntityManager entityManager;
+
+    @MockBean
+    EnvoyResourceManagement envoyResourceManagement;
 
     @MockBean
     KafkaEgress kafkaEgress;
@@ -126,6 +140,17 @@ public class ResourceManagementTest {
         for (int i=0; i<count; i++) {
             String tenantId = RandomStringUtils.randomAlphanumeric(10);
             ResourceCreate create = podamFactory.manufacturePojo(ResourceCreate.class);
+            String resourceId = RandomStringUtils.randomAlphanumeric(10);
+            create.setResourceId(resourceId);
+
+            ResourceInfo info = new ResourceInfo()
+                .setEnvoyId("e-1")
+                .setTenantId(tenantId)
+                .setResourceId(resourceId);
+
+            when(envoyResourceManagement.getOne(tenantId, resourceId))
+                .thenReturn(CompletableFuture.completedFuture(info));
+
             resourceManagement.createResource(tenantId, create);
         }
     }
@@ -133,6 +158,8 @@ public class ResourceManagementTest {
     private void createResourcesForTenant(int count, String tenantId) {
         for (int i=0; i<count; i++) {
             ResourceCreate create = podamFactory.manufacturePojo(ResourceCreate.class);
+            String resourceId = RandomStringUtils.randomAlphanumeric(10);
+            create.setResourceId(resourceId);
             resourceManagement.createResource(tenantId, create);
         }
     }
@@ -149,14 +176,26 @@ public class ResourceManagementTest {
     public void testCreateNewResource() {
         ResourceCreate create = podamFactory.manufacturePojo(ResourceCreate.class);
         String tenantId = RandomStringUtils.randomAlphanumeric(10);
+        String resourceId = RandomStringUtils.randomAlphanumeric(10);
+        create.setResourceId(resourceId);
 
-        Resource returned = resourceManagement.createResource(tenantId, create);
+        ResourceInfo info = new ResourceInfo()
+            .setEnvoyId("e-1")
+            .setTenantId(tenantId)
+            .setResourceId(resourceId);
+
+        when(envoyResourceManagement.getOne(any(), any()))
+            .thenReturn(CompletableFuture.completedFuture(info));
+
+        ResourceDTO returned = resourceManagement.createResource(tenantId, create);
 
         assertThat(returned.getId(), notNullValue());
         assertThat(returned.getResourceId(), equalTo(create.getResourceId()));
         assertThat(returned.getPresenceMonitoringEnabled(), notNullValue());
         assertThat(returned.getPresenceMonitoringEnabled(), equalTo(create.getPresenceMonitoringEnabled()));
         assertThat(returned.getLabels().size(), greaterThan(0));
+        assertThat(returned.getMetadata(), notNullValue());
+        assertThat(returned.getEnvoyId(), equalTo("e-1"));
         assertTrue(Maps.difference(create.getLabels(), returned.getLabels()).areEqual());
 
         Optional<Resource> retrieved = resourceManagement.getResource(tenantId, create.getResourceId());
@@ -171,9 +210,15 @@ public class ResourceManagementTest {
         Random random = new Random();
         int totalResources = random.nextInt(150 - 50) + 50;
         int pageSize = 10;
+        ResourceInfo info = new ResourceInfo()
+            .setEnvoyId("e-1")
+            .setTenantId(TENANT);
+
+        when(envoyResourceManagement.getOne(any(), any()))
+            .thenReturn(CompletableFuture.completedFuture(info));
 
         Pageable page = PageRequest.of(0, pageSize);
-        Page<Resource> result = resourceManagement.getAllResources(page);
+        Page<ResourceDTO> result = resourceManagement.getAllResourceDTOs(page);
 
         assertThat(result.getTotalElements(), equalTo(1L));
 
@@ -181,7 +226,7 @@ public class ResourceManagementTest {
         createResources(totalResources - 1);
 
         page = PageRequest.of(0, 10);
-        result = resourceManagement.getAllResources(page);
+        result = resourceManagement.getAllResourceDTOs(page);
 
         assertThat(result.getTotalElements(), equalTo((long) totalResources));
         assertThat(result.getTotalPages(), equalTo((totalResources + pageSize - 1) / pageSize));
@@ -194,15 +239,22 @@ public class ResourceManagementTest {
         int pageSize = 10;
         String tenantId = RandomStringUtils.randomAlphanumeric(10);
 
+        ResourceInfo info = new ResourceInfo()
+            .setEnvoyId("e-1")
+            .setTenantId(tenantId);
+
+        when(envoyResourceManagement.getOne(any(), any()))
+            .thenReturn(CompletableFuture.completedFuture(info));
+
         Pageable page = PageRequest.of(0, pageSize);
-        Page<Resource> result = resourceManagement.getAllResources(page);
+        Page<ResourceDTO> result = resourceManagement.getAllResourceDTOs(page);
 
         assertThat(result.getTotalElements(), equalTo(1L));
 
         createResourcesForTenant(totalResources , tenantId);
 
         page = PageRequest.of(0, 10);
-        result = resourceManagement.getResources(tenantId, page);
+        result = resourceManagement.getResourceDTOs(tenantId, page);
 
         assertThat(result.getTotalElements(), equalTo((long) totalResources));
         assertThat(result.getTotalPages(), equalTo((totalResources + pageSize - 1) / pageSize));
@@ -210,6 +262,15 @@ public class ResourceManagementTest {
 
     @Test
     public void testGetResourcesWithPresenceMonitoringAsStream() {
+
+        ResourceInfo info = new ResourceInfo()
+            .setEnvoyId("e-1")
+            .setTenantId("t-1")
+            .setResourceId("r-1");
+
+        CompletableFuture<ResourceInfo> envoyInformation = CompletableFuture.completedFuture(info);
+        when(envoyResourceManagement.getOne(any(), any()))
+            .thenReturn(envoyInformation);
         int totalResources = 100;
         createResources(totalResources);
         Stream s = resourceManagement.getResources(true);
@@ -220,6 +281,9 @@ public class ResourceManagementTest {
     @Test
     public void testNewEnvoyAttach() {
         AttachEvent attachEvent = podamFactory.manufacturePojo(AttachEvent.class);
+        String resourceId = RandomStringUtils.randomAlphanumeric(10);
+        //podam doesn't know that the resourceId on the attachEvent needs to be alphanumeric, :, or -
+        attachEvent.setResourceId(resourceId);
         resourceManagement.handleEnvoyAttach(attachEvent);
 
         final Optional<Resource> resource = resourceManagement.getResource(
@@ -236,6 +300,7 @@ public class ResourceManagementTest {
             assertThat(resource.get().getLabels().get(name), equalTo(value));
         });
         assertThat(resource.get().getResourceId(), equalTo(attachEvent.getResourceId()));
+        assertThat(resource.get().getMetadata(), anEmptyMap());
     }
 
     @Test
@@ -295,14 +360,14 @@ public class ResourceManagementTest {
     }
 
     @Test
-    public void testEnvoyAttach_existingResourceWithNoLabels() {
+    public void testEnvoyAttach_existingResourceWithNoLabels()
+        throws ExecutionException, InterruptedException {
         final Resource resource = resourceRepository.save(
             new Resource()
                 .setResourceId("r-1")
                 .setLabels(Collections.emptyMap())
                 .setTenantId("t-1")
                 .setPresenceMonitoringEnabled(false)
-                .setAssociatedWithEnvoy(false)
         );
         entityManager.flush();
 
@@ -310,7 +375,15 @@ public class ResourceManagementTest {
         envoyLabels.put(applyNamespace(AGENT, "discovered_hostname"), "h-1");
         envoyLabels.put(applyNamespace(AGENT, "discovered_os"), "linux");
         envoyLabels.put(applyNamespace(AGENT, "discovered_arch"), "amd64");
+        ResourceInfo info = new ResourceInfo()
+            .setEnvoyId("e-1")
+            .setTenantId("t-1")
+            .setResourceId("r-1")
+            .setLabels(envoyLabels);
 
+        CompletableFuture<ResourceInfo> envoyInformation = CompletableFuture.completedFuture(info);
+        when(envoyResourceManagement.getOne(any(), any()))
+          .thenReturn(envoyInformation);
         resourceManagement.handleEnvoyAttach(
             new AttachEvent()
             .setEnvoyAddress("localhost:1234")
@@ -345,10 +418,13 @@ public class ResourceManagementTest {
         resourceLabels.put(applyNamespace(AGENT, "notInNew"), "old-agent-value");
         resourceLabels.put("nonAgentLabel", "someValue");
 
+        final Map<String, String> originalMetadata = Map.of("key1", "value1");
+
         final Resource resource = resourceRepository.save(
             new Resource()
                 .setResourceId("r-1")
                 .setLabels(resourceLabels)
+                .setMetadata(originalMetadata)
                 .setTenantId("t-1")
                 .setPresenceMonitoringEnabled(false)
                 .setAssociatedWithEnvoy(true)
@@ -384,6 +460,7 @@ public class ResourceManagementTest {
 
         assertThat(actualResource.isPresent(), equalTo(true));
         assertThat(actualResource.get().getLabels(), equalTo(expectedResourceLabels));
+        assertThat(actualResource.get().getMetadata(), equalTo(originalMetadata));
 
         verify(kafkaEgress).sendResourceEvent(resourceEventArg.capture());
         assertThat(resourceEventArg.getValue(), equalTo(
@@ -403,10 +480,13 @@ public class ResourceManagementTest {
         resourceLabels.put(applyNamespace(AGENT, "discovered_hostname"), "h-1");
         resourceLabels.put("nonAgentLabel", "someValue");
 
+        final Map<String, String> originalMetadata = Map.of("key1", "value1");
+
         final Resource resource = resourceRepository.save(
             new Resource()
                 .setResourceId("r-1")
                 .setLabels(resourceLabels)
+                .setMetadata(originalMetadata)
                 .setTenantId("t-1")
                 .setPresenceMonitoringEnabled(false)
                 .setAssociatedWithEnvoy(true)
@@ -434,6 +514,7 @@ public class ResourceManagementTest {
 
         assertThat(actualResource.isPresent(), equalTo(true));
         assertThat(actualResource.get().getLabels(), equalTo(expectedResourceLabels));
+        assertThat(actualResource.get().getMetadata(), equalTo(originalMetadata));
 
         // ONLY sends ReattachedEnvoyResourceEvent and NOT a resource change event
 
@@ -452,17 +533,22 @@ public class ResourceManagementTest {
 
     @Test
     public void testUpdateExistingResource() {
-        Resource resource = resourceManagement.getAllResources(PageRequest.of(0, 1)).getContent().get(0);
+        ResourceInfo info = new ResourceInfo()
+            .setEnvoyId("e-1")
+            .setTenantId(TENANT)
+            .setResourceId(RESOURCE_ID);
+
+        when(envoyResourceManagement.getOne(any(), any()))
+          .thenReturn(CompletableFuture.completedFuture(info));
+        ResourceDTO resource = resourceManagement.getAllResourceDTOs(PageRequest.of(0, 1)).getContent().get(0);
         Map<String, String> newLabels = new HashMap<>(resource.getLabels());
         newLabels.put("newLabel", "newValue");
         boolean presenceMonitoring = !resource.getPresenceMonitoringEnabled();
-        ResourceUpdate update = new ResourceUpdate();
+        ResourceUpdate update = new ResourceUpdate()
+          .setLabels(newLabels)
+          .setPresenceMonitoringEnabled(presenceMonitoring);
 
-        // lombok chaining isn't working when I compile, so doing this way for now.
-        update.setLabels(newLabels);
-        update.setPresenceMonitoringEnabled(presenceMonitoring);
-
-        Resource newResource;
+        ResourceDTO newResource;
         try {
             newResource = resourceManagement.updateResource(
                     resource.getTenantId(),
@@ -473,6 +559,9 @@ public class ResourceManagementTest {
             return;
         }
 
+        resource = resourceManagement.getAllResourceDTOs(PageRequest.of(0, 1)).getContent().get(0);
+
+        assertThat(newResource.getEnvoyId(), equalTo("e-1"));
         assertThat(newResource.getLabels(), equalTo(resource.getLabels()));
         assertThat(newResource.getId(), equalTo(resource.getId()));
         assertThat(newResource.getPresenceMonitoringEnabled(), equalTo(presenceMonitoring));
@@ -505,7 +594,15 @@ public class ResourceManagementTest {
             .setMetadata(newMetadata)
             .setPresenceMonitoringEnabled(presenceMonitoring);
 
-        Resource newResource = resourceManagement.updateResource(
+        ResourceInfo info = new ResourceInfo()
+            .setEnvoyId("e-1")
+            .setTenantId("t-1")
+            .setResourceId("r-1");
+
+        CompletableFuture<ResourceInfo> envoyInformation = CompletableFuture.completedFuture(info);
+        when(envoyResourceManagement.getOne(any(), any()))
+            .thenReturn(envoyInformation);
+        ResourceDTO newResource = resourceManagement.updateResource(
             resource.getTenantId(),
             resource.getResourceId(),
             update
@@ -525,6 +622,17 @@ public class ResourceManagementTest {
     public void testRemoveResource() {
         ResourceCreate create = podamFactory.manufacturePojo(ResourceCreate.class);
         String tenantId = RandomStringUtils.randomAlphanumeric(10);
+        String resourceId = RandomStringUtils.randomAlphanumeric(10);
+        create.setResourceId(resourceId);
+
+        ResourceInfo info = new ResourceInfo()
+            .setEnvoyId("e-1")
+            .setTenantId(tenantId)
+            .setResourceId(resourceId);
+
+        when(envoyResourceManagement.getOne(any(), any()))
+            .thenReturn(CompletableFuture.completedFuture(info));
+
         resourceManagement.createResource(tenantId, create);
 
         Optional<Resource> created = resourceManagement.getResource(tenantId, create.getResourceId());
@@ -577,6 +685,17 @@ public class ResourceManagementTest {
         create.setLabels(labels);
         create.setMetadata(metadata);
         String tenantId = RandomStringUtils.randomAlphanumeric(10);
+        String resourceId = RandomStringUtils.randomAlphanumeric(10);
+        create.setResourceId(resourceId);
+
+        ResourceInfo info = new ResourceInfo()
+            .setEnvoyId("e-1")
+            .setTenantId(tenantId)
+            .setResourceId(resourceId);
+
+        when(envoyResourceManagement.getOne(any(), any()))
+            .thenReturn(CompletableFuture.completedFuture(info));
+
         resourceManagement.createResource(tenantId, create);
         entityManager.flush();
         Page<Resource> resources = resourceManagement.getResourcesFromLabels(labels, tenantId, LabelSelectorMethod.AND, Pageable.unpaged());
@@ -592,8 +711,19 @@ public class ResourceManagementTest {
 
         ResourceCreate create = podamFactory.manufacturePojo(ResourceCreate.class);
         create.setLabels(labels);
+        String resourceId = RandomStringUtils.randomAlphanumeric(10);
+        create.setResourceId(resourceId);
         String tenantId = RandomStringUtils.randomAlphanumeric(10);
         String tenantId2 = RandomStringUtils.randomAlphanumeric(10);
+
+        ResourceInfo info = new ResourceInfo()
+            .setEnvoyId("e-1")
+            .setTenantId(tenantId)
+            .setResourceId(resourceId);
+
+        when(envoyResourceManagement.getOne(any(), any()))
+            .thenReturn(CompletableFuture.completedFuture(info));
+
         resourceManagement.createResource(tenantId, create);
         resourceManagement.createResource(tenantId2, create);
 
@@ -612,6 +742,15 @@ public class ResourceManagementTest {
         create.setLabels(labels);
         String tenantId = RandomStringUtils.randomAlphanumeric(10);
         String tenantId2 = RandomStringUtils.randomAlphanumeric(10);
+        String resourceId = RandomStringUtils.randomAlphanumeric(10);
+        create.setResourceId(resourceId);
+        ResourceInfo info = new ResourceInfo()
+            .setEnvoyId("e-1")
+            .setTenantId(tenantId)
+            .setResourceId(resourceId);
+
+        when(envoyResourceManagement.getOne(any(), any()))
+            .thenReturn(CompletableFuture.completedFuture(info));
         resourceManagement.createResource(tenantId, create);
         resourceManagement.createResource(tenantId2, create);
 
@@ -629,7 +768,18 @@ public class ResourceManagementTest {
 
         ResourceCreate create = podamFactory.manufacturePojo(ResourceCreate.class);
         create.setLabels(labels);
+        String resourceId = RandomStringUtils.randomAlphanumeric(10);
+        create.setResourceId(resourceId);
         String tenantId = RandomStringUtils.randomAlphanumeric(10);
+
+        ResourceInfo info = new ResourceInfo()
+            .setEnvoyId("e-1")
+            .setTenantId(tenantId)
+            .setResourceId(resourceId);
+
+        when(envoyResourceManagement.getOne(any(), any()))
+            .thenReturn(CompletableFuture.completedFuture(info));
+
         resourceManagement.createResource(tenantId, create);
         entityManager.flush();
 
@@ -651,11 +801,90 @@ public class ResourceManagementTest {
 
         ResourceCreate create = podamFactory.manufacturePojo(ResourceCreate.class);
         create.setLabels(labels);
+        String resourceId = RandomStringUtils.randomAlphanumeric(10);
+        create.setResourceId(resourceId);
         String tenantId = RandomStringUtils.randomAlphanumeric(10);
+
+        ResourceInfo info = new ResourceInfo()
+            .setEnvoyId("e-1")
+            .setTenantId(tenantId)
+            .setResourceId(resourceId);
+
+        when(envoyResourceManagement.getOne(any(), any()))
+            .thenReturn(CompletableFuture.completedFuture(info));
+
         resourceManagement.createResource(tenantId, create);
         entityManager.flush();
 
         Page<Resource> resources = resourceManagement.getResourcesFromLabels(matchLabels, tenantId, LabelSelectorMethod.OR, Pageable.unpaged());
+        assertEquals(1L, resources.getTotalElements()); //make sure we only returned the one value
+        assertEquals(tenantId, resources.getContent().get(0).getTenantId());
+        assertEquals(create.getResourceId(), resources.getContent().get(0).getResourceId());
+        assertEquals(labels, resources.getContent().get(0).getLabels());
+    }
+
+    /**
+     * Make sure that when supplied with a emptyMap collection that we return resources with no labels
+     * as well as any resources for that tenant
+     */
+    @Test
+    public void testMatchResourcesWithEmptyLabels() {
+
+        ResourceCreate create = podamFactory.manufacturePojo(ResourceCreate.class);
+        create.setLabels(Collections.emptyMap());
+        String tenantId = RandomStringUtils.randomAlphanumeric(10);
+        String resourceId = RandomStringUtils.randomAlphanumeric(10);
+        create.setResourceId(resourceId);
+
+        ResourceInfo info = new ResourceInfo()
+            .setEnvoyId("e-1")
+            .setTenantId(tenantId)
+            .setResourceId(resourceId);
+
+        when(envoyResourceManagement.getOne(any(), any()))
+            .thenReturn(CompletableFuture.completedFuture(info));
+
+        resourceManagement.createResource(tenantId, create);
+
+
+
+        final Map<String, String> labels = new HashMap<>();
+        labels.put("os", "DARWIN");
+        labels.put("env", "test");
+
+        ResourceCreate create2 = podamFactory.manufacturePojo(ResourceCreate.class);
+        create2.setLabels(labels);
+        resourceId = RandomStringUtils.randomAlphanumeric(10);
+        create2.setResourceId(resourceId);
+        resourceManagement.createResource(tenantId, create2);
+
+
+        entityManager.flush();
+
+        Page<Resource> resources = resourceManagement.getResourcesFromLabels(Collections.emptyMap(), tenantId, LabelSelectorMethod.OR, Pageable.unpaged());
+        List<Map<String, String>> resourceLabels = resources.get().map(Resource::getLabels).collect(Collectors.toList());
+        List<String> resourceIds = resources.get().map(Resource::getResourceId).collect(Collectors.toList());
+
+        assertEquals(2L, resources.getTotalElements());
+        assertEquals(tenantId, resources.getContent().get(0).getTenantId());
+        assertThat(resourceLabels, containsInAnyOrder(create.getLabels(), create2.getLabels()));
+        assertThat(resourceIds, containsInAnyOrder(create.getResourceId(), create2.getResourceId()));
+    }
+
+    //This test is supposed to make sure that when matching resources we are still only returning the tenants requested
+    public void testMatchResourceWithNoLabelsAsOrRequestOnlyReturnsTenant() {
+        final Map<String, String> labels = new HashMap<>();
+        labels.put("os", "DARWIN");
+        labels.put("env", "test");
+
+        ResourceCreate create = podamFactory.manufacturePojo(ResourceCreate.class);
+        create.setLabels(Collections.emptyMap());
+        String tenantId = RandomStringUtils.randomAlphanumeric(10);
+        resourceManagement.createResource(tenantId, create);
+        resourceManagement.createResource(RandomStringUtils.randomAlphanumeric(10), create);
+        entityManager.flush();
+
+        Page<Resource> resources = resourceManagement.getResourcesFromLabels(Collections.emptyMap(), tenantId, LabelSelectorMethod.OR, Pageable.unpaged());
         assertEquals(1L, resources.getTotalElements()); //make sure we only returned the one value
         assertEquals(tenantId, resources.getContent().get(0).getTenantId());
         assertEquals(create.getResourceId(), resources.getContent().get(0).getResourceId());
@@ -674,7 +903,18 @@ public class ResourceManagementTest {
 
         ResourceCreate create = podamFactory.manufacturePojo(ResourceCreate.class);
         create.setLabels(resourceLabels);
+        String resourceId = RandomStringUtils.randomAlphanumeric(10);
+        create.setResourceId(resourceId);
         String tenantId = RandomStringUtils.randomAlphanumeric(10);
+
+        ResourceInfo info = new ResourceInfo()
+            .setEnvoyId("e-1")
+            .setTenantId(tenantId)
+            .setResourceId(resourceId);
+
+        when(envoyResourceManagement.getOne(any(), any()))
+            .thenReturn(CompletableFuture.completedFuture(info));
+
         resourceManagement.createResource(tenantId, create);
         entityManager.flush();
 
@@ -693,10 +933,23 @@ public class ResourceManagementTest {
         labels.put("env", "prod");
 
         ResourceCreate create = podamFactory.manufacturePojo(ResourceCreate.class);
+        String resourceId = RandomStringUtils.randomAlphanumeric(10);
+        create.setResourceId(resourceId);
         create.setLabels(resourceLabels);
         String tenantId = RandomStringUtils.randomAlphanumeric(10);
+
+        ResourceInfo info = new ResourceInfo()
+            .setEnvoyId("e-1")
+            .setTenantId(tenantId)
+            .setResourceId(resourceId);
+
+        when(envoyResourceManagement.getOne(any(), any()))
+            .thenReturn(CompletableFuture.completedFuture(info));
+
         resourceManagement.createResource(tenantId, create);
         entityManager.flush();
+
+
 
         Page<Resource> resources = resourceManagement.getResourcesFromLabels(labels, tenantId, LabelSelectorMethod.OR, Pageable.unpaged());
         assertEquals(0L, resources.getTotalElements());
@@ -714,7 +967,18 @@ public class ResourceManagementTest {
 
         ResourceCreate create = podamFactory.manufacturePojo(ResourceCreate.class);
         create.setLabels(resourceLabels);
+        String resourceId = RandomStringUtils.randomAlphanumeric(10);
+        create.setResourceId(resourceId);
         String tenantId = RandomStringUtils.randomAlphanumeric(10);
+
+        ResourceInfo info = new ResourceInfo()
+            .setEnvoyId("e-1")
+            .setTenantId(tenantId)
+            .setResourceId(resourceId);
+
+        when(envoyResourceManagement.getOne(any(), any()))
+            .thenReturn(CompletableFuture.completedFuture(info));
+
         resourceManagement.createResource(tenantId, create);
         entityManager.flush();
 
@@ -738,6 +1002,17 @@ public class ResourceManagementTest {
         ResourceCreate create = podamFactory.manufacturePojo(ResourceCreate.class);
         create.setLabels(resourceLabels);
         String tenantId = RandomStringUtils.randomAlphanumeric(10);
+        String resourceId = RandomStringUtils.randomAlphanumeric(10);
+        create.setResourceId(resourceId);
+
+        ResourceInfo info = new ResourceInfo()
+            .setEnvoyId("e-1")
+            .setTenantId(tenantId)
+            .setResourceId(resourceId);
+
+        when(envoyResourceManagement.getOne(any(), any()))
+            .thenReturn(CompletableFuture.completedFuture(info));
+
         resourceManagement.createResource(tenantId, create);
         entityManager.flush();
 
@@ -760,7 +1035,17 @@ public class ResourceManagementTest {
 
         ResourceCreate create = podamFactory.manufacturePojo(ResourceCreate.class);
         create.setLabels(resourceLabels);
+        String resourceId = RandomStringUtils.randomAlphanumeric(10);
+        create.setResourceId(resourceId);
         String tenantId = RandomStringUtils.randomAlphanumeric(10);
+        ResourceInfo info = new ResourceInfo()
+            .setEnvoyId("e-1")
+            .setTenantId(tenantId)
+            .setResourceId(resourceId);
+
+        when(envoyResourceManagement.getOne(any(), any()))
+            .thenReturn(CompletableFuture.completedFuture(info));
+
         resourceManagement.createResource(tenantId, create);
         entityManager.flush();
 
@@ -780,8 +1065,19 @@ public class ResourceManagementTest {
 
 
         ResourceCreate create = podamFactory.manufacturePojo(ResourceCreate.class);
+        String resourceId = RandomStringUtils.randomAlphanumeric(10);
+        create.setResourceId(resourceId);
         create.setLabels(resourceLabels);
         String tenantId = RandomStringUtils.randomAlphanumeric(10);
+
+        ResourceInfo info = new ResourceInfo()
+            .setEnvoyId("e-1")
+            .setTenantId(tenantId)
+            .setResourceId(resourceId);
+
+        when(envoyResourceManagement.getOne(any(), any()))
+            .thenReturn(CompletableFuture.completedFuture(info));
+
         resourceManagement.createResource(tenantId, create);
         entityManager.flush();
 
@@ -798,6 +1094,17 @@ public class ResourceManagementTest {
         ResourceCreate create = podamFactory.manufacturePojo(ResourceCreate.class);
         create.setLabels(resourceLabels);
         String tenantId = RandomStringUtils.randomAlphanumeric(10);
+        String resourceId = RandomStringUtils.randomAlphanumeric(10);
+        create.setResourceId(resourceId);
+
+        ResourceInfo info = new ResourceInfo()
+            .setEnvoyId("e-1")
+            .setTenantId(tenantId)
+            .setResourceId(resourceId);
+
+        when(envoyResourceManagement.getOne(any(), any()))
+            .thenReturn(CompletableFuture.completedFuture(info));
+
         resourceManagement.createResource(tenantId, create);
         entityManager.flush();
 
@@ -900,6 +1207,44 @@ public class ResourceManagementTest {
             .getTenantResourceMetadataKeys("t-1");
 
         assertThat(results, equalTo(Arrays.asList("key1", "key2", "key3")));
+    }
+
+    @Test
+    public void testGetTenantResourceMetadataKeys_whenEmpty() {
+        persistResource("t-1", "r-1", Collections.emptyMap(), Collections.emptyMap());
+
+        entityManager.flush();
+
+        final List<String> results = resourceManagement
+            .getTenantResourceMetadataKeys("t-1");
+
+        assertThat(results, hasSize(0));
+    }
+
+    @Test
+    public void testSearchResource() {
+      persistResource("t-1", "ping", Collections.emptyMap(), Collections.emptyMap());
+      persistResource("t-1", "CPU", Collections.emptyMap(), Collections.emptyMap());
+      persistResource("t-1", "databasingEverything", Collections.emptyMap(), Collections.emptyMap());
+      persistResource("t-2", "ping", Collections.emptyMap(), Collections.emptyMap());
+
+      Optional<Resource> resource = resourceManagement.getResource("t-1", "ping");
+
+      Pageable page = PageRequest.of(0, 1, Sort.by("resourceId").descending());
+      ResourceInfo info = new ResourceInfo()
+          .setEnvoyId("e-1")
+          .setTenantId("t-1")
+          .setResourceId("resourceIdDoesntMatter");
+
+      when(envoyResourceManagement.getOne(any(), any()))
+          .thenReturn(CompletableFuture.completedFuture(info));
+
+      Page<ResourceDTO> resources = resourceManagement.getResourcesBySearchString("t-1", "in", page);
+      //Need to make sure we test the paging query so make sure the total number of elements is what we expect to find.
+      assertThat(resources.getTotalElements(), equalTo(2L));
+      assertThat(resources.getTotalPages(), equalTo(2));
+      assertThat(resources.getNumberOfElements(), equalTo(1));
+      assertThat(resources.get().findFirst().get().getResourceId(), equalTo(resource.get().getResourceId()));
     }
 
     private void persistResource(String tenantId, String resourceId, Map<String, String> labels,

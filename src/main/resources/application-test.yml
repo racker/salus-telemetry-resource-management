@@ -1,0 +1,7 @@
+salus:
+  common:
+    roles:
+      role-to-view:
+        ROLE_CUSTOMER: PUBLIC
+        ROLE_EMPLOYEE: INTERNAL
+        ROLE_ENGINEER: ADMIN

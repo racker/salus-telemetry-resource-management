@@ -1,5 +1,6 @@
 salus:
   environment: local
+  etcd.url: http://localhost:2479
 spring:
   kafka:
     producer:
@@ -18,6 +19,8 @@ spring:
   jackson:
     mapper:
       default-view-inclusion: true
+  zipkin:
+    enabled: false
 logging:
   level:
     web: debug
