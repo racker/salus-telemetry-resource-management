@@ -15,6 +15,6 @@ public class ResourceManagementProperties {
   /**
    * Specifies the number of rows fetched per roundtrip when querying metadata keys.
    */
-  @Min(0)
+  @Min(1)
   int resourceMetadataFetchSize = 100;
 }
