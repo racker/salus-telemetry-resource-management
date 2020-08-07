@@ -196,7 +196,7 @@ public class ResourceApiController {
 
   @DeleteMapping("/admin/tenant/{tenantId}/resources")
   @ApiOperation("Remove all resources associated with provided tenant")
-  public void getResourcesBySearchString(@PathVariable String tenantId) {
-    resourceManagement.removeAllTenantResources(tenantId);
+  public void getResourcesBySearchString(@PathVariable String tenantId, @RequestParam(defaultValue = "true") boolean sendEvents) {
+    resourceManagement.removeAllTenantResources(tenantId, sendEvents);
   }
 }

@@ -519,17 +519,19 @@ public class ResourceManagement {
         .map(this::getResourceDTOFromResource);
   }
 
-  public void removeAllTenantResources(String tenantId) {
-    List<Resource> resources = resourceRepository.findAllByTenantId(tenantId);
+  public void removeAllTenantResources(String tenantId, boolean sendEvents) {
+
 
     resourceRepository.deleteAllByTenantId(tenantId);
 
-    resources.forEach(resource ->
-        publishResourceEvent(
-            new ResourceEvent()
-                .setTenantId(tenantId)
-                .setResourceId(resource.getResourceId())
-                .setDeleted(true)
-        ));
+    if(sendEvents) {
+      resourceRepository.findAllByTenantId(tenantId).forEach(resource ->
+          publishResourceEvent(
+              new ResourceEvent()
+                  .setTenantId(tenantId)
+                  .setResourceId(resource.getResourceId())
+                  .setDeleted(true)
+          ));
+    }
   }
 }
