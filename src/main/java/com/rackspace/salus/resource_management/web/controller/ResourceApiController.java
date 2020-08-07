@@ -194,7 +194,7 @@ public class ResourceApiController {
     return PagedContent.fromPage(resourceManagement.getResourcesBySearchString(tenantId, searchCriteria, page));
   }
 
-  @DeleteMapping("/admin/tenant/{tenantId}/")
+  @DeleteMapping("/admin/tenant/{tenantId}/resources")
   @ApiOperation("Remove all resources associated with provided tenant")
   public void getResourcesBySearchString(@PathVariable String tenantId) {
     resourceManagement.removeAllTenantResources(tenantId);
