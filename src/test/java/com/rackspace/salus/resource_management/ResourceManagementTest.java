@@ -1247,6 +1247,33 @@ public class ResourceManagementTest {
       assertThat(resources.get().findFirst().get().getResourceId(), equalTo(resource.get().getResourceId()));
     }
 
+    @Test
+    public void testRemoveAllTenantResources() {
+      persistResource("t-1", "ping", Collections.emptyMap(), Collections.emptyMap());
+      persistResource("t-1", "CPU", Collections.emptyMap(), Collections.emptyMap());
+      persistResource("t-1", "databasingEverything", Collections.emptyMap(), Collections.emptyMap());
+      persistResource("t-2", "ping", Collections.emptyMap(), Collections.emptyMap());
+
+      resourceManagement.removeAllTenantResources("t-1", true);
+
+      assertThat(resourceManagement.getResources("t-1", true, Pageable.unpaged()).getNumberOfElements(), equalTo(0));
+      assertThat(resourceManagement.getResources("t-2", true, Pageable.unpaged()).getNumberOfElements(), equalTo(1));
+      verify(kafkaEgress, times(3)).sendResourceEvent(any());
+    }
+
+    @Test
+    public void testRemoveAllTenantResources_noEvents() {
+        persistResource("t-1", "ping", Collections.emptyMap(), Collections.emptyMap());
+        persistResource("t-1", "CPU", Collections.emptyMap(), Collections.emptyMap());
+        persistResource("t-1", "databasingEverything", Collections.emptyMap(), Collections.emptyMap());
+        persistResource("t-2", "ping", Collections.emptyMap(), Collections.emptyMap());
+
+        resourceManagement.removeAllTenantResources("t-1", false);
+
+        assertThat(resourceManagement.getResources("t-1", true, Pageable.unpaged()).getNumberOfElements(), equalTo(0));
+        assertThat(resourceManagement.getResources("t-2", true, Pageable.unpaged()).getNumberOfElements(), equalTo(1));
+    }
+
     private void persistResource(String tenantId, String resourceId, Map<String, String> labels,
                                  Map<String, String> metadata) {
         entityManager.persist(
