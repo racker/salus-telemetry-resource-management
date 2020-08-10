@@ -521,11 +521,11 @@ public class ResourceManagement {
 
   public void removeAllTenantResources(String tenantId, boolean sendEvents) {
 
-
+    List<Resource> resources = resourceRepository.findAllByTenantId(tenantId);
     resourceRepository.deleteAllByTenantId(tenantId);
 
     if(sendEvents) {
-      resourceRepository.findAllByTenantId(tenantId).forEach(resource ->
+      resources.forEach(resource ->
           publishResourceEvent(
               new ResourceEvent()
                   .setTenantId(tenantId)
