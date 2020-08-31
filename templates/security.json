@@ -1,6 +1,0 @@
-{
-  "repose_auth": {
-    "name": "x-auth-token",
-    "in": "header"
-  }
-}
