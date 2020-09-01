@@ -13,6 +13,7 @@
   ~ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
   ~ See the License for the specific language governing permissions and
   ~ limitations under the License.
+  ~
   -->
 
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
@@ -197,7 +198,6 @@
                 <location>com.rackspace.salus.resource_management.web.model</location>
                 <location>com.rackspace.salus.resource_management.web.controller.ResourceApi</location>
               </locations>
-              <templatePath>${basedir}/templates/strapdown.html.hbs</templatePath>
               <schemes>
                 <scheme>https</scheme>
                 <scheme>http</scheme>
@@ -233,7 +233,6 @@
         <groupId>org.codehaus.mojo</groupId>
         <artifactId>exec-maven-plugin</artifactId>
         <version>1.2.1</version>
-
         <executions>
           <execution>
             <phase>test-compile</phase>
@@ -247,13 +246,38 @@
           <mainClass>com.rackspace.salus.salus_tools.converter.SwaggerJsonConverter</mainClass>
           <arguments>
             <argument>${project.build.directory}/generated/swagger</argument>
-            <argument>${basedir}/templates/strapdown.html.hbs</argument>
             <argument>/tenant/{tenantId}=</argument>
+            <argument>/admin=</argument>
           </arguments>
         </configuration>
       </plugin>
-
+      <plugin>
+        <groupId>io.swagger</groupId>
+        <artifactId>swagger-codegen-maven-plugin</artifactId>
+        <version>2.4.13</version>
+        <executions>
+          <execution>
+            <id>generate-html-admin</id>
+            <phase>package</phase>
+            <goals><goal>generate</goal></goals>
+            <configuration>
+              <inputSpec>${project.build.directory}/generated/swagger/convertedOutput.json</inputSpec>
+              <language>html</language>
+              <output>${project.build.directory}/generated/swagger/public</output>
+            </configuration>
+          </execution>
+          <execution>
+            <id>generate-html-public</id>
+            <phase>package</phase>
+            <goals><goal>generate</goal></goals>
+            <configuration>
+              <inputSpec>${project.build.directory}/generated/swagger/adminConvertedOutput.json</inputSpec>
+              <language>html</language>
+              <output>${project.build.directory}/generated/swagger/admin</output>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
     </plugins>
   </build>
-
 </project>
