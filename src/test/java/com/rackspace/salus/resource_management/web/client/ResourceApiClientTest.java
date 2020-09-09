@@ -76,30 +76,6 @@ public class ResourceApiClientTest {
   private static final String SSEHdr = "data:";
 
   @Test
-  public void getByResourceId() throws JsonProcessingException {
-
-    ResourceDTO expectedResource = podamFactory.manufacturePojo(ResourceDTO.class);
-    mockServer.expect(requestTo("/api/tenant/t-1/resources/r-1"))
-        .andRespond(withSuccess(
-            objectMapper.writeValueAsString(expectedResource), MediaType.APPLICATION_JSON
-        ));
-
-    final ResourceDTO resource = resourceApiClient.getByResourceId("t-1", "r-1");
-
-    assertThat(resource, equalTo(expectedResource));
-  }
-
-  @Test
-  public void testGetByResourceId_notFound() {
-    mockServer.expect(requestTo("/api/tenant/t-1/resources/r-not-here"))
-        .andRespond(withStatus(HttpStatus.NOT_FOUND));
-
-    final ResourceDTO resource = resourceApiClient.getByResourceId("t-1", "r-not-here");
-
-    assertThat(resource, nullValue());
-  }
-
-  @Test
   public void testGetResourcesWithLabels() throws JsonProcessingException {
     final List<ResourceDTO> expectedResources = IntStream.range(0, 4)
         .mapToObj(value -> podamFactory.manufacturePojo(ResourceDTO.class))

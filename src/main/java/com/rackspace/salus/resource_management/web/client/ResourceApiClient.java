@@ -89,24 +89,6 @@ public class ResourceApiClient implements ResourceApi {
   }
 
   @Override
-  public ResourceDTO getByResourceId(String tenantId, String resourceId) {
-    try {
-      return restTemplate.getForObject(
-          "/api/tenant/{tenantId}/resources/{resourceId}",
-          ResourceDTO.class,
-          tenantId, resourceId
-      );
-    } catch (HttpClientErrorException e) {
-      if (e.getStatusCode() == HttpStatus.NOT_FOUND) {
-        return null;
-      }
-      else {
-        throw new IllegalArgumentException(e);
-      }
-    }
-  }
-
-  @Override
   public List<ResourceDTO> getResourcesWithLabels(String tenantId, Map<String, String> labels,
                                                   LabelSelectorMethod labelSelector) {
     String endpoint = "/api/admin/resources-by-label/{tenantId}/{logicalOperator}";

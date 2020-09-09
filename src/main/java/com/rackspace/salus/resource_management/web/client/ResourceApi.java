@@ -31,9 +31,6 @@ import org.springframework.util.MultiValueMap;
  */
 public interface ResourceApi {
 
-  ResourceDTO getByResourceId(String tenantId,
-                           String resourceId);
-
   List<ResourceDTO> getResourcesWithLabels(String tenantId,
                                         Map<String, String> labels,
                                         LabelSelectorMethod labelSelector);
