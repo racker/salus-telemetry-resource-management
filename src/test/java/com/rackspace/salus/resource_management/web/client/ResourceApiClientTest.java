@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 Rackspace US, Inc.
+ * Copyright 2020 Rackspace US, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -89,27 +89,6 @@ public class ResourceApiClientTest {
     final List<ResourceDTO> resources = resourceApiClient
         .getResourcesWithLabels("t-1", Collections.singletonMap("env", "prod"), LabelSelectorMethod.AND);
 
-    assertThat(resources, equalTo(expectedResources));
-  }
-
-  @Test
-  public void testGetExpectedEnvoys() throws JsonProcessingException {
-    final List<ResourceDTO> expectedResources = IntStream.range(0, 4)
-            .mapToObj(value -> podamFactory.manufacturePojo(ResourceDTO.class))
-            .collect(Collectors.toList());
-
-    StringBuilder responseStream = new StringBuilder();
-    for (ResourceDTO r : expectedResources) {
-      String line = String.format("%s%s\n", SSEHdr, objectMapper.writeValueAsString(r));
-      responseStream.append(line);
-    }
-
-    mockServer.expect(requestTo("/api/envoys"))
-            .andRespond(withSuccess(responseStream.toString(), MediaType.TEXT_EVENT_STREAM));
-
-    final List<ResourceDTO> resources = resourceApiClient.getExpectedEnvoys();
-
-    assertThat(resources.size(), equalTo(expectedResources.size()));
     assertThat(resources, equalTo(expectedResources));
   }
 

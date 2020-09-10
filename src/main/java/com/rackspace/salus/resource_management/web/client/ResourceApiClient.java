@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 Rackspace US, Inc.
+ * Copyright 2020 Rackspace US, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -106,30 +106,6 @@ public class ResourceApiClient implements ResourceApi {
     );
 
     return Objects.requireNonNull(resp.getBody());
-  }
-
-  @Override
-  public List<ResourceDTO> getExpectedEnvoys() {
-    String endpoint = "/api/envoys";
-    List<ResourceDTO> resources = new ArrayList<>();
-
-    restTemplate.execute(endpoint, HttpMethod.GET, request -> {}, response -> {
-      BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(response.getBody()));
-      String line;
-      while ((line = bufferedReader.readLine()) != null) {
-        if (line.length() > SSEHdr.length())
-          try {
-            ResourceDTO resource;
-            // remove the "data:" hdr
-            resource = objectMapper.readValue(line.substring(SSEHdr.length()), ResourceDTO.class);
-            resources.add(resource);
-          } catch (IOException e) {
-            log.warn("Failed to parse Resource", e);
-          }
-      }
-      return response;
-    });
-    return resources;
   }
 
   @Override
