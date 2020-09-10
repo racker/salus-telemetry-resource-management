@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 Rackspace US, Inc.
+ * Copyright 2020 Rackspace US, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -31,14 +31,9 @@ import org.springframework.util.MultiValueMap;
  */
 public interface ResourceApi {
 
-  ResourceDTO getByResourceId(String tenantId,
-                           String resourceId);
-
   List<ResourceDTO> getResourcesWithLabels(String tenantId,
                                         Map<String, String> labels,
                                         LabelSelectorMethod labelSelector);
-
-  List<ResourceDTO> getExpectedEnvoys();
 
   List<String> getAllDistinctTenantIds();
 
