@@ -19,6 +19,7 @@ package com.rackspace.salus.resource_management.services;
 
 import static com.rackspace.salus.telemetry.model.LabelNamespaces.labelHasNamespace;
 
+import com.rackspace.salus.common.config.MetricNames;
 import com.rackspace.salus.common.util.SpringResourceUtils;
 import com.rackspace.salus.resource_management.config.ResourceManagementProperties;
 import com.rackspace.salus.resource_management.web.model.ResourceCreate;
@@ -34,6 +35,8 @@ import com.rackspace.salus.telemetry.model.LabelSelectorMethod;
 import com.rackspace.salus.telemetry.model.NotFoundException;
 import com.rackspace.salus.telemetry.model.ResourceInfo;
 import com.rackspace.salus.telemetry.repositories.ResourceRepository;
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.MeterRegistry;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.Collections;
@@ -75,13 +78,19 @@ public class ResourceManagement {
   private final ResourceManagementProperties resourceManagementProperties;
   private final EnvoyResourceManagement envoyResourceManagement;
 
+  MeterRegistry meterRegistry;
+
+  // metrics counters
+  private final Counter.Builder resourceManagementSuccess;
+
   @Autowired
   public ResourceManagement(ResourceRepository resourceRepository,
                             KafkaEgress kafkaEgress,
                             JdbcTemplate jdbcTemplate,
                             EntityManager entityManager,
                             ResourceManagementProperties resourceManagementProperties,
-                            EnvoyResourceManagement envoyResourceManagement) throws IOException {
+                            EnvoyResourceManagement envoyResourceManagement,
+                            MeterRegistry meterRegistry) throws IOException {
     this.resourceRepository = resourceRepository;
     this.kafkaEgress = kafkaEgress;
     this.jdbcTemplate = jdbcTemplate;
@@ -90,6 +99,10 @@ public class ResourceManagement {
     this.resourceManagementProperties = resourceManagementProperties;
     labelMatchQuery = SpringResourceUtils.readContent("sql-queries/resource_label_matching_query.sql");
     labelMatchOrQuery = SpringResourceUtils.readContent("sql-queries/resource_label_matching_OR_query.sql");
+
+    this.meterRegistry = meterRegistry;
+    resourceManagementSuccess = Counter.builder(MetricNames.SERVICE_OPERATION_SUCCEEDED).tag("service","ResourceManagement");
+
   }
 
   private void publishResourceEvent(ResourceEvent event) {
@@ -144,7 +157,9 @@ public class ResourceManagement {
         .orElseThrow(() -> new NotFoundException(
             String.format("No resource found for %s on tenant %s", resourceId, tenantId)));
 
-    return getResourceDTOFromResource(resource);
+    ResourceDTO resourceDTO = getResourceDTOFromResource(resource);
+    resourceManagementSuccess.tags("operation","get","objectType","resource").register(meterRegistry).increment();
+    return resourceDTO;
   }
 
   /**
@@ -221,7 +236,9 @@ public class ResourceManagement {
 
     resource = saveAndPublishResource(resource, true, null);
 
-    return getResourceDTOFromResource(resource);
+    ResourceDTO resourceDTO = getResourceDTOFromResource(resource);
+    resourceManagementSuccess.tags("operation","create","objectType","resource").register(meterRegistry).increment();
+    return  resourceDTO;
   }
 
   /**
@@ -260,17 +277,20 @@ public class ResourceManagement {
         .to(resource::setPresenceMonitoringEnabled);
     saveAndPublishResource(resource, true, null);
 
-    return getResourceDTOFromResource(resource);
+    ResourceDTO resourceDTO = getResourceDTOFromResource(resource);
+    resourceManagementSuccess.tags("operation","update","objectType","resource").register(meterRegistry).increment();
+    return resourceDTO;
   }
 
   private void checkLabels(Map<String,String> labels) {
     for (Entry<String, String> labelEntry : labels.entrySet()) {
       final String labelName = labelEntry.getKey();
       if (!LabelNamespaces.validateUserLabel(labelName)) {
-        throw new IllegalArgumentException(String
+        IllegalArgumentException exception = new IllegalArgumentException(String
             .format("The given label '%s' conflicts with a system namespace",
                 labelName
             ));
+        throw exception;
       }
     }
   }
@@ -292,6 +312,7 @@ public class ResourceManagement {
             .setResourceId(resourceId)
             .setDeleted(true)
     );
+    resourceManagementSuccess.tags("operation","remove","objectType","resource").register(meterRegistry).increment();
   }
 
   /**
@@ -533,5 +554,6 @@ public class ResourceManagement {
                   .setDeleted(true)
           ));
     }
+    resourceManagementSuccess.tags("operation","removeAll","objectType","tenantResources").register(meterRegistry).increment();
   }
 }
