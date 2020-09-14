@@ -20,6 +20,8 @@ package com.rackspace.salus.resource_management.services;
 import static com.rackspace.salus.telemetry.model.LabelNamespaces.labelHasNamespace;
 
 import com.rackspace.salus.common.config.MetricNames;
+import com.rackspace.salus.common.config.MetricTagValues;
+import com.rackspace.salus.common.config.MetricTags;
 import com.rackspace.salus.common.util.SpringResourceUtils;
 import com.rackspace.salus.resource_management.config.ResourceManagementProperties;
 import com.rackspace.salus.resource_management.web.model.ResourceCreate;
@@ -101,7 +103,8 @@ public class ResourceManagement {
     labelMatchOrQuery = SpringResourceUtils.readContent("sql-queries/resource_label_matching_OR_query.sql");
 
     this.meterRegistry = meterRegistry;
-    resourceManagementSuccess = Counter.builder(MetricNames.SERVICE_OPERATION_SUCCEEDED).tag("service","ResourceManagement");
+    resourceManagementSuccess = Counter.builder(MetricNames.SERVICE_OPERATION_SUCCEEDED)
+        .tag(MetricTags.SERVICE_METRIC_TAG,"ResourceManagement");
 
   }
 
@@ -158,7 +161,9 @@ public class ResourceManagement {
             String.format("No resource found for %s on tenant %s", resourceId, tenantId)));
 
     ResourceDTO resourceDTO = getResourceDTOFromResource(resource);
-    resourceManagementSuccess.tags("operation","get","objectType","resource").register(meterRegistry).increment();
+    resourceManagementSuccess
+        .tags(MetricTags.OPERATION_METRIC_TAG,"get",MetricTags.OBJECT_TYPE_METRIC_TAG,"resource")
+        .register(meterRegistry).increment();
     return resourceDTO;
   }
 
@@ -237,7 +242,9 @@ public class ResourceManagement {
     resource = saveAndPublishResource(resource, true, null);
 
     ResourceDTO resourceDTO = getResourceDTOFromResource(resource);
-    resourceManagementSuccess.tags("operation","create","objectType","resource").register(meterRegistry).increment();
+    resourceManagementSuccess
+        .tags(MetricTags.OPERATION_METRIC_TAG, MetricTagValues.CREATE_OPERATION,MetricTags.OBJECT_TYPE_METRIC_TAG,"resource")
+        .register(meterRegistry).increment();
     return  resourceDTO;
   }
 
@@ -278,7 +285,9 @@ public class ResourceManagement {
     saveAndPublishResource(resource, true, null);
 
     ResourceDTO resourceDTO = getResourceDTOFromResource(resource);
-    resourceManagementSuccess.tags("operation","update","objectType","resource").register(meterRegistry).increment();
+    resourceManagementSuccess
+        .tags(MetricTags.OPERATION_METRIC_TAG,MetricTagValues.UPDATE_OPERATION,MetricTags.OBJECT_TYPE_METRIC_TAG,"resource")
+        .register(meterRegistry).increment();
     return resourceDTO;
   }
 
@@ -286,11 +295,10 @@ public class ResourceManagement {
     for (Entry<String, String> labelEntry : labels.entrySet()) {
       final String labelName = labelEntry.getKey();
       if (!LabelNamespaces.validateUserLabel(labelName)) {
-        IllegalArgumentException exception = new IllegalArgumentException(String
+        throw new IllegalArgumentException(String
             .format("The given label '%s' conflicts with a system namespace",
                 labelName
             ));
-        throw exception;
       }
     }
   }
@@ -302,8 +310,7 @@ public class ResourceManagement {
    */
   public void removeResource(String tenantId, String resourceId) {
     Resource resource = getResource(tenantId, resourceId).orElseThrow(() ->
-        new NotFoundException(
-            String.format("No resource found for %s on tenant %s", resourceId, tenantId)));
+        new NotFoundException(String.format("No resource found for %s on tenant %s", resourceId, tenantId)));
 
     resourceRepository.deleteById(resource.getId());
     publishResourceEvent(
@@ -312,7 +319,9 @@ public class ResourceManagement {
             .setResourceId(resourceId)
             .setDeleted(true)
     );
-    resourceManagementSuccess.tags("operation","remove","objectType","resource").register(meterRegistry).increment();
+    resourceManagementSuccess
+        .tags(MetricTags.OPERATION_METRIC_TAG,MetricTagValues.REMOVE_OPERATION,MetricTags.OBJECT_TYPE_METRIC_TAG,"resource")
+        .register(meterRegistry).increment();
   }
 
   /**
@@ -554,6 +563,8 @@ public class ResourceManagement {
                   .setDeleted(true)
           ));
     }
-    resourceManagementSuccess.tags("operation","removeAll","objectType","tenantResources").register(meterRegistry).increment();
+    resourceManagementSuccess
+        .tags(MetricTags.OPERATION_METRIC_TAG,"removeAll",MetricTags.OBJECT_TYPE_METRIC_TAG,"tenantResources")
+        .register(meterRegistry).increment();
   }
 }
