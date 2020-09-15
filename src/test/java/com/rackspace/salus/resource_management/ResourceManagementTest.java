@@ -55,6 +55,7 @@ import com.rackspace.salus.telemetry.model.NotFoundException;
 import com.rackspace.salus.telemetry.model.ResourceInfo;
 import com.rackspace.salus.telemetry.repositories.ResourceRepository;
 import com.rackspace.salus.test.EnableTestContainersDatabase;
+import io.micrometer.core.instrument.MeterRegistry;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
@@ -117,6 +118,9 @@ public class ResourceManagementTest {
 
     @Captor
     ArgumentCaptor<ResourceEvent> resourceEventArg;
+
+    @MockBean
+    MeterRegistry meterRegistry;
 
     PodamFactory podamFactory = new PodamFactoryImpl();
 

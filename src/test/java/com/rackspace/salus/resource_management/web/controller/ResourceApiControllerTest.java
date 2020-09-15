@@ -49,6 +49,7 @@ import com.rackspace.salus.telemetry.model.LabelSelectorMethod;
 import com.rackspace.salus.telemetry.model.NotFoundException;
 import com.rackspace.salus.telemetry.repositories.TenantMetadataRepository;
 import com.rackspace.salus.telemetry.web.TenantVerification;
+import io.micrometer.core.instrument.MeterRegistry;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -104,6 +105,9 @@ public class ResourceApiControllerTest {
 
   @Autowired
   ObjectMapper objectMapper;
+
+  @MockBean
+  MeterRegistry meterRegistry;
 
   @Test
   public void testTenantVerification_Success() throws Exception {
