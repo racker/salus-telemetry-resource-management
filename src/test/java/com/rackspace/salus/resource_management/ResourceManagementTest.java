@@ -55,6 +55,7 @@ import com.rackspace.salus.telemetry.model.NotFoundException;
 import com.rackspace.salus.telemetry.model.ResourceInfo;
 import com.rackspace.salus.telemetry.repositories.ResourceRepository;
 import com.rackspace.salus.test.EnableTestContainersDatabase;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
@@ -94,7 +95,8 @@ import uk.co.jemos.podam.api.PodamFactoryImpl;
 @RunWith(SpringRunner.class)
 @EnableTestContainersDatabase
 @DataJpaTest
-@Import({ResourceManagement.class, ResourceManagementProperties.class, DatabaseConfig.class, EnvoyResourceManagement.class})
+@Import({ResourceManagement.class, ResourceManagementProperties.class, DatabaseConfig.class, EnvoyResourceManagement.class,
+    SimpleMeterRegistry.class})
 public class ResourceManagementTest {
 
     public static final String TENANT = "abcde";

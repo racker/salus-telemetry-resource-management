@@ -19,6 +19,9 @@ package com.rackspace.salus.resource_management.services;
 
 import static com.rackspace.salus.telemetry.model.LabelNamespaces.labelHasNamespace;
 
+import com.rackspace.salus.common.config.MetricNames;
+import com.rackspace.salus.common.config.MetricTagValues;
+import com.rackspace.salus.common.config.MetricTags;
 import com.rackspace.salus.common.util.SpringResourceUtils;
 import com.rackspace.salus.resource_management.config.ResourceManagementProperties;
 import com.rackspace.salus.resource_management.web.model.ResourceCreate;
@@ -34,6 +37,8 @@ import com.rackspace.salus.telemetry.model.LabelSelectorMethod;
 import com.rackspace.salus.telemetry.model.NotFoundException;
 import com.rackspace.salus.telemetry.model.ResourceInfo;
 import com.rackspace.salus.telemetry.repositories.ResourceRepository;
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.MeterRegistry;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.Collections;
@@ -75,13 +80,19 @@ public class ResourceManagement {
   private final ResourceManagementProperties resourceManagementProperties;
   private final EnvoyResourceManagement envoyResourceManagement;
 
+  MeterRegistry meterRegistry;
+
+  // metrics counters
+  private final Counter.Builder resourceManagementSuccess;
+
   @Autowired
   public ResourceManagement(ResourceRepository resourceRepository,
                             KafkaEgress kafkaEgress,
                             JdbcTemplate jdbcTemplate,
                             EntityManager entityManager,
                             ResourceManagementProperties resourceManagementProperties,
-                            EnvoyResourceManagement envoyResourceManagement) throws IOException {
+                            EnvoyResourceManagement envoyResourceManagement,
+                            MeterRegistry meterRegistry) throws IOException {
     this.resourceRepository = resourceRepository;
     this.kafkaEgress = kafkaEgress;
     this.jdbcTemplate = jdbcTemplate;
@@ -90,6 +101,11 @@ public class ResourceManagement {
     this.resourceManagementProperties = resourceManagementProperties;
     labelMatchQuery = SpringResourceUtils.readContent("sql-queries/resource_label_matching_query.sql");
     labelMatchOrQuery = SpringResourceUtils.readContent("sql-queries/resource_label_matching_OR_query.sql");
+
+    this.meterRegistry = meterRegistry;
+    resourceManagementSuccess = Counter.builder(MetricNames.SERVICE_OPERATION_SUCCEEDED)
+        .tag(MetricTags.SERVICE_METRIC_TAG,"ResourceManagement");
+
   }
 
   private void publishResourceEvent(ResourceEvent event) {
@@ -144,7 +160,11 @@ public class ResourceManagement {
         .orElseThrow(() -> new NotFoundException(
             String.format("No resource found for %s on tenant %s", resourceId, tenantId)));
 
-    return getResourceDTOFromResource(resource);
+    ResourceDTO resourceDTO = getResourceDTOFromResource(resource);
+    resourceManagementSuccess
+        .tags(MetricTags.OPERATION_METRIC_TAG,"get",MetricTags.OBJECT_TYPE_METRIC_TAG,"resource")
+        .register(meterRegistry).increment();
+    return resourceDTO;
   }
 
   /**
@@ -221,7 +241,11 @@ public class ResourceManagement {
 
     resource = saveAndPublishResource(resource, true, null);
 
-    return getResourceDTOFromResource(resource);
+    ResourceDTO resourceDTO = getResourceDTOFromResource(resource);
+    resourceManagementSuccess
+        .tags(MetricTags.OPERATION_METRIC_TAG, MetricTagValues.CREATE_OPERATION,MetricTags.OBJECT_TYPE_METRIC_TAG,"resource")
+        .register(meterRegistry).increment();
+    return  resourceDTO;
   }
 
   /**
@@ -260,7 +284,11 @@ public class ResourceManagement {
         .to(resource::setPresenceMonitoringEnabled);
     saveAndPublishResource(resource, true, null);
 
-    return getResourceDTOFromResource(resource);
+    ResourceDTO resourceDTO = getResourceDTOFromResource(resource);
+    resourceManagementSuccess
+        .tags(MetricTags.OPERATION_METRIC_TAG,MetricTagValues.UPDATE_OPERATION,MetricTags.OBJECT_TYPE_METRIC_TAG,"resource")
+        .register(meterRegistry).increment();
+    return resourceDTO;
   }
 
   private void checkLabels(Map<String,String> labels) {
@@ -282,8 +310,7 @@ public class ResourceManagement {
    */
   public void removeResource(String tenantId, String resourceId) {
     Resource resource = getResource(tenantId, resourceId).orElseThrow(() ->
-        new NotFoundException(
-            String.format("No resource found for %s on tenant %s", resourceId, tenantId)));
+        new NotFoundException(String.format("No resource found for %s on tenant %s", resourceId, tenantId)));
 
     resourceRepository.deleteById(resource.getId());
     publishResourceEvent(
@@ -292,6 +319,9 @@ public class ResourceManagement {
             .setResourceId(resourceId)
             .setDeleted(true)
     );
+    resourceManagementSuccess
+        .tags(MetricTags.OPERATION_METRIC_TAG,MetricTagValues.REMOVE_OPERATION,MetricTags.OBJECT_TYPE_METRIC_TAG,"resource")
+        .register(meterRegistry).increment();
   }
 
   /**
@@ -533,5 +563,8 @@ public class ResourceManagement {
                   .setDeleted(true)
           ));
     }
+    resourceManagementSuccess
+        .tags(MetricTags.OPERATION_METRIC_TAG,"removeAll",MetricTags.OBJECT_TYPE_METRIC_TAG,"tenantResources")
+        .register(meterRegistry).increment();
   }
 }
