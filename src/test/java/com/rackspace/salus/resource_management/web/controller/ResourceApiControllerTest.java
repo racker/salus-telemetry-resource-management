@@ -49,7 +49,7 @@ import com.rackspace.salus.telemetry.model.LabelSelectorMethod;
 import com.rackspace.salus.telemetry.model.NotFoundException;
 import com.rackspace.salus.telemetry.repositories.TenantMetadataRepository;
 import com.rackspace.salus.telemetry.web.TenantVerification;
-import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -64,8 +64,6 @@ import org.apache.commons.lang3.RandomStringUtils;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.actuate.autoconfigure.metrics.CompositeMeterRegistryAutoConfiguration;
-import org.springframework.boot.actuate.autoconfigure.metrics.MetricsAutoConfiguration;
 import org.springframework.boot.autoconfigure.data.web.SpringDataWebProperties;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
@@ -87,7 +85,7 @@ import uk.co.jemos.podam.api.PodamFactoryImpl;
 @RunWith(SpringRunner.class)
 @WebMvcTest(controllers = ResourceApiController.class)
 @ActiveProfiles("test")
-@Import({MetricsAutoConfiguration.class, CompositeMeterRegistryAutoConfiguration.class})
+@Import({SimpleMeterRegistry.class})
 public class ResourceApiControllerTest {
 
   // A timestamp to be used in tests that translates to "1970-01-02T03:46:40Z"
