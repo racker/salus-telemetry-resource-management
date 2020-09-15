@@ -78,6 +78,8 @@ import org.junit.runner.RunWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Captor;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.actuate.autoconfigure.metrics.CompositeMeterRegistryAutoConfiguration;
+import org.springframework.boot.actuate.autoconfigure.metrics.MetricsAutoConfiguration;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.Import;
@@ -95,7 +97,8 @@ import uk.co.jemos.podam.api.PodamFactoryImpl;
 @RunWith(SpringRunner.class)
 @EnableTestContainersDatabase
 @DataJpaTest
-@Import({ResourceManagement.class, ResourceManagementProperties.class, DatabaseConfig.class, EnvoyResourceManagement.class})
+@Import({ResourceManagement.class, ResourceManagementProperties.class, DatabaseConfig.class, EnvoyResourceManagement.class,
+    MetricsAutoConfiguration.class, CompositeMeterRegistryAutoConfiguration.class})
 public class ResourceManagementTest {
 
     public static final String TENANT = "abcde";
@@ -118,9 +121,6 @@ public class ResourceManagementTest {
 
     @Captor
     ArgumentCaptor<ResourceEvent> resourceEventArg;
-
-    @MockBean
-    MeterRegistry meterRegistry;
 
     PodamFactory podamFactory = new PodamFactoryImpl();
 
