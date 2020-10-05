@@ -119,7 +119,7 @@ steps:
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
     args: ['gsutil', 'cp', 'target/generated/swagger/public/swagger.json', 'gs://salus_www/resource_management/public/']
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
-    args: ['gsutil', 'cp', 'target/generated/swagger/admin/swagger.json', 'gs://salus_www/resource_management/admin/'
+    args: ['gsutil', 'cp', 'target/generated/swagger/admin/swagger.json', 'gs://salus_www/resource_management/admin/']
 
 options:
     substitution_option: 'ALLOW_LOOSE'
