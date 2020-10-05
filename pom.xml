@@ -261,7 +261,7 @@
             <phase>package</phase>
             <goals><goal>generate</goal></goals>
             <configuration>
-              <inputSpec>${project.build.directory}/generated/swagger/convertedOutput.json</inputSpec>
+              <inputSpec>${project.build.directory}/generated/swagger/admin/swagger.json</inputSpec>
               <language>html</language>
               <output>${project.build.directory}/generated/swagger/public</output>
             </configuration>
@@ -271,7 +271,7 @@
             <phase>package</phase>
             <goals><goal>generate</goal></goals>
             <configuration>
-              <inputSpec>${project.build.directory}/generated/swagger/adminConvertedOutput.json</inputSpec>
+              <inputSpec>${project.build.directory}/generated/swagger/public/swagger.json</inputSpec>
               <language>html</language>
               <output>${project.build.directory}/generated/swagger/admin</output>
             </configuration>
