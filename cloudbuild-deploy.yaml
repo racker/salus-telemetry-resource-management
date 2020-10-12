@@ -105,7 +105,38 @@ steps:
   # Set _CLOUDSDK_COMPUTE_REGION in the build trigger for non-dev clusters
   - name: 'gcr.io/$PROJECT_ID/helm'
     id: DEPLOY_APPLICATION
-    args: ['upgrade', '--install', '${_SALUS_APP}', '--namespace', '${_APP_NAMESPACE}', '/workspace/helm-salus-${_SALUS_APP}']
+    args: ['upgrade', '--install', '--wait', '${_SALUS_APP}', '--namespace', '${_APP_NAMESPACE}', '/workspace/helm-salus-${_SALUS_APP}']
+    env:
+    - 'CLOUDSDK_COMPUTE_ZONE=${_CLOUDSDK_COMPUTE_ZONE}'
+    - 'CLOUDSDK_COMPUTE_REGION=${_CLOUDSDK_COMPUTE_REGION}'
+    - 'CLOUDSDK_CONTAINER_CLUSTER=${_CLOUDSDK_CONTAINER_CLUSTER}'
+    - 'TILLERLESS=true'
+
+  - name: gcr.io/cloud-builders/git
+    id: E2E_SCRIPT_CLONE
+    waitFor:
+    - DEPLOY_APPLICATION
+    args: ['clone', 'https://source.developers.google.com/p/$PROJECT_ID/r/github_rackspace-segment-support_monplat-k8s-env', '/workspace/monplat-k8s-env/']
+
+  - name: gcr.io/cloud-builders/git
+    id: HELM_E2E_CLONE
+    waitFor:
+    - DEPLOY_APPLICATION
+    args: ['clone', 'https://source.developers.google.com/p/$PROJECT_ID/r/github_rackspace-segment-support_helm-salus-e2e', '/workspace/helm-salus-e2e/']
+
+  - name: 'gcr.io/$PROJECT_ID/helm'
+    id: RUN_E2E_TESTS
+    entrypoint: bash
+    args:
+    - -c
+    - |
+      gcloud container clusters get-credentials ${_CLOUDSDK_CONTAINER_CLUSTER}
+      export E2E_DEPLOYMENT="e2e-ci-$(head /dev/urandom | tr -dc a-z0-9 | head -c 13 ; echo '')"
+      helm upgrade --install $${E2E_DEPLOYMENT} --set service.type='LoadBalancer' --wait /workspace/helm-salus-e2e
+      /usr/bin/python3 /workspace/monplat-k8s-env/scripts/e2e-deploy.py ${_SALUS_APP} \
+          --namespace ${_APP_NAMESPACE} \
+          --endpoint "http://$(kubectl get svc $${E2E_DEPLOYMENT} -o jsonpath='{.status.loadBalancer.ingress[0].ip}')"
+      helm del $${E2E_DEPLOYMENT}
     env:
     - 'CLOUDSDK_COMPUTE_ZONE=${_CLOUDSDK_COMPUTE_ZONE}'
     - 'CLOUDSDK_COMPUTE_REGION=${_CLOUDSDK_COMPUTE_REGION}'
@@ -120,6 +151,8 @@ steps:
     args: ['gsutil', 'cp', 'target/generated/swagger/public/swagger.json', 'gs://salus_www/resource_management/public/']
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
     args: ['gsutil', 'cp', 'target/generated/swagger/admin/swagger.json', 'gs://salus_www/resource_management/admin/']
+
+timeout: 1800s
 
 options:
     substitution_option: 'ALLOW_LOOSE'
