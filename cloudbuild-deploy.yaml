@@ -105,7 +105,7 @@ steps:
   # Set _CLOUDSDK_COMPUTE_REGION in the build trigger for non-dev clusters
   - name: 'gcr.io/$PROJECT_ID/helm'
     id: DEPLOY_APPLICATION
-    args: ['upgrade', '--install', '${_SALUS_APP}', '--namespace', '${_APP_NAMESPACE}', '/workspace/helm-salus-${_SALUS_APP}']
+    args: ['upgrade', '--install', '--wait', '${_SALUS_APP}', '--namespace', '${_APP_NAMESPACE}', '/workspace/helm-salus-${_SALUS_APP}']
     env:
     - 'CLOUDSDK_COMPUTE_ZONE=${_CLOUDSDK_COMPUTE_ZONE}'
     - 'CLOUDSDK_COMPUTE_REGION=${_CLOUDSDK_COMPUTE_REGION}'
@@ -120,6 +120,32 @@ steps:
     args: ['gsutil', 'cp', 'target/generated/swagger/public/swagger.json', 'gs://salus_www/resource_management/public/']
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
     args: ['gsutil', 'cp', 'target/generated/swagger/admin/swagger.json', 'gs://salus_www/resource_management/admin/']
+
+  - name: gcr.io/cloud-builders/git
+    id: E2E_SCRIPT_CLONE
+    args: ['clone', 'https://source.developers.google.com/p/$PROJECT_ID/r/github_rackspace-segment-support_monplat-k8s-env', '/workspace/monplat-k8s-env/']
+
+  - name: gcr.io/cloud-builders/git
+    id: CURL_POD_CLONE
+    args: ['clone', 'https://source.developers.google.com/p/$PROJECT_ID/r/github_rackspace-segment-support_curl-pod', '/workspace/curl-pod/']
+
+  - name: 'gcr.io/$PROJECT_ID/helm'
+    id: RUN_E2E_TESTS
+    entrypoint: bash
+    args:
+    - -c
+    - |
+      gcloud container clusters get-credentials ${_CLOUDSDK_CONTAINER_CLUSTER}
+      kubectl apply -f /workspace/curl-pod/curl-pod.yaml
+      /usr/bin/python3 /workspace/monplat-k8s-env/scripts/e2e-deploy.py \
+          --endpoint "http://e2e"
+    env:
+    - 'CLOUDSDK_COMPUTE_ZONE=${_CLOUDSDK_COMPUTE_ZONE}'
+    - 'CLOUDSDK_COMPUTE_REGION=${_CLOUDSDK_COMPUTE_REGION}'
+    - 'CLOUDSDK_CONTAINER_CLUSTER=${_CLOUDSDK_CONTAINER_CLUSTER}'
+    - 'TILLERLESS=true'
+
+timeout: 1800s
 
 options:
     substitution_option: 'ALLOW_LOOSE'
