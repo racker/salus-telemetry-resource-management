@@ -33,6 +33,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.servlet.HandlerMapping;
 
 @ControllerAdvice(basePackages = "com.rackspace.salus.resource_management.web")
@@ -80,5 +81,15 @@ public class RestExceptionHandler extends AbstractRestExceptionHandler {
         } else {
             return respondWith(request, HttpStatus.SERVICE_UNAVAILABLE, ResponseMessages.jdbcExceptionMessage);
         }
+    }
+
+    @ExceptionHandler({MethodArgumentTypeMismatchException.class})
+    public ResponseEntity<?> handleMethodArgumentMismatchException(
+        HttpServletRequest request, Exception e) {
+        resourceManagementFailed
+            .tags(MetricTags.URI_METRIC_TAG,request.getAttribute(HandlerMapping.BEST_MATCHING_PATTERN_ATTRIBUTE).toString(),MetricTags.EXCEPTION_METRIC_TAG,e.getClass().getSimpleName())
+            .register(meterRegistry).increment();
+        logRequestFailure(request, e);
+        return respondWith(request, HttpStatus.BAD_REQUEST);
     }
 }
