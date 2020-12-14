@@ -33,8 +33,6 @@ import io.swagger.annotations.ApiResponses;
 import io.swagger.annotations.Authorization;
 import io.swagger.annotations.AuthorizationScope;
 import java.io.IOException;
-import java.io.UnsupportedEncodingException;
-import java.net.URLDecoder;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
@@ -111,9 +109,9 @@ public class ResourceApiController {
   @GetMapping("/tenant/{tenantId}/resources/{resourceId}")
   @ApiOperation(value = "Gets specific Resource for specific Tenant")
   public ResourceDTO getByResourceId(@PathVariable String tenantId,
-      @PathVariable String resourceId) throws NotFoundException, UnsupportedEncodingException {
-    return resourceManagement.getResourceDTO(tenantId,
-        URLDecoder.decode(resourceId, "UTF-8"));
+      @PathVariable String resourceId) throws NotFoundException {
+
+    return resourceManagement.getResourceDTO(tenantId, resourceId);
   }
 
   @GetMapping("/tenant/{tenantId}/resources")

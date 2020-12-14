@@ -24,7 +24,6 @@ import com.rackspace.salus.telemetry.errors.AlreadyExistsException;
 import com.rackspace.salus.telemetry.model.NotFoundException;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
-import java.io.UnsupportedEncodingException;
 import javax.servlet.http.HttpServletRequest;
 import org.hibernate.JDBCException;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -84,7 +83,7 @@ public class RestExceptionHandler extends AbstractRestExceptionHandler {
         }
     }
 
-    @ExceptionHandler({MethodArgumentTypeMismatchException.class, UnsupportedEncodingException.class})
+    @ExceptionHandler({MethodArgumentTypeMismatchException.class})
     public ResponseEntity<?> handleMethodArgumentMismatchException(
         HttpServletRequest request, Exception e) {
         resourceManagementFailed
