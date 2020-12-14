@@ -110,7 +110,6 @@ public class ResourceApiController {
   @ApiOperation(value = "Gets specific Resource for specific Tenant")
   public ResourceDTO getByResourceId(@PathVariable String tenantId,
       @PathVariable String resourceId) throws NotFoundException {
-
     return resourceManagement.getResourceDTO(tenantId, resourceId);
   }
 
